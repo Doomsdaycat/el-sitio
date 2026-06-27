@@ -3,8 +3,8 @@ replicaCount: 1
 image:
   repository: ghcr.io/doomsdaycat/el-sitio
   pullPolicy: IfNotPresent
-  # pinned tag, bumped automatically by ArgoCD Image Updater
-  tag: "0.1.0"
+  # defaults to Chart.yaml appVersion; set to override the deployed tag
+  tag: ""
 
 imagePullSecrets: []
 nameOverride: ""

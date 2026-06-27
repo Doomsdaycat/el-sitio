@@ -75,17 +75,13 @@ docker run --rm -p 8080:80 ghcr.io/doomsdaycat/el-sitio:latest
 Use [semantic versioning](https://semver.org/) for tags so the `major.minor`
 and full-version image tags stay meaningful.
 
-## Deploy (Helm)
+## Deploy (ArgoCD)
 
-A Helm chart lives in [`chart/`](chart). It deploys the frontend image with a
-`Deployment`, `Service`, and optional `Ingress`/HPA.
+Deployment is managed externally by ArgoCD, which syncs the Helm chart in
+[`chart/`](chart) to the cluster. To deploy a release, bump `appVersion` in
+[`chart/Chart.yaml`](chart/Chart.yaml) to the image tag you want and commit —
+ArgoCD rolls it out.
 
-```sh
-helm upgrade --install el-sitio ./chart \
-  --set image.tag=1.2.3
+```yaml
+appVersion: "1.2.3"
 ```
-
-The image tag is pinned via `image.tag` in
-[`chart/values.yaml`](chart/values.yaml) and bumped automatically by ArgoCD
-Image Updater on new releases. Override `image.tag` to deploy a specific
-version manually.
