@@ -1,0 +1,39 @@
+version: '3'
+
+vars:
+  VITE_OUT_DIR: dist
+  IMAGE: el-sitio-frontend
+  TAG: latest
+
+tasks:
+  install:
+    desc: Install frontend dependencies.
+    cmd: npm install
+
+  build:
+    desc: Build frontend.
+    env:
+      # defaults to development; the docker task overrides it to production
+      NODE_ENV: '{{.NODE_ENV | default "development"}}'
+    cmd: npm run build -- --outDir={{.VITE_OUT_DIR}}
+
+  dev:
+    desc: Run frontend in dev mode.
+    cmd: npm run dev
+
+  lint:
+    desc: Lint frontend.
+    cmd: npm run lint
+
+  preview:
+    desc: Preview frontend.
+    cmd: npm run preview
+
+  docker:
+    desc: Install, build (production) and package the frontend into a Docker image.
+    cmds:
+      - task: install
+      - task: build
+        vars:
+          NODE_ENV: production
+      - docker build -t {{.IMAGE}}:{{.TAG}} .

@@ -1,0 +1,38 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/doomsdaycat/el-sitio
+  pullPolicy: IfNotPresent
+  # pinned tag, bumped automatically by ArgoCD Image Updater
+  tag: "0.1.0"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: antoine.vanyda.cloud
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources: {}
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
