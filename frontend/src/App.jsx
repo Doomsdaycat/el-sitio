@@ -26,7 +26,7 @@ function App() {
           className="counter"
           onClick={() => setCount((count) => count + 1)}
         >
-          Je te maudis sur {count} générations, clique-moi si tu l'oses...
+          😈 Je te maudis sur {count} générations, clique-moi si tu l'oses... 😈
         </button>
       </section>
 
