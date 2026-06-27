@@ -5,6 +5,31 @@
 
 A React frontend (Vite) packaged as an nginx Docker image, plus a backend service.
 
+## Prerequisites
+
+Install the following tools (macOS via [Homebrew](https://brew.sh/)):
+
+| Tool          | Purpose                                            | Install                       |
+|---------------|----------------------------------------------------|-------------------------------|
+| [Task]        | Task runner (`Taskfile.yaml`).                     | `brew install go-task`        |
+| [Node.js]     | Frontend build/dev (provides `npm`).               | `brew install node`           |
+| [Docker]      | Build and run the frontend image.                  | `brew install --cask docker`  |
+| [actionlint]  | Lint GitHub Actions workflows (`task lint`).       | `brew install actionlint`     |
+| [Helm]        | Deploy the chart in [`chart/`](chart).             | `brew install helm`           |
+
+One-liner:
+
+```sh
+brew install go-task node actionlint helm
+brew install --cask docker
+```
+
+[Task]: https://taskfile.dev/
+[Node.js]: https://nodejs.org/
+[Docker]: https://www.docker.com/
+[actionlint]: https://github.com/rhysd/actionlint
+[Helm]: https://helm.sh/
+
 ## Tasks
 
 Run `task` to list everything. Common ones:
