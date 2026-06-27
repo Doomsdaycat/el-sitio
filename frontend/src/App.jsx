@@ -5,7 +5,7 @@ import heroImg from './assets/hero.png'
 import './App.css'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [count, setCount] = useState(2)
 
   return (
     <>
@@ -16,9 +16,9 @@ function App() {
           <img src={viteLogo} className="vite" alt="Vite logo" />
         </div>
         <div>
-          <h1>Get started</h1>
+          <h1>Bienvenido sur <em>El Sitio</em></h1>
           <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
+            C'est partido pour el <code>codo</code> !
           </p>
         </div>
         <button
@@ -26,7 +26,7 @@ function App() {
           className="counter"
           onClick={() => setCount((count) => count + 1)}
         >
-          Count is {count}
+          Je te maudis sur {count} générations, clique-moi si tu l'oses...
         </button>
       </section>
 
