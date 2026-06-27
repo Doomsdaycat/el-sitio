@@ -1,0 +1,48 @@
+version: '3'
+
+includes:
+  frontend:
+    taskfile: ./frontend/Taskfile.yaml
+    dir: ./frontend
+
+  backend:
+    taskfile: ./backend/Taskfile.yaml
+    dir: ./backend
+
+tasks:
+  default:
+    desc: List available tasks.
+    cmd: task --list
+    silent: true
+
+  install:
+    desc: Install all dependencies.
+    cmds:
+      - task: frontend:install
+
+  dev:
+    desc: Run the app in dev mode.
+    cmds:
+      - task: frontend:dev
+
+  build:
+    desc: Build the app.
+    cmds:
+      - task: frontend:build
+
+  docker:
+    desc: Build the production frontend Docker image.
+    cmds:
+      - task: frontend:docker
+
+  lint:
+    desc: Lint everything (frontend + GitHub Actions).
+    cmds:
+      - task: frontend:lint
+      - task: actionlint
+
+  actionlint:
+    desc: Lint GitHub Actions workflows.
+    cmd: actionlint
+    status:
+      - test ! -d .github/workflows

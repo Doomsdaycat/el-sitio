@@ -1,0 +1,11 @@
+{{ .Chart.Name }} has been deployed.
+
+Get the application URL:
+{{- if .Values.ingress.enabled }}
+{{- range $host := .Values.ingress.hosts }}
+  http://{{ $host.host }}
+{{- end }}
+{{- else }}
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "el-sitio.fullname" . }} 8080:{{ .Values.service.port }}
+  Then open http://127.0.0.1:8080
+{{- end }}
