@@ -16,6 +16,7 @@ export interface Participant {
   role: Role;
   jeton: string;
   nom: string | null;
+  etiquette: string | null;
 }
 
 /** Jeton d'invitation : 32 caractères aléatoires, impossibles à deviner. */
@@ -45,7 +46,7 @@ export function partieCourante(): Partie {
   return cree;
 }
 
-const COLONNES = "id, partie_id AS partieId, role, jeton, nom";
+const COLONNES = "id, partie_id AS partieId, role, jeton, nom, etiquette";
 
 export function participantParJeton(jeton: string): Participant | undefined {
   return base.prepare(`SELECT ${COLONNES} FROM participant WHERE jeton = ?`).get(jeton) as
@@ -64,4 +65,43 @@ export function noterVisite(participantId: number): void {
   base
     .prepare("UPDATE participant SET derniere_visite = ? WHERE id = ?")
     .run(maintenant(), participantId);
+}
+
+// ---------------------------------------------------------------------------
+// Invitations des joueurs (étape 1.3)
+
+export interface LigneInvitation {
+  id: number;
+  etiquette: string | null;
+  nom: string | null;
+  jeton: string;
+  dejaVenu: boolean;
+}
+
+export function listerInvitations(partieId: number): LigneInvitation[] {
+  const lignes = base
+    .prepare(
+      `SELECT id, etiquette, nom, jeton, derniere_visite IS NOT NULL AS dejaVenu
+       FROM participant WHERE partie_id = ? AND role = 'joueur' ORDER BY id`,
+    )
+    .all(partieId) as unknown as (Omit<LigneInvitation, "dejaVenu"> & { dejaVenu: number })[];
+  return lignes.map((l) => ({ ...l, dejaVenu: l.dejaVenu === 1 }));
+}
+
+export function creerInvitation(partieId: number, etiquette: string | null): number {
+  const { id } = base
+    .prepare(
+      `INSERT INTO participant (partie_id, role, jeton, etiquette, cree_le)
+       VALUES (?, 'joueur', ?, ?, ?) RETURNING id`,
+    )
+    .get(partieId, nouveauJeton(), etiquette, maintenant()) as { id: number };
+  return id;
+}
+
+/** Supprime une invitation de joueur. Renvoie false si elle n'existe pas. Le MJ ne peut pas être supprimé. */
+export function supprimerInvitation(partieId: number, id: number): boolean {
+  const resultat = base
+    .prepare("DELETE FROM participant WHERE id = ? AND partie_id = ? AND role = 'joueur'")
+    .run(id, partieId);
+  return resultat.changes > 0;
 }

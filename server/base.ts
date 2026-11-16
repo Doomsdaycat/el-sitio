@@ -31,6 +31,10 @@ const MIGRATIONS: string[] = [
     derniere_visite  TEXT
   );
   `,
+  // Étape 1.3 : étiquette privée du MJ pour savoir à qui il a envoyé chaque lien.
+  `
+  ALTER TABLE participant ADD COLUMN etiquette TEXT;
+  `,
 ];
 
 function migrer(): void {

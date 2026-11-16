@@ -1,8 +1,15 @@
 import { useEffect, useState } from "react";
 import { ERREUR_LIEN_INCONNU, type Identite } from "../../shared/messages.ts";
 import { jeton, oublierJeton, socket } from "./connexion.ts";
+import { Invitations } from "./Invitations.tsx";
 
-type EtatConnexion = "connexion" | "connecte" | "deconnecte" | "lien-inconnu" | "sans-lien";
+type EtatConnexion =
+  | "connexion"
+  | "connecte"
+  | "deconnecte"
+  | "lien-inconnu"
+  | "sans-lien"
+  | "exclu";
 
 const LIBELLES: Record<EtatConnexion, string> = {
   connexion: "connexion au serveur…",
@@ -10,6 +17,7 @@ const LIBELLES: Record<EtatConnexion, string> = {
   deconnecte: "serveur injoignable, nouvelle tentative…",
   "lien-inconnu": "ce lien n'est pas reconnu",
   "sans-lien": "aucun lien d'invitation",
+  exclu: "ce lien vient d'être supprimé par le meneur de jeu",
 };
 
 const ROLES = { mj: "meneur de jeu", joueur: "joueur" } as const;
@@ -23,7 +31,7 @@ export function App() {
 
   useEffect(() => {
     const surConnexion = () => setEtat("connecte");
-    const surDeconnexion = () => setEtat("deconnecte");
+    const surDeconnexion = () => setEtat((avant) => (avant === "exclu" ? avant : "deconnecte"));
     const surErreur = (erreur: Error) => {
       if (erreur.message === ERREUR_LIEN_INCONNU) {
         // Inutile de réessayer : le lien ne deviendra pas valide tout seul.
@@ -34,44 +42,59 @@ export function App() {
         setEtat("deconnecte");
       }
     };
+    const surExclu = () => {
+      socket.disconnect();
+      oublierJeton();
+      setIdentite(null);
+      setEtat("exclu");
+    };
 
     socket.on("connect", surConnexion);
     socket.on("disconnect", surDeconnexion);
     socket.on("connect_error", surErreur);
     socket.on("bienvenue", setIdentite);
+    socket.on("exclu", surExclu);
     return () => {
       socket.off("connect", surConnexion);
       socket.off("disconnect", surDeconnexion);
       socket.off("connect_error", surErreur);
       socket.off("bienvenue", setIdentite);
+      socket.off("exclu", surExclu);
     };
   }, []);
 
-  return (
-    <main className="accueil">
-      <h1>Brumeland VTT</h1>
-      <p className={`statut statut-${etat}`}>
-        <span className="pastille" aria-hidden="true" />
-        {LIBELLES[etat]}
-      </p>
+  const sansAcces = etat === "sans-lien" || etat === "lien-inconnu" || etat === "exclu";
 
-      {(etat === "sans-lien" || etat === "lien-inconnu") && (
+  return (
+    <main className="page">
+      <header className="entete">
+        <h1>Brumeland VTT</h1>
+        <p className={`statut statut-${etat}`}>
+          <span className="pastille" aria-hidden="true" />
+          {LIBELLES[etat]}
+        </p>
+      </header>
+
+      {sansAcces && (
         <p className="explication">
           Pour rejoindre une partie, ouvre le lien d'invitation que t'a envoyé le meneur de jeu.
         </p>
       )}
 
-      {identite && etat !== "lien-inconnu" && (
-        <section className="identite">
-          <p>
-            Partie : <strong>{identite.partie.nom}</strong>
-          </p>
-          <p>
-            Tu es connecté en tant que <strong>{ROLES[identite.moi.role]}</strong>
-            {identite.moi.nom && identite.moi.role !== "mj" && <> ({identite.moi.nom})</>}.
-          </p>
+      {identite && !sansAcces && (
+        <>
+          <section className="identite">
+            <p>
+              Partie : <strong>{identite.partie.nom}</strong> · tu es connecté en tant que{" "}
+              <strong>{ROLES[identite.moi.role]}</strong>
+              {identite.moi.nom && identite.moi.role !== "mj" && <> ({identite.moi.nom})</>}.
+            </p>
+          </section>
+
+          {identite.moi.role === "mj" && <Invitations />}
+
           <p className="version">version {identite.version}</p>
-        </section>
+        </>
       )}
     </main>
   );

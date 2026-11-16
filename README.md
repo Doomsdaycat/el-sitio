@@ -25,6 +25,12 @@ npm run dev
 Au démarrage, le terminal affiche le **lien MJ** : ouvre-le dans le navigateur Windows.
 Pour arrêter : `Ctrl + C` dans le terminal.
 
+## Inviter les joueurs
+
+Sur ton écran MJ, la section **Invitations des joueurs** permet de créer un lien par joueur
+(avec une note facultative, par exemple « Julien »), de le copier pour l'envoyer sur Discord,
+et de le supprimer. Un lien supprimé ne fonctionne plus : le joueur est déconnecté aussitôt.
+
 ## Retrouver le lien MJ
 
 ```bash

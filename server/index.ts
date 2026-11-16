@@ -3,29 +3,42 @@
 
 import { createServer } from "node:http";
 import express from "express";
-import { Server } from "socket.io";
+import { Server, type Socket } from "socket.io";
 import {
   ERREUR_LIEN_INCONNU,
+  ETIQUETTE_MAX,
   type AuthClient,
+  type Invitation,
   type MessagesClient,
   type MessagesServeur,
+  type Reponse,
 } from "../shared/messages.ts";
 import { CHEMIN_BASE } from "./base.ts";
 import { lienInvitation } from "./liens.ts";
 import {
+  creerInvitation,
   jetonMj,
+  listerInvitations,
   noterVisite,
   partieCourante,
   participantParJeton,
+  supprimerInvitation,
   type Participant,
 } from "./partie.ts";
 
 const PORT = Number(process.env.PORT ?? 3000);
 const VERSION = "0.1.0";
 
+/** Salle Socket.IO qui regroupe les navigateurs du MJ. */
+const SALLE_MJ = "mj";
+/** Salle Socket.IO propre à un participant (il peut avoir plusieurs onglets ouverts). */
+const salleParticipant = (id: number) => `participant:${id}`;
+
 interface DonneesSocket {
   participant: Participant;
 }
+
+type SocketBrumeland = Socket<MessagesClient, MessagesServeur, Record<string, never>, DonneesSocket>;
 
 const partie = partieCourante();
 
@@ -39,6 +52,23 @@ app.get("/api/sante", (_req, res) => {
   res.json({ ok: true, version: VERSION });
 });
 
+// ---------------------------------------------------------------------------
+// Diffusions
+
+function invitationsPourMj(): Invitation[] {
+  return listerInvitations(partie.id).map(({ jeton, ...reste }) => ({
+    ...reste,
+    lien: lienInvitation(jeton),
+  }));
+}
+
+function diffuserInvitations(): void {
+  io.to(SALLE_MJ).emit("invitations", invitationsPourMj());
+}
+
+// ---------------------------------------------------------------------------
+// Connexions
+
 // Chaque connexion doit présenter un jeton d'invitation valide.
 io.use((socket, suivant) => {
   const { jeton } = socket.handshake.auth as AuthClient;
@@ -51,24 +81,87 @@ io.use((socket, suivant) => {
   suivant();
 });
 
+/** Enveloppe une action réservée au MJ : refuse si l'appelant n'est pas MJ. */
+function reserveMj<D>(
+  socket: SocketBrumeland,
+  action: (demande: D) => Reponse | Promise<Reponse>,
+) {
+  return async (demande: D, reponse: (r: Reponse) => void) => {
+    if (typeof reponse !== "function") return;
+    if (socket.data.participant.role !== "mj") {
+      reponse({ ok: false, erreur: "Action réservée au meneur de jeu." });
+      return;
+    }
+    try {
+      reponse(await action(demande));
+    } catch (erreur) {
+      console.error(erreur);
+      reponse({ ok: false, erreur: "Erreur inattendue sur le serveur." });
+    }
+  };
+}
+
 io.on("connection", (socket) => {
   const { participant } = socket.data;
-  const qui = `${participant.nom ?? "(sans nom)"} [${participant.role}]`;
+  const qui = `${participant.nom ?? participant.etiquette ?? "(sans nom)"} [${participant.role}]`;
   console.log(`Connexion : ${qui}`);
   noterVisite(participant.id);
 
+  socket.join(salleParticipant(participant.id));
   socket.emit("bienvenue", {
     version: VERSION,
     partie: { nom: partie.nom },
-    moi: { role: participant.role, nom: participant.nom },
+    moi: { id: participant.id, role: participant.role, nom: participant.nom },
   });
 
-  socket.on("ping", (reponse) => reponse(new Date().toISOString()));
+  if (participant.role === "mj") {
+    socket.join(SALLE_MJ);
+    socket.emit("invitations", invitationsPourMj());
+  } else {
+    // Un joueur vient d'arriver : le MJ voit qu'il est « déjà venu ».
+    diffuserInvitations();
+  }
+
+  socket.on("ping", (reponse) => {
+    if (typeof reponse === "function") reponse(new Date().toISOString());
+  });
+
+  socket.on(
+    "mj:creerInvitation",
+    reserveMj(socket, (demande: { etiquette: string }) => {
+      const brute = typeof demande?.etiquette === "string" ? demande.etiquette.trim() : "";
+      if (brute.length > ETIQUETTE_MAX) {
+        return { ok: false, erreur: `Étiquette trop longue (${ETIQUETTE_MAX} caractères au plus).` };
+      }
+      creerInvitation(partie.id, brute === "" ? null : brute);
+      diffuserInvitations();
+      return { ok: true };
+    }),
+  );
+
+  socket.on(
+    "mj:supprimerInvitation",
+    reserveMj(socket, async (demande: { id: number }) => {
+      const id = Number(demande?.id);
+      if (!Number.isInteger(id) || !supprimerInvitation(partie.id, id)) {
+        return { ok: false, erreur: "Cette invitation n'existe plus." };
+      }
+      // Le joueur concerné est déconnecté tout de suite, sur tous ses onglets.
+      const salle = salleParticipant(id);
+      io.to(salle).emit("exclu");
+      io.in(salle).disconnectSockets(true);
+      diffuserInvitations();
+      return { ok: true };
+    }),
+  );
 
   socket.on("disconnect", (raison) => {
     console.log(`Déconnexion : ${qui} (${raison})`);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Démarrage
 
 serveurHttp.on("error", (erreur: NodeJS.ErrnoException) => {
   if (erreur.code === "EADDRINUSE") {

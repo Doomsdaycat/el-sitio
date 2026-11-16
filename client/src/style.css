@@ -1,11 +1,15 @@
 :root {
   --fond: #1d1b22;
+  --fond-carte: #27242e;
+  --bordure: #3a3644;
   --texte: #ece6d8;
   --discret: #9c94a8;
+  --accent: #c9a25b;
+  --accent-texte: #1d1b22;
   --ok: #6fbf73;
   --attente: #e0b04f;
   --erreur: #d9645a;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: system-ui, "Segoe UI", sans-serif;
   color: var(--texte);
   background: var(--fond);
 }
@@ -16,24 +20,39 @@ body {
   background: var(--fond);
 }
 
-.accueil {
-  max-width: 40rem;
+.page {
+  max-width: 52rem;
   margin: 0 auto;
-  padding: 4rem 1rem;
-  text-align: center;
+  padding: 2rem 1rem 4rem;
+}
+
+.entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  margin-bottom: 1.5rem;
 }
 
 h1 {
-  font-size: 2.5rem;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2rem;
   letter-spacing: 0.05em;
-  margin-bottom: 1rem;
+  margin: 0;
+}
+
+h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.3rem;
+  margin: 0 0 0.25rem;
 }
 
 .statut {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  font-family: system-ui, sans-serif;
+  margin: 0;
 }
 
 .pastille {
@@ -44,23 +63,131 @@ h1 {
 }
 
 .statut-connecte .pastille { background: var(--ok); }
-.statut-deconnecte .pastille { background: var(--erreur); }
+.statut-deconnecte .pastille,
+.statut-lien-inconnu .pastille,
+.statut-sans-lien .pastille,
+.statut-exclu .pastille { background: var(--erreur); }
 
+.discret,
+.explication,
 .version {
   color: var(--discret);
-  font-family: system-ui, sans-serif;
-  font-size: 0.85rem;
 }
 
-.statut-lien-inconnu .pastille,
-.statut-sans-lien .pastille { background: var(--erreur); }
-
-.explication {
-  color: var(--discret);
-  font-family: system-ui, sans-serif;
+.version {
+  font-size: 0.85rem;
+  margin-top: 2rem;
 }
 
 .identite {
-  margin-top: 2rem;
-  font-family: system-ui, sans-serif;
+  margin-bottom: 1.5rem;
+}
+
+.carte {
+  background: var(--fond-carte);
+  border: 1px solid var(--bordure);
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+
+input {
+  font: inherit;
+  color: var(--texte);
+  background: var(--fond);
+  border: 1px solid var(--bordure);
+  border-radius: 6px;
+  padding: 0.45rem 0.6rem;
+  min-width: 0;
+}
+
+input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  color: var(--accent-texte);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0.45rem 0.9rem;
+  white-space: nowrap;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+button.secondaire {
+  color: var(--texte);
+  background: transparent;
+  border-color: var(--bordure);
+}
+
+button.danger {
+  color: #fff;
+  background: var(--erreur);
+  border-color: var(--erreur);
+}
+
+.erreur {
+  color: var(--erreur);
+}
+
+.ajout {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.ajout input {
+  flex: 1;
+}
+
+.liste-invitations {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.invitation {
+  border-top: 1px solid var(--bordure);
+  padding-top: 0.75rem;
+}
+
+.invitation-entete {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.etiquette-etat {
+  margin-left: auto;
+  font-size: 0.8rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--bordure);
+  color: var(--discret);
+}
+
+.etiquette-etat.venu {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.invitation-lien {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.invitation-lien input {
+  flex: 1;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.85rem;
 }
