@@ -1,0 +1,29 @@
+# Dépendances et fichiers compilés
+node_modules/
+dist/
+
+# Données de la partie : jamais dans le dépôt
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Jetons, réglages locaux et configuration du tunnel
+.env
+.env.*
+.cloudflared/
+*.pem
+cloudflared*.yml
+cloudflared*.json
+
+# Images et musiques de la partie
+medias/
+
+# Règles de Dragonbane : texte du livre, reste uniquement sur le PC
+regles-dragonbane.md
+
+# Divers
+*.log
+.DS_Store
+Thumbs.db

@@ -1,0 +1,124 @@
+# Brumeland VTT — cadrage du projet
+
+Ce fichier donne à Claude Code le contexte du projet. Il résume le cadrage décidé avec Antoine le 16 novembre 2026. À tenir à jour quand une décision change.
+
+## Le projet en bref
+
+Brumeland VTT est une table de jeu virtuelle (VTT) maison, dans l'esprit d'Owlbear Rodeo ou de Foundry, pour jouer à **Dragonbane** en ligne entre amis.
+
+- **Usage** : personnel. Antoine est le meneur de jeu (MJ).
+- **Joueurs** : 2 à 5, tous à distance, sur PC uniquement (pas d'interface mobile à prévoir).
+- **Hébergement** : sur le PC d'Antoine (Windows avec WSL 2), le projet tourne dans WSL. Piste pour plus tard : un hébergement sur le serveur personnel d'un ami (adresse fixe, ou service toujours en ligne). Le projet doit donc rester facile à installer ailleurs (conteneur Docker prévu à la fin de l'étape 1).
+- **Voix et discussion** : sur Discord, hors de l'outil. Pas d'audio ni de vidéo intégrés.
+- **Échéance** : aucune date ferme, mais l'objectif est de tester vite, étape par étape.
+
+## Priorités, dans l'ordre
+
+1. **Simplicité d'accès pour les joueurs** : un joueur clique sur un lien et il est dans la partie. Aucun compte, aucune installation.
+2. **Connexion fiable** : reconnexion automatique, et un joueur qui revient retrouve l'état complet de la partie.
+3. **Simplicité pour le MJ** : lancer une session doit tenir en deux commandes au maximum.
+4. **Fidélité aux règles de Dragonbane**.
+
+## Travailler avec Antoine
+
+- Antoine est consultant BA/PO, pas développeur. Il débute avec le terminal et accepte d'y taper quelques commandes simples.
+- Donner les commandes prêtes à copier, une par une, en expliquant en une phrase ce que chacune fait.
+- Expliquer les choix en langage clair, sans jargon inutile. Proposer une recommandation plutôt qu'une liste d'options ouvertes.
+- Avancer par étapes courtes et testables : à la fin de chaque étape, dire à Antoine comment vérifier lui-même que ça marche.
+- Interface de l'outil, messages et documentation : **en français**.
+
+## Règles de Dragonbane
+
+**Vocabulaire** : utiliser celui de l'édition française, comme dans le résumé des règles. PS = points de santé, PV = points de volonté, faveur / fléau, forcer la chance, tomber sur un dragon / un démon, caractéristiques (FOR, CON, AGI, INT, VOL, CHA). Le fichier `regles-dragonbane.md` reste sur le PC : il est exclu du dépôt (texte du livre).
+
+Un résumé des règles au format markdown est déjà présent dans ce dossier, ajouté par Antoine. **C'est la référence** pour tout ce qui touche aux règles : jets, fiches, combat, distances. Le lire avant de coder les étapes 2, 3, 5 et 6, et poser la question à Antoine en cas de doute plutôt que de supposer.
+
+Mécaniques à couvrir, à vérifier dans ce résumé :
+
+- jet de d20 sous la valeur de compétence ou d'attribut ;
+- faveur et fléau (avantage et désavantage) ;
+- réussite critique (Dragon) et échec critique (Démon) ;
+- relance en « forçant la chance », au prix d'un état ;
+- initiative par tirage de cartes à chaque round ;
+- points de santé (PS), points de volonté (PV), états ;
+- déplacements et distances sur grille.
+
+## Choix techniques
+
+| Sujet | Choix | Raison |
+|---|---|---|
+| Serveur | Node.js + TypeScript, Socket.IO | Temps réel simple, reconnexion automatique |
+| Interface | React + Vite | Standard, bien outillé |
+| Carte et pions | Canvas 2D avec Konva (à partir de l'étape 5) | Zoom, glisser-déposer, calques |
+| Données | SQLite, un seul fichier | Aucune installation, sauvegarde par copie |
+| Comptes | Aucun : liens d'invitation avec jeton | Un lien MJ, un lien par joueur |
+| Accès Internet | Cloudflare Tunnel | Pas de port à ouvrir sur la box, HTTPS inclus |
+
+Ces choix sont des recommandations validées avec Antoine. Une alternative reste possible si elle sert mieux les priorités ci-dessus, à condition de la lui expliquer d'abord.
+
+## Principes d'architecture
+
+- **Le serveur est la seule source de vérité.** Il valide chaque action et diffuse l'état à tous les clients. Les clients n'appliquent jamais un changement sans confirmation du serveur.
+- **Deux rôles** : MJ et joueur. Le rôle vient du jeton du lien d'invitation.
+- **Droits** : tout le monde voit toutes les fiches de personnage (transparence voulue). Seuls le joueur concerné et le MJ peuvent modifier une fiche. Un joueur ne déplace que son propre pion. Le MJ peut tout faire.
+- **Jets de dés calculés côté serveur**, jamais côté client.
+- **Persistance** : l'état survit à un redémarrage du serveur.
+- **Un seul dépôt**, avec le serveur et l'interface. En production, le serveur sert aussi l'interface compilée, pour n'avoir qu'un seul port à exposer dans le tunnel.
+
+## Plan en 8 étapes
+
+Chaque étape doit être jouable et testée avant de passer à la suivante.
+
+1. **Socle et connexion** : serveur, lien MJ et liens joueurs, liste des présents, reconnexion, tunnel.
+2. **Dés et journal** : jets Dragonbane, jets secrets du MJ, historique partagé.
+3. **Fiches de personnage** : caractéristiques, compétences, points de santé (PS), points de volonté (PV), états, jets en un clic depuis la fiche.
+4. **Scènes et images** : afficher une illustration ou une carte à tous.
+5. **Carte, pions et grille** : déplacement synchronisé, mesure des distances, zoom, pointeur pour montrer un endroit.
+6. **Combat** : initiative par tirage de cartes, suivi des tours.
+7. **Brouillard de guerre simple** : zones que le MJ révèle à la main.
+8. **Confort** : lecteur de musique synchronisé, sauvegarde et export.
+
+Les étapes 1 à 4 donnent une version « théâtre de l'esprit » jouable. Les étapes 5 à 7 ajoutent le combat tactique : la gestion des distances sur grille est importante pour Antoine.
+
+## Étape 1 en détail
+
+À construire :
+
+- structure du dépôt, scripts de lancement, fichier README en français ;
+- serveur Node.js avec Socket.IO et base SQLite ;
+- création d'une partie avec un lien MJ et un lien par joueur, que le MJ peut générer et copier depuis son écran ;
+- page d'arrivée du joueur : il choisit son nom à la première visite, puis il est reconnu automatiquement ;
+- liste des participants avec leur statut (connecté ou déconnecté), mise à jour en direct ;
+- reconnexion automatique après une coupure réseau ou un rechargement de page ;
+- mise en place du tunnel Cloudflare et d'une commande simple pour l'ouvrir.
+
+L'étape est terminée quand :
+
+- Antoine lance le serveur avec une seule commande et ouvre son écran MJ dans son navigateur Windows ;
+- un ami hors de son réseau rejoint la partie en cliquant sur un lien, sans rien installer ;
+- chacun voit qui est présent, et la liste se met à jour quand quelqu'un part ou revient ;
+- après un redémarrage du serveur, la partie et les joueurs sont toujours là.
+
+## Hors périmètre
+
+- Audio et vidéo intégrés (Discord s'en charge).
+- Interface mobile ou tablette.
+- Comptes utilisateurs, mots de passe, gestion multi-parties publique.
+- Éclairage dynamique et lignes de vue automatiques.
+- Automatisation complète des règles : l'outil aide le MJ, il ne le remplace pas.
+
+## Musique d'ambiance
+
+Pour commencer, Antoine utilise **Kenku FM** (logiciel externe qui diffuse du son dans Discord), donc rien à développer. Un lecteur intégré simple est prévu à l'étape 8 : le MJ dépose des fichiers audio, lance une piste, et le serveur la synchronise chez tous les joueurs, chacun réglant son propre volume.
+
+## Dépôt et environnement
+
+- Dossier local : `/home/antoine/workspace/brumeland-vtt`, dans WSL.
+- Dépôt GitHub : `brumeland-vtt`, sur le compte d'Antoine. Au démarrage, vérifier que le dossier est bien relié au dépôt et qu'Antoine est authentifié auprès de GitHub depuis WSL ; sinon, l'accompagner pas à pas.
+- Node.js est déjà installé dans WSL. Vérifier la version avant de choisir celles des dépendances.
+- Faire des commits petits et réguliers, avec des messages en français qui décrivent le changement.
+- Ne jamais mettre dans le dépôt : la base SQLite, les jetons d'invitation, les fichiers de configuration du tunnel, les images et musiques de la partie.
+
+## Premier message suggéré
+
+« Lis CLAUDE.md et le résumé des règles de Dragonbane présents dans ce dossier, vérifie l'état du dépôt git, puis propose-moi le découpage de l'étape 1 avant de commencer. »
