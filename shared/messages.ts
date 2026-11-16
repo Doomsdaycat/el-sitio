@@ -21,6 +21,15 @@ export interface Invitation {
   dejaVenu: boolean;
 }
 
+/** Une personne de la partie, telle que tout le monde la voit (liste des présents). */
+export interface Present {
+  id: number;
+  role: Role;
+  /** null : joueur arrivé, qui n'a pas encore choisi son nom. */
+  nom: string | null;
+  connecte: boolean;
+}
+
 /** Réponse du serveur à une demande : soit c'est bon, soit un message d'erreur en français. */
 export type Reponse = { ok: true } | { ok: false; erreur: string };
 
@@ -35,6 +44,8 @@ export interface MessagesServeur {
   bienvenue: (identite: Identite) => void;
   /** Liste complète des invitations, envoyée au MJ à chaque changement. */
   invitations: (liste: Invitation[]) => void;
+  /** Liste des participants et de leur statut, envoyée à tous à chaque changement. */
+  presents: (liste: Present[]) => void;
   /** Le lien de ce navigateur vient d'être supprimé par le MJ. */
   exclu: () => void;
 }

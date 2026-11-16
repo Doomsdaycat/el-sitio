@@ -11,6 +11,7 @@ import {
   type AuthClient,
   type Identite,
   type Invitation,
+  type Present,
   type MessagesClient,
   type MessagesServeur,
   type Reponse,
@@ -22,6 +23,7 @@ import {
   creerInvitation,
   jetonMj,
   listerInvitations,
+  listerParticipants,
   nomDejaPris,
   noterVisite,
   partieCourante,
@@ -68,6 +70,25 @@ function invitationsPourMj(): Invitation[] {
 
 function diffuserInvitations(): void {
   io.to(SALLE_MJ).emit("invitations", invitationsPourMj());
+}
+
+/** Vrai si au moins un onglet de ce participant est connecté. */
+function estConnecte(participantId: number): boolean {
+  return (io.sockets.adapter.rooms.get(salleParticipant(participantId))?.size ?? 0) > 0;
+}
+
+/**
+ * Liste des présents, pour tout le monde. On n'y montre pas les invitations jamais utilisées :
+ * un joueur y apparaît dès qu'il a choisi son nom, ou tant qu'il est connecté.
+ */
+function listePresents(): Present[] {
+  return listerParticipants(partie.id)
+    .map((p) => ({ ...p, connecte: estConnecte(p.id) }))
+    .filter((p) => p.nom !== null || p.connecte);
+}
+
+function diffuserPresents(): void {
+  io.emit("presents", listePresents());
 }
 
 function identite(participant: Participant): Identite {
@@ -138,6 +159,8 @@ io.on("connection", (socket) => {
     // Un joueur vient d'arriver : le MJ voit qu'il est « déjà venu ».
     diffuserInvitations();
   }
+  // Tout le monde voit arriver cette personne, et elle reçoit la liste complète.
+  diffuserPresents();
 
   socket.on("ping", (reponse) => {
     if (typeof reponse === "function") reponse(new Date().toISOString());
@@ -168,6 +191,7 @@ io.on("connection", (socket) => {
       io.to(salle).emit("exclu");
       io.in(salle).disconnectSockets(true);
       diffuserInvitations();
+      diffuserPresents();
       return { ok: true };
     }),
   );
@@ -199,11 +223,14 @@ io.on("connection", (socket) => {
     for (const s of sockets) s.data.participant.nom = nom;
     io.to(salleParticipant(participant.id)).emit("bienvenue", identite({ ...participant, nom }));
     diffuserInvitations();
+    diffuserPresents();
     reponse({ ok: true });
   });
 
   socket.on("disconnect", (raison) => {
     console.log(`Déconnexion : ${qui()} (${raison})`);
+    // À ce moment, l'onglet a déjà quitté ses salles : le statut calculé est à jour.
+    diffuserPresents();
   });
 });
 

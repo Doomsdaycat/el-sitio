@@ -31,6 +31,12 @@ Sur ton écran MJ, la section **Invitations des joueurs** permet de créer un li
 (avec une note facultative, par exemple « Julien »), de le copier pour l'envoyer sur Discord,
 et de le supprimer. Un lien supprimé ne fonctionne plus : le joueur est déconnecté aussitôt.
 
+## Qui est à la table ?
+
+Tout le monde voit la liste **À la table** : une pastille verte pour les personnes connectées,
+grise pour celles qui sont parties. Après une coupure (Wi-Fi, redémarrage du serveur),
+un bandeau jaune s'affiche et la page se reconnecte toute seule.
+
 ## Retrouver le lien MJ
 
 ```bash

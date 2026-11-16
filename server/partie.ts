@@ -122,3 +122,22 @@ export function nomDejaPris(partieId: number, nom: string, saufId: number): bool
 export function changerNom(participantId: number, nom: string): void {
   base.prepare("UPDATE participant SET nom = ? WHERE id = ?").run(nom, participantId);
 }
+
+// ---------------------------------------------------------------------------
+// Liste des participants (étape 1.5)
+
+export interface LigneParticipant {
+  id: number;
+  role: Role;
+  nom: string | null;
+}
+
+/** Tous les participants de la partie : le MJ d'abord, puis les joueurs dans l'ordre d'invitation. */
+export function listerParticipants(partieId: number): LigneParticipant[] {
+  return base
+    .prepare(
+      `SELECT id, role, nom FROM participant WHERE partie_id = ?
+       ORDER BY role = 'joueur', id`,
+    )
+    .all(partieId) as unknown as LigneParticipant[];
+}

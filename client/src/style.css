@@ -204,3 +204,71 @@ button.lien {
 .choix-nom {
   margin-bottom: 1.5rem;
 }
+
+/* --- Étape 1.5 : présents et reconnexion --- */
+
+.colonnes {
+  display: grid;
+  grid-template-columns: 16rem 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.colonnes > :only-child {
+  grid-column: 1 / -1;
+  max-width: 24rem;
+}
+
+.presents ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.present {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.present.connecte .pastille { background: var(--ok); }
+.present.absent .pastille { background: var(--bordure); }
+.present.absent .present-nom { color: var(--discret); }
+
+.badge-mj {
+  margin-left: auto;
+  font-size: 0.75rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.bandeau-coupure {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  margin: -2rem -1rem 1.5rem;
+  padding: 0.6rem 1rem;
+  text-align: center;
+  color: var(--accent-texte);
+  background: var(--attente);
+}
+
+/* Pendant une coupure, l'écran reste visible mais grisé : rien n'y est à jour. */
+.en-coupure .colonnes,
+.en-coupure .identite {
+  opacity: 0.55;
+  pointer-events: none;
+}

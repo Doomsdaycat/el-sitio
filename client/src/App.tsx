@@ -3,6 +3,7 @@ import { ERREUR_LIEN_INCONNU, type Identite } from "../../shared/messages.ts";
 import { jeton, oublierJeton, socket } from "./connexion.ts";
 import { ChoixNom } from "./ChoixNom.tsx";
 import { Invitations } from "./Invitations.tsx";
+import { Presents } from "./Presents.tsx";
 
 type EtatConnexion =
   | "connexion"
@@ -66,9 +67,16 @@ export function App() {
   }, []);
 
   const sansAcces = etat === "sans-lien" || etat === "lien-inconnu" || etat === "exclu";
+  // Coupure après avoir été dans la partie : on garde l'écran, avec un bandeau.
+  const coupure = etat === "deconnecte" && identite !== null;
 
   return (
-    <main className="page">
+    <main className={coupure ? "page en-coupure" : "page"}>
+      {coupure && (
+        <div className="bandeau-coupure" role="status">
+          Connexion perdue. Reconnexion automatique en cours… Tu n'as rien à faire.
+        </div>
+      )}
       <header className="entete">
         <h1>Brumeland VTT</h1>
         <p className={`statut statut-${etat}`}>
@@ -113,7 +121,10 @@ export function App() {
             <ChoixNom nomActuel={identite.moi.nom} surTermine={() => setChangementNom(false)} />
           )}
 
-          {identite.moi.role === "mj" && <Invitations />}
+          <div className="colonnes">
+            <Presents moiId={identite.moi.id} />
+            {identite.moi.role === "mj" && <Invitations />}
+          </div>
 
           <p className="version">version {identite.version}</p>
         </>
