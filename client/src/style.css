@@ -1,0 +1,53 @@
+:root {
+  --fond: #1d1b22;
+  --texte: #ece6d8;
+  --discret: #9c94a8;
+  --ok: #6fbf73;
+  --attente: #e0b04f;
+  --erreur: #d9645a;
+  font-family: Georgia, "Times New Roman", serif;
+  color: var(--texte);
+  background: var(--fond);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--fond);
+}
+
+.accueil {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 4rem 1rem;
+  text-align: center;
+}
+
+h1 {
+  font-size: 2.5rem;
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+}
+
+.statut {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: system-ui, sans-serif;
+}
+
+.pastille {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: var(--attente);
+}
+
+.statut-connecte .pastille { background: var(--ok); }
+.statut-deconnecte .pastille { background: var(--erreur); }
+
+.version {
+  color: var(--discret);
+  font-family: system-ui, sans-serif;
+  font-size: 0.85rem;
+}
