@@ -16,13 +16,14 @@ Dans le terminal WSL, depuis le dossier du projet :
 npm install
 ```
 
-## Lancer en mode développement
+## Lancer une partie
 
 ```bash
-npm run dev
+npm start
 ```
 
-Au démarrage, le terminal affiche le **lien MJ** : ouvre-le dans le navigateur Windows.
+Cette commande prépare l'interface puis démarre le serveur (quelques secondes).
+Le terminal affiche ensuite le **lien MJ** : ouvre-le dans le navigateur Windows.
 Pour arrêter : `Ctrl + C` dans le terminal.
 
 ## Inviter les joueurs
@@ -50,6 +51,11 @@ Le lien MJ donne tous les droits sur la partie : ne le partage pas.
 La partie est enregistrée dans un seul fichier, `data/brumeland.db`.
 Pour la sauvegarder, copie ce fichier pendant que le serveur est arrêté.
 Ce dossier n'est jamais envoyé sur GitHub.
+
+## Pour développer
+
+`npm run dev` lance le serveur et l'interface en mode développement : la page se met à jour
+à chaque modification du code. Les liens utilisent alors le port 5173 au lieu de 3000.
 
 ## Vérifier le code
 

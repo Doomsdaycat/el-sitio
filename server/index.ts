@@ -1,7 +1,9 @@
 // Point d'entrée du serveur Brumeland VTT.
 // Il reçoit les connexions temps réel (Socket.IO) des navigateurs.
 
+import { existsSync } from "node:fs";
 import { createServer } from "node:http";
+import { resolve } from "node:path";
 import express from "express";
 import { Server, type Socket } from "socket.io";
 import {
@@ -17,7 +19,7 @@ import {
   type Reponse,
 } from "../shared/messages.ts";
 import { CHEMIN_BASE } from "./base.ts";
-import { lienInvitation } from "./liens.ts";
+import { lienInvitation, MODE_PARTIE } from "./liens.ts";
 import {
   changerNom,
   creerInvitation,
@@ -57,6 +59,20 @@ const io = new Server<MessagesClient, MessagesServeur, Record<string, never>, Do
 app.get("/api/sante", (_req, res) => {
   res.json({ ok: true, version: VERSION });
 });
+
+// En mode partie, le serveur sert aussi l'interface compilée (un seul port à ouvrir).
+const DOSSIER_INTERFACE = resolve(import.meta.dirname, "../dist/client");
+if (MODE_PARTIE) {
+  if (!existsSync(resolve(DOSSIER_INTERFACE, "index.html"))) {
+    console.error("\nL'interface n'est pas compilée. Lance plutôt : npm start\n");
+    process.exit(1);
+  }
+  app.use(express.static(DOSSIER_INTERFACE, { index: false }));
+  // Toute autre adresse (par exemple /jeu/<jeton>) affiche la page de l'application.
+  app.get("/{*chemin}", (_req, res) => {
+    res.sendFile(resolve(DOSSIER_INTERFACE, "index.html"));
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Diffusions
@@ -252,4 +268,8 @@ serveurHttp.listen(PORT, () => {
   console.log(`Serveur Brumeland VTT démarré sur le port ${PORT}`);
   console.log(`Base de données : ${CHEMIN_BASE}`);
   console.log(`\nLien MJ de la partie « ${partie.nom} » :\n\n  ${lienInvitation(jetonMj(partie.id))}\n`);
+  if (MODE_PARTIE) {
+    console.log("La partie est lancée. Ouvre le lien MJ ci-dessus dans ton navigateur.");
+    console.log("Pour arrêter : Ctrl + C dans ce terminal.\n");
+  }
 });

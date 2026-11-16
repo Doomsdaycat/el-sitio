@@ -8,11 +8,14 @@
     "node": ">=22.12"
   },
   "scripts": {
+    "start": "npm run -s compiler && npm run -s serveur",
+    "compiler": "vite build --logLevel warn",
+    "serveur": "NODE_ENV=production tsx --disable-warning=ExperimentalWarning server/index.ts",
+    "lien-mj": "NODE_ENV=production tsx --disable-warning=ExperimentalWarning server/lien-mj.ts",
     "dev": "concurrently --names serveur,interface --prefix-colors yellow,cyan \"npm:dev:serveur\" \"npm:dev:interface\"",
     "dev:serveur": "tsx watch --disable-warning=ExperimentalWarning server/index.ts",
     "dev:interface": "vite",
-    "verifier": "tsc --noEmit -p tsconfig.json",
-    "lien-mj": "tsx --disable-warning=ExperimentalWarning server/lien-mj.ts"
+    "verifier": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "express": "^5.3.0",
