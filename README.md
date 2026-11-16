@@ -22,8 +22,22 @@ npm install
 npm run dev
 ```
 
-Ouvrir ensuite <http://localhost:5173> dans le navigateur Windows.
+Au démarrage, le terminal affiche le **lien MJ** : ouvre-le dans le navigateur Windows.
 Pour arrêter : `Ctrl + C` dans le terminal.
+
+## Retrouver le lien MJ
+
+```bash
+npm run lien-mj
+```
+
+Le lien MJ donne tous les droits sur la partie : ne le partage pas.
+
+## Données de la partie
+
+La partie est enregistrée dans un seul fichier, `data/brumeland.db`.
+Pour la sauvegarder, copie ce fichier pendant que le serveur est arrêté.
+Ce dossier n'est jamais envoyé sur GitHub.
 
 ## Vérifier le code
 

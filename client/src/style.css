@@ -51,3 +51,16 @@ h1 {
   font-family: system-ui, sans-serif;
   font-size: 0.85rem;
 }
+
+.statut-lien-inconnu .pastille,
+.statut-sans-lien .pastille { background: var(--erreur); }
+
+.explication {
+  color: var(--discret);
+  font-family: system-ui, sans-serif;
+}
+
+.identite {
+  margin-top: 2rem;
+  font-family: system-ui, sans-serif;
+}
