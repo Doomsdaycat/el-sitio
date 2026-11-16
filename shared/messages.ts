@@ -27,6 +27,9 @@ export type Reponse = { ok: true } | { ok: false; erreur: string };
 /** Longueur maximale de l'étiquette d'une invitation. */
 export const ETIQUETTE_MAX = 40;
 
+/** Longueur maximale du nom choisi par un joueur. */
+export const NOM_MAX = 24;
+
 /** Messages envoyés par le serveur vers l'interface. */
 export interface MessagesServeur {
   bienvenue: (identite: Identite) => void;
@@ -41,6 +44,8 @@ export interface MessagesClient {
   ping: (reponse: (heureServeur: string) => void) => void;
   "mj:creerInvitation": (demande: { etiquette: string }, reponse: (r: Reponse) => void) => void;
   "mj:supprimerInvitation": (demande: { id: number }, reponse: (r: Reponse) => void) => void;
+  /** Le joueur choisit (ou change) son nom. */
+  "joueur:choisirNom": (demande: { nom: string }, reponse: (r: Reponse) => void) => void;
 }
 
 /** Données jointes par l'interface à chaque connexion. */

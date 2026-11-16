@@ -191,3 +191,16 @@ button.danger {
   font-family: ui-monospace, Consolas, monospace;
   font-size: 0.85rem;
 }
+
+button.lien {
+  color: var(--discret);
+  background: none;
+  border: none;
+  padding: 0;
+  text-decoration: underline;
+  font-size: 0.9rem;
+}
+
+.choix-nom {
+  margin-bottom: 1.5rem;
+}

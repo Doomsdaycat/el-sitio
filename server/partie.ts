@@ -105,3 +105,20 @@ export function supprimerInvitation(partieId: number, id: number): boolean {
     .run(id, partieId);
   return resultat.changes > 0;
 }
+
+// ---------------------------------------------------------------------------
+// Nom des joueurs (étape 1.4)
+
+/** Vrai si un autre participant de la partie porte déjà ce nom (sans tenir compte des majuscules). */
+export function nomDejaPris(partieId: number, nom: string, saufId: number): boolean {
+  // Comparaison faite ici plutôt qu'en SQL : lower() de SQLite ignore les lettres accentuées.
+  const cle = (texte: string) => texte.toLocaleLowerCase("fr");
+  const noms = base
+    .prepare("SELECT nom FROM participant WHERE partie_id = ? AND id <> ? AND nom IS NOT NULL")
+    .all(partieId, saufId) as { nom: string }[];
+  return noms.some((ligne) => cle(ligne.nom) === cle(nom));
+}
+
+export function changerNom(participantId: number, nom: string): void {
+  base.prepare("UPDATE participant SET nom = ? WHERE id = ?").run(nom, participantId);
+}

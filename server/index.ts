@@ -7,7 +7,9 @@ import { Server, type Socket } from "socket.io";
 import {
   ERREUR_LIEN_INCONNU,
   ETIQUETTE_MAX,
+  NOM_MAX,
   type AuthClient,
+  type Identite,
   type Invitation,
   type MessagesClient,
   type MessagesServeur,
@@ -16,9 +18,11 @@ import {
 import { CHEMIN_BASE } from "./base.ts";
 import { lienInvitation } from "./liens.ts";
 import {
+  changerNom,
   creerInvitation,
   jetonMj,
   listerInvitations,
+  nomDejaPris,
   noterVisite,
   partieCourante,
   participantParJeton,
@@ -66,6 +70,22 @@ function diffuserInvitations(): void {
   io.to(SALLE_MJ).emit("invitations", invitationsPourMj());
 }
 
+function identite(participant: Participant): Identite {
+  return {
+    version: VERSION,
+    partie: { nom: partie.nom },
+    moi: { id: participant.id, role: participant.role, nom: participant.nom },
+  };
+}
+
+/** Nettoie un nom saisi : espaces superflus retirés, caractères invisibles refusés. */
+function nettoyerNom(brut: unknown): string | null {
+  if (typeof brut !== "string") return null;
+  const nom = brut.normalize("NFC").replace(/\s+/g, " ").trim();
+  if (/[\p{Cc}\p{Cf}]/u.test(nom)) return null;
+  return nom;
+}
+
 // ---------------------------------------------------------------------------
 // Connexions
 
@@ -103,16 +123,13 @@ function reserveMj<D>(
 
 io.on("connection", (socket) => {
   const { participant } = socket.data;
-  const qui = `${participant.nom ?? participant.etiquette ?? "(sans nom)"} [${participant.role}]`;
-  console.log(`Connexion : ${qui}`);
+  const qui = () =>
+    `${participant.nom ?? participant.etiquette ?? "(sans nom)"} [${participant.role}]`;
+  console.log(`Connexion : ${qui()}`);
   noterVisite(participant.id);
 
   socket.join(salleParticipant(participant.id));
-  socket.emit("bienvenue", {
-    version: VERSION,
-    partie: { nom: partie.nom },
-    moi: { id: participant.id, role: participant.role, nom: participant.nom },
-  });
+  socket.emit("bienvenue", identite(participant));
 
   if (participant.role === "mj") {
     socket.join(SALLE_MJ);
@@ -155,8 +172,38 @@ io.on("connection", (socket) => {
     }),
   );
 
+  socket.on("joueur:choisirNom", async (demande, reponse) => {
+    if (typeof reponse !== "function") return;
+    if (participant.role !== "joueur") {
+      reponse({ ok: false, erreur: "Seuls les joueurs choisissent leur nom." });
+      return;
+    }
+    const nom = nettoyerNom(demande?.nom);
+    if (nom === null || nom === "") {
+      reponse({ ok: false, erreur: "Écris un nom (lettres, chiffres, espaces…)." });
+      return;
+    }
+    if (nom.length > NOM_MAX) {
+      reponse({ ok: false, erreur: `Nom trop long (${NOM_MAX} caractères au plus).` });
+      return;
+    }
+    if (nomDejaPris(partie.id, nom, participant.id)) {
+      reponse({ ok: false, erreur: `« ${nom} » est déjà pris par quelqu'un d'autre.` });
+      return;
+    }
+    changerNom(participant.id, nom);
+    console.log(`Nom choisi : ${nom} [joueur]`);
+
+    // Tous les onglets de ce joueur reçoivent sa nouvelle identité.
+    const sockets = await io.in(salleParticipant(participant.id)).fetchSockets();
+    for (const s of sockets) s.data.participant.nom = nom;
+    io.to(salleParticipant(participant.id)).emit("bienvenue", identite({ ...participant, nom }));
+    diffuserInvitations();
+    reponse({ ok: true });
+  });
+
   socket.on("disconnect", (raison) => {
-    console.log(`Déconnexion : ${qui} (${raison})`);
+    console.log(`Déconnexion : ${qui()} (${raison})`);
   });
 });
 

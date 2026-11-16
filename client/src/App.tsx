@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ERREUR_LIEN_INCONNU, type Identite } from "../../shared/messages.ts";
 import { jeton, oublierJeton, socket } from "./connexion.ts";
+import { ChoixNom } from "./ChoixNom.tsx";
 import { Invitations } from "./Invitations.tsx";
 
 type EtatConnexion =
@@ -28,6 +29,7 @@ export function App() {
     return socket.connected ? "connecte" : "connexion";
   });
   const [identite, setIdentite] = useState<Identite | null>(null);
+  const [changementNom, setChangementNom] = useState(false);
 
   useEffect(() => {
     const surConnexion = () => setEtat("connecte");
@@ -81,15 +83,35 @@ export function App() {
         </p>
       )}
 
-      {identite && !sansAcces && (
+      {identite && !sansAcces && identite.moi.role === "joueur" && identite.moi.nom === null && (
+        <ChoixNom nomActuel={null} />
+      )}
+
+      {identite && !sansAcces && (identite.moi.role === "mj" || identite.moi.nom !== null) && (
         <>
           <section className="identite">
             <p>
-              Partie : <strong>{identite.partie.nom}</strong> · tu es connecté en tant que{" "}
-              <strong>{ROLES[identite.moi.role]}</strong>
-              {identite.moi.nom && identite.moi.role !== "mj" && <> ({identite.moi.nom})</>}.
+              Partie : <strong>{identite.partie.nom}</strong> ·{" "}
+              {identite.moi.role === "mj" ? (
+                <>
+                  tu es connecté en tant que <strong>{ROLES.mj}</strong>.
+                </>
+              ) : (
+                <>
+                  bienvenue, <strong>{identite.moi.nom}</strong> !{" "}
+                  {!changementNom && (
+                    <button type="button" className="lien" onClick={() => setChangementNom(true)}>
+                      Changer de nom
+                    </button>
+                  )}
+                </>
+              )}
             </p>
           </section>
+
+          {changementNom && identite.moi.role === "joueur" && (
+            <ChoixNom nomActuel={identite.moi.nom} surTermine={() => setChangementNom(false)} />
+          )}
 
           {identite.moi.role === "mj" && <Invitations />}
 
