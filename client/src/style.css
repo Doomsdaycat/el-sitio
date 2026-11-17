@@ -856,3 +856,24 @@ textarea {
   cursor: not-allowed;
   text-decoration: line-through;
 }
+
+/* Journal : la barre de défilement a sa propre place et ne recouvre plus les jets. */
+.liste-journal {
+  padding-right: 0.6rem;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bordure) transparent;
+}
+
+.liste-journal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.liste-journal::-webkit-scrollbar-thumb {
+  background: var(--bordure);
+  border-radius: 4px;
+}
+
+.liste-journal::-webkit-scrollbar-track {
+  background: transparent;
+}

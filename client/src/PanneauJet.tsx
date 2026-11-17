@@ -8,10 +8,10 @@ import {
   LIBELLE_MAX,
   VALEUR_MAX,
   VALEUR_MIN,
-  nomCamp,
 } from "../../shared/jets.ts";
 import type { Reponse } from "../../shared/messages.ts";
 import { socket } from "./connexion.ts";
+import { nomCampAffiche } from "./noms.ts";
 import { apresJet, changerReglages, choisirCibleOpposition, useEtat } from "./etat.ts";
 
 type Mode = "competence" | "libre";
@@ -71,6 +71,7 @@ export function PanneauJet({ estMj }: { estMj: boolean }) {
   // MJ : pour qui lance-t-il ? "" = PNJ ou monstre, sinon l'id du joueur.
   const [pour, setPour] = useState("");
   const presents = useEtat("presents");
+  const fiches = useEtat("fiches");
   const joueurs = (presents ?? []).filter((p) => p.role === "joueur" && p.nom !== null);
   // Si le joueur choisi disparaît de la liste (invitation supprimée), on revient à « PNJ ».
   const pourValide = joueurs.some((j) => String(j.id) === pour) ? pour : "";
@@ -124,7 +125,7 @@ export function PanneauJet({ estMj }: { estMj: boolean }) {
       {cible && (
         <div className="bandeau-opposition">
           <p>
-            <strong>Jet en opposition</strong> à {nomCamp(cible)}
+            <strong>Jet en opposition</strong> à {nomCampAffiche(cible, fiches)}
             {cible.libelle && <> ({cible.libelle})</>}
           </p>
           {estMj && (

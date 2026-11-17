@@ -5,7 +5,6 @@ import {
   dernierEssai,
   ETATS,
   joueurConcerne,
-  nomCamp,
   oppositionPermetDeForcer,
   peutForcerPar,
   resoudreOpposition,
@@ -18,6 +17,7 @@ import {
 import type { Reponse } from "../../shared/messages.ts";
 import { socket } from "./connexion.ts";
 import { choisirCibleOpposition, useEtat } from "./etat.ts";
+import { nomAuteur, nomCampAffiche, nomPour } from "./noms.ts";
 
 function heure(iso: string): string {
   return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
@@ -113,6 +113,7 @@ function ResultatOpposition(props: {
   journal: EntreeJournal[];
 }) {
   const { entree, paire, journal } = props;
+  const fiches = useEtat("fiches");
   const essaiA = dernierEssai(paire.actif.id, journal);
   const essaiO = dernierEssai(paire.opposant.id, journal);
   if (!essaiA || !essaiO) return null;
@@ -127,8 +128,8 @@ function ResultatOpposition(props: {
 
   const ouverte = paire.opposant.ouverte;
   const issue = resoudreOpposition(rA, rO, ouverte);
-  const a = nomCamp(paire.actif);
-  const o = nomCamp(paire.opposant);
+  const a = nomCampAffiche(paire.actif, fiches);
+  const o = nomCampAffiche(paire.opposant, fiches);
   let texte: string;
   if (ouverte) {
     texte =
@@ -161,6 +162,7 @@ function Entree(props: {
   const fiches = useEtat("fiches");
   const concerne = joueurConcerne(entree);
   const etatsDejaSubis = fiches?.find((f) => f.joueurId === concerne)?.etats ?? [];
+  const pour = nomPour(entree, fiches);
   const moi = { id: moiId, role: estMj ? ("mj" as const) : ("joueur" as const) };
   const opposant = trouverOpposant(entree.id, journal);
   const paire = r?.type === "competence" || masque ? paireOpposition(entree, journal) : null;
@@ -194,18 +196,18 @@ function Entree(props: {
   return (
     <li className={classes.join(" ")}>
       <div className="entree-entete">
-        <strong>{entree.auteurNom}</strong>
+        <strong>{nomAuteur(entree, fiches)}</strong>
         {entree.auteurRole === "mj" && <span className="badge-mj">MJ</span>}
-        {entree.pourNom && (
+        {pour && (
           <span>
-            pour <strong>{entree.pourNom}</strong>
+            pour <strong>{pour}</strong>
           </span>
         )}
         {entree.libelle && <span className="libelle">{entree.libelle}</span>}
         {entree.opposeA !== null && (
           <span className="badge-opposition">
             {entree.ouverte ? "opposition ouverte" : "s'oppose"}
-            {cibleDeOpposition && <> à {nomCamp(cibleDeOpposition)}</>}
+            {cibleDeOpposition && <> à {nomCampAffiche(cibleDeOpposition, fiches)}</>}
           </span>
         )}
         {estMj && entree.secret && (
@@ -262,8 +264,8 @@ function Entree(props: {
       {choixEtat && (
         <div className="choix-etat">
           <p>
-            {estMj && entree.pourNom
-              ? `Quel état pour ${entree.pourNom} ? (pas un état déjà subi)`
+            {estMj && pour
+              ? `Quel état pour ${pour} ? (pas un état déjà subi)`
               : "Quel état subis-tu ? (pas un état que tu as déjà)"}
           </p>
           <div className="etats">
