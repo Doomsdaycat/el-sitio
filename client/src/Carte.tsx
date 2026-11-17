@@ -15,6 +15,7 @@ import {
   TAILLE_CASE_MAX,
   TAILLE_CASE_MIN,
   type Case,
+  type EtatPion,
   type Grille,
   type Pion,
 } from "../../shared/carte.ts";
@@ -209,6 +210,12 @@ function PionCarte(props: {
   const metres = distance * METRES_PAR_CASE;
   const trop = deplacementMax !== null && metres > deplacementMax;
   const visee = glisse ? coinCase(glisse, grille) : null;
+  const mort = pion.etat === "mort";
+  const aTerre = pion.etat === "a-terre";
+  // Mention ajoutée au nom : (caché), mort, à terre.
+  const mentions = [pion.cache ? "caché" : null, mort ? "mort" : null, aTerre ? "à terre" : null].filter(Boolean);
+  const nomAffiche = mentions.length > 0 ? `${nom} (${mentions.join(", ")})` : nom;
+  const r = cote * 0.42;
 
   return (
     <>
@@ -227,6 +234,8 @@ function PionCarte(props: {
       <Group
         x={coin.x}
         y={coin.y}
+        // Pion caché : le MJ le voit en transparence (les joueurs ne le reçoivent pas du tout).
+        opacity={pion.cache ? 0.45 : 1}
         draggable={deplacable}
         onMouseEnter={(e) => {
           const stage = e.target.getStage();
@@ -265,10 +274,12 @@ function PionCarte(props: {
         <Circle
           x={cote / 2}
           y={cote / 2}
-          radius={cote * 0.42}
-          fill={pion.couleur}
-          stroke={pion.type === "pj" ? "#f3d58f" : "#1d1b22"}
-          strokeWidth={Math.max(2, cote * 0.05)}
+          radius={r}
+          // Mort : pion grisé.
+          fill={mort ? "#5a5a5a" : pion.couleur}
+          stroke={aTerre ? "#d9645a" : pion.type === "pj" ? "#f3d58f" : "#1d1b22"}
+          strokeWidth={Math.max(2, cote * (aTerre ? 0.08 : 0.05))}
+          dash={pion.cache || aTerre ? [cote * 0.12, cote * 0.08] : undefined}
           shadowColor="black"
           shadowBlur={6}
           shadowOpacity={0.5}
@@ -279,18 +290,32 @@ function PionCarte(props: {
           text={initiales(nom)}
           fontSize={cote * 0.34}
           fontStyle="bold"
-          fill={texteSur(pion.couleur)}
+          fill={mort ? "#bdbdbd" : texteSur(pion.couleur)}
           align="center"
           verticalAlign="middle"
+          // À terre : les initiales sont couchées.
+          rotation={aTerre ? 90 : 0}
+          x={aTerre ? cote : 0}
           listening={false}
         />
+        {mort && (
+          // Grande croix rouge sur un pion mort.
+          <Line
+            points={[cote / 2 - r * 0.7, cote / 2 - r * 0.7, cote / 2 + r * 0.7, cote / 2 + r * 0.7, cote / 2, cote / 2, cote / 2 + r * 0.7, cote / 2 - r * 0.7, cote / 2 - r * 0.7, cote / 2 + r * 0.7]}
+            stroke="#d9645a"
+            strokeWidth={Math.max(3, cote * 0.09)}
+            lineCap="round"
+            lineJoin="round"
+            listening={false}
+          />
+        )}
       </Group>
       <Etiquette
         x={(visee ?? coin).x + cote / 2}
         y={(visee ?? coin).y + cote + 2 / echelle}
-        texte={glisse ? `${nom} · ${metres} m${deplacementMax !== null ? ` / ${deplacementMax} m` : ""}` : nom}
+        texte={glisse ? `${nom} · ${metres} m${deplacementMax !== null ? ` / ${deplacementMax} m` : ""}` : nomAffiche}
         echelle={echelle}
-        couleur={glisse && trop ? "#ff9a8f" : undefined}
+        couleur={(glisse && trop) || aTerre ? "#ff9a8f" : mort ? "#b0b0b0" : undefined}
       />
     </>
   );
@@ -411,6 +436,7 @@ export function Carte(props: {
     () =>
       [...scene.pions].sort(
         (a, b) =>
+          Number(b.etat === "mort") - Number(a.etat === "mort") ||
           Number(a.type === "pj") - Number(b.type === "pj") ||
           Number(a.joueurId === moiId) - Number(b.joueurId === moiId),
       ),
@@ -571,7 +597,7 @@ export function Carte(props: {
         </div>
       </figure>
       {erreur && <p className="erreur">{erreur}</p>}
-      {estMj && <ReglagesMj scene={scene} centreVue={centreVue} />}
+      {estMj && <ReglagesMj scene={scene} centreVue={centreVue} nomDuPion={nomDuPion} />}
     </div>
   );
 }
@@ -623,8 +649,9 @@ function Reglage(props: {
   );
 }
 
-function ReglagesMj(props: { scene: Scene; centreVue: () => Case }) {
-  const { scene, centreVue } = props;
+function ReglagesMj(props: { scene: Scene; centreVue: () => Case; nomDuPion: (p: Pion) => string }) {
+  const { scene, centreVue, nomDuPion } = props;
+  const [ajouterCache, setAjouterCache] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [nom, setNom] = useState("");
   const [couleur, setCouleur] = useState<string>("#d9645a");
@@ -634,6 +661,9 @@ function ReglagesMj(props: { scene: Scene; centreVue: () => Case }) {
   const changerGrille = (changement: Partial<Grille>) =>
     socket.emit("mj:grille", { imageId: scene.image.id, grille: { ...grille, ...changement } }, repondre);
   const pnj = scene.pions.filter((p) => p.type === "pnj");
+  const pj = scene.pions.filter((p) => p.type === "pj");
+  const modifierPion = (id: string, changement: { etat?: EtatPion; cache?: boolean }) =>
+    socket.emit("mj:modifierPion", { id, ...changement }, repondre);
 
   return (
     <section className="reglages-carte">
@@ -664,7 +694,7 @@ function ReglagesMj(props: { scene: Scene; centreVue: () => Case }) {
               className="ajout-pion"
               onSubmit={(e) => {
                 e.preventDefault();
-                socket.emit("mj:ajouterPion", { sceneId: scene.id, nom, couleur, taille, ...centreVue() }, (r: Reponse) => {
+                socket.emit("mj:ajouterPion", { sceneId: scene.id, nom, couleur, taille, cache: ajouterCache, ...centreVue() }, (r: Reponse) => {
                   repondre(r);
                   if (r.ok) setNom("");
                 });
@@ -683,18 +713,39 @@ function ReglagesMj(props: { scene: Scene; centreVue: () => Case }) {
                 <option value={2}>2 × 2 cases</option>
                 <option value={3}>3 × 3 cases</option>
               </select>
+              <label className="case">
+                <input type="checkbox" checked={ajouterCache} onChange={(e) => setAjouterCache(e.target.checked)} />
+                <span>caché aux joueurs</span>
+              </label>
               <button type="submit" className="secondaire" disabled={nom.trim() === ""}>
                 Ajouter
               </button>
             </form>
-            <p className="discret petit">Le pion apparaît au centre de ta vue ; fais-le glisser où tu veux.</p>
+            <p className="discret petit">
+              Le pion apparaît au centre de ta vue ; fais-le glisser où tu veux. Un pion caché n'est pas
+              envoyé aux joueurs : tu le vois en transparence, et tu le révèles au bon moment.
+            </p>
             {pnj.length > 0 && (
-              <ul className="liste-pions">
+              <ul className="liste-pions-mj">
                 {pnj.map((p) => (
-                  <li key={p.id}>
+                  <li key={p.id} className={p.cache ? "cache" : undefined}>
                     <span className="pastille-couleur" style={{ background: p.couleur }} />
-                    {p.nom}
-                    {p.taille > 1 && <span className="discret petit"> ({p.taille}×{p.taille})</span>}
+                    <span className="nom-pion">
+                      {p.nom}
+                      {p.taille > 1 && <span className="discret petit"> ({p.taille}×{p.taille})</span>}
+                      {p.etat === "mort" && <span className="mention-pion">mort</span>}
+                      {p.cache && <span className="mention-pion discrete">caché</span>}
+                    </span>
+                    <button type="button" className="secondaire" onClick={() => modifierPion(p.id, { cache: !p.cache })}>
+                      {p.cache ? "Révéler" : "Cacher"}
+                    </button>
+                    <button
+                      type="button"
+                      className="secondaire"
+                      onClick={() => modifierPion(p.id, { etat: p.etat === "mort" ? "normal" : "mort" })}
+                    >
+                      {p.etat === "mort" ? "Pas mort" : "Mort"}
+                    </button>
                     <button type="button" className="lien" onClick={() => socket.emit("mj:retirerPion", { id: p.id }, repondre)}>
                       Retirer
                     </button>
@@ -703,6 +754,30 @@ function ReglagesMj(props: { scene: Scene; centreVue: () => Case }) {
               </ul>
             )}
           </div>
+
+          {pj.length > 0 && (
+            <div className="bloc-reglages">
+              <h4>Personnages joueurs</h4>
+              <ul className="liste-pions-mj">
+                {pj.map((p) => (
+                  <li key={p.id}>
+                    <span className="pastille-couleur" style={{ background: p.couleur }} />
+                    <span className="nom-pion">
+                      {nomDuPion(p)}
+                      {p.etat === "a-terre" && <span className="mention-pion">à terre</span>}
+                    </span>
+                    <button
+                      type="button"
+                      className="secondaire"
+                      onClick={() => modifierPion(p.id, { etat: p.etat === "a-terre" ? "normal" : "a-terre" })}
+                    >
+                      {p.etat === "a-terre" ? "Relever" : "À terre"}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </>
       )}
       {erreur && <p className="erreur">{erreur}</p>}

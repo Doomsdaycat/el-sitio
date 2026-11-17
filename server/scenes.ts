@@ -14,11 +14,13 @@ import {
   TAILLE_CASE_MAX,
   TAILLE_CASE_MIN,
   type Case,
+  ETATS_PION,
+  type EtatPion,
   type Grille,
   type Pion,
 } from "../shared/carte.ts";
 import type { MessagesClient, MessagesServeur, Reponse } from "../shared/messages.ts";
-import { SCENE_NOM_MAX, type Scene, type TypeScene } from "../shared/scenes.ts";
+import { SCENE_NOM_MAX, vuePourJoueurs, type Scene, type TypeScene } from "../shared/scenes.ts";
 import { base } from "./base.ts";
 import { diffuserImages } from "./images.ts";
 import type { Participant } from "./partie.ts";
@@ -30,6 +32,7 @@ type Io = Server<MessagesClient, MessagesServeur, Record<string, never>, Donnees
 type SocketBrumeland = Socket<MessagesClient, MessagesServeur, Record<string, never>, DonneesSocket>;
 
 const SALLE_MJ = "mj";
+const SALLE_JOUEURS = "joueurs";
 
 // ---------------------------------------------------------------------------
 // Lecture
@@ -58,11 +61,11 @@ function lireGrille(brute: string | null): Grille {
 function pionsDe(sceneId: string): Pion[] {
   const lignes = base
     .prepare(
-      `SELECT id, type, joueur_id AS joueurId, nom, couleur, taille, col, lig FROM pion
+      `SELECT id, type, joueur_id AS joueurId, nom, couleur, taille, col, lig, etat, cache FROM pion
        WHERE scene_id = ? ORDER BY type, rowid`,
     )
-    .all(sceneId) as unknown as (Omit<Pion, "taille"> & { taille: number })[];
-  return lignes.map((l) => ({ ...l, taille: l.taille as 1 | 2 | 3 }));
+    .all(sceneId) as unknown as (Omit<Pion, "taille" | "cache"> & { taille: number; cache: number })[];
+  return lignes.map((l) => ({ ...l, taille: l.taille as 1 | 2 | 3, cache: l.cache === 1 }));
 }
 
 function versScene(l: LigneScene): Scene {
@@ -147,12 +150,20 @@ export function assurerPionsPj(partieId: number): void {
 export function diffuserScenes(io: Io, partieId: number): void {
   io.to(SALLE_MJ).emit("scenes", toutesLesScenes(partieId));
   diffuserImages(io, partieId);
-  io.emit("scene", sceneActive(partieId));
+  // Les pions cachés ne quittent jamais le serveur pour les joueurs.
+  const active = sceneActive(partieId);
+  io.to(SALLE_MJ).emit("scene", active);
+  io.to(SALLE_JOUEURS).emit("scene", vuePourJoueurs(active));
 }
 
 export function envoyerScenes(socket: SocketBrumeland, partieId: number): void {
-  socket.emit("scene", sceneActive(partieId));
-  if (socket.data.participant.role === "mj") socket.emit("scenes", toutesLesScenes(partieId));
+  const active = sceneActive(partieId);
+  if (socket.data.participant.role === "mj") {
+    socket.emit("scene", active);
+    socket.emit("scenes", toutesLesScenes(partieId));
+  } else {
+    socket.emit("scene", vuePourJoueurs(active));
+  }
 }
 
 /** Appelé quand un joueur choisit son nom : son pion apparaît dans les scènes immersives. */
@@ -329,7 +340,7 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
 
   socket.on(
     "mj:ajouterPion",
-    proteger((d: { sceneId: string; nom: string; couleur: string; taille: number; col: number; lig: number }) => {
+    proteger((d: { sceneId: string; nom: string; couleur: string; taille: number; col: number; lig: number; cache?: boolean }) => {
       const scene = typeof d?.sceneId === "string" ? lireScene(partieId, d.sceneId) : undefined;
       if (!scene) return { ok: false, erreur: "Cette scène n'existe plus." };
       if (scene.type !== "immersive") return { ok: false, erreur: "Les pions vont dans une scène immersive." };
@@ -341,10 +352,46 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
       const position = lireCase(d) ?? { col: 0, lig: 0 };
       base
         .prepare(
-          `INSERT INTO pion (id, partie_id, scene_id, type, joueur_id, nom, couleur, taille, col, lig)
-           VALUES (?, ?, ?, 'pnj', NULL, ?, ?, ?, ?, ?)`,
+          `INSERT INTO pion (id, partie_id, scene_id, type, joueur_id, nom, couleur, taille, col, lig, cache)
+           VALUES (?, ?, ?, 'pnj', NULL, ?, ?, ?, ?, ?, ?)`,
         )
-        .run(randomBytes(8).toString("hex"), partieId, scene.id, nom, couleur, d.taille, position.col, position.lig);
+        .run(
+          randomBytes(8).toString("hex"),
+          partieId,
+          scene.id,
+          nom,
+          couleur,
+          d.taille,
+          position.col,
+          position.lig,
+          d.cache === true ? 1 : 0,
+        );
+      diffuserScenes(io, partieId);
+      return { ok: true };
+    }, true),
+  );
+
+  // État d'un pion (mort / à terre) et pion caché : réservé au MJ.
+  socket.on(
+    "mj:modifierPion",
+    proteger((d: { id: string; etat?: EtatPion; cache?: boolean }) => {
+      const pion = base
+        .prepare("SELECT type FROM pion WHERE partie_id = ? AND id = ?")
+        .get(partieId, String(d?.id)) as { type: "pj" | "pnj" } | undefined;
+      if (!pion) return { ok: false, erreur: "Ce pion n'existe plus." };
+      if (d.etat !== undefined) {
+        if (!ETATS_PION[pion.type].includes(d.etat)) {
+          return {
+            ok: false,
+            erreur: pion.type === "pj" ? "Un personnage joueur peut être « à terre », pas « mort »." : "Un PNJ peut être « mort », pas « à terre ».",
+          };
+        }
+        base.prepare("UPDATE pion SET etat = ? WHERE id = ?").run(d.etat, String(d.id));
+      }
+      if (d.cache !== undefined) {
+        if (pion.type !== "pnj") return { ok: false, erreur: "Seuls les pions de PNJ et de monstres peuvent être cachés." };
+        base.prepare("UPDATE pion SET cache = ? WHERE id = ?").run(d.cache === true ? 1 : 0, String(d.id));
+      }
       diffuserScenes(io, partieId);
       return { ok: true };
     }, true),

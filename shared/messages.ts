@@ -1,7 +1,7 @@
 // Messages échangés entre le serveur et l'interface.
 // Ce fichier est partagé : le serveur et l'interface utilisent les mêmes définitions.
 
-import type { Case, Grille } from "./carte.ts";
+import type { Case, EtatPion, Grille } from "./carte.ts";
 import type { CibleJetFiche, Fiche, ModificationFiche } from "./fiche.ts";
 import type { EntreeJournal, IdEtat } from "./jets.ts";
 import type { ImageBibliotheque, Scene, TypeScene } from "./scenes.ts";
@@ -145,7 +145,21 @@ export interface MessagesClient {
   /** Grille d'une image (partagée par toutes les scènes qui l'utilisent). */
   "mj:grille": (demande: { imageId: string; grille: Grille }, reponse: (r: Reponse) => void) => void;
   "mj:ajouterPion": (
-    demande: { sceneId: string; nom: string; couleur: string; taille: number; col: number; lig: number },
+    demande: {
+      sceneId: string;
+      nom: string;
+      couleur: string;
+      taille: number;
+      col: number;
+      lig: number;
+      /** Ajouter le pion caché aux joueurs. */
+      cache?: boolean;
+    },
+    reponse: (r: Reponse) => void,
+  ) => void;
+  /** État d'un pion (mort, à terre) ou pion caché aux joueurs. */
+  "mj:modifierPion": (
+    demande: { id: string; etat?: EtatPion; cache?: boolean },
     reponse: (r: Reponse) => void,
   ) => void;
   "mj:retirerPion": (demande: { id: string }, reponse: (r: Reponse) => void) => void;

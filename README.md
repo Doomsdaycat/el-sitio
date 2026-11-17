@@ -64,6 +64,9 @@ lancement. Si un lien ne s'ouvre pas tout de suite, attends une minute : le tunn
     Chaque personnage joueur a son pion et un joueur ne déplace que le sien. En glissant un pion, on voit
     la distance parcourue et le déplacement de la fiche (« 8 m / 10 m »).
   - Le MJ peut **préparer** une scène (placer les PNJ, régler la grille) sans que les joueurs la voient.
+  - Pions : le MJ marque un PNJ ou un monstre **mort** (grisé, croix rouge) et un personnage joueur
+    **à terre** (contour rouge). Il peut **cacher** un PNJ (jamais envoyé aux joueurs) et le révéler
+    au bon moment, ou l'ajouter directement caché.
   - Le MJ range ses scènes à sa guise dans « Mes scènes » : poignée ⋮⋮ à glisser, ou flèches ↑ ↓.
   - Zoom : `Ctrl` + molette (ou molette seule en plein écran), double-clic, boutons − et +.
 - **Journal** : tout le monde voit les jets, conservés d'une séance à l'autre (le MJ peut le vider).

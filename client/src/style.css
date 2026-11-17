@@ -116,9 +116,10 @@ button {
   white-space: nowrap;
 }
 
+/* Bouton désactivé : simplement grisé, le curseur ne change pas. */
 button:disabled {
   opacity: 0.6;
-  cursor: wait;
+  cursor: default;
 }
 
 button.secondaire {
@@ -853,7 +854,7 @@ textarea {
 
 .etats button:disabled {
   opacity: 0.35;
-  cursor: not-allowed;
+  cursor: default;
   text-decoration: line-through;
 }
 
@@ -1462,4 +1463,48 @@ button.secondaire.actif {
 
 .ligne-scene.survolee-dessous {
   box-shadow: 0 3px 0 var(--accent);
+}
+
+/* Liste des pions dans les réglages du MJ. */
+.liste-pions-mj {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.liste-pions-mj li {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.liste-pions-mj li.cache .nom-pion {
+  color: var(--discret);
+}
+
+.liste-pions-mj .nom-pion {
+  flex: 1;
+  min-width: 0;
+}
+
+.liste-pions-mj button {
+  padding: 0.2rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+.mention-pion {
+  margin-left: 0.4rem;
+  font-size: 0.75rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--erreur);
+}
+
+.mention-pion.discrete {
+  color: var(--discret);
+  background: none;
+  border: 1px dashed var(--discret);
 }

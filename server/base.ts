@@ -171,6 +171,12 @@ const MIGRATIONS: string[] = [
       AND (autre.cree_le > scene.cree_le OR (autre.cree_le = scene.cree_le AND autre.rowid > scene.rowid))
   );
   `,
+  // États des pions (« mort » pour un PNJ, « à terre » pour un personnage joueur)
+  // et pions de PNJ cachés aux joueurs.
+  `
+  ALTER TABLE pion ADD COLUMN etat TEXT NOT NULL DEFAULT 'normal';
+  ALTER TABLE pion ADD COLUMN cache INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 function migrer(): void {

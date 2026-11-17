@@ -43,5 +43,10 @@ export interface Scene {
   pions: Pion[];
 }
 
+/** Version d'une scène pour les joueurs : sans les pions cachés. */
+export function vuePourJoueurs(scene: Scene | null): Scene | null {
+  return scene && { ...scene, pions: scene.pions.filter((p) => !p.cache) };
+}
+
 /** Adresse d'une image (servie par le serveur). */
 export const urlImage = (id: string): string => `/api/images/${id}`;

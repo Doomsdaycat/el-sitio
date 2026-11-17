@@ -22,6 +22,18 @@ export const TAILLE_CASE_MAX = 1000;
 
 export type TypePion = "pj" | "pnj";
 
+/**
+ * État d'un pion : « mort » pour un PNJ ou un monstre, « à terre » pour un personnage joueur
+ * (à zéro PS, il peut encore être sauvé).
+ */
+export type EtatPion = "normal" | "mort" | "a-terre";
+
+/** États possibles selon le type de pion. */
+export const ETATS_PION: Record<TypePion, EtatPion[]> = {
+  pnj: ["normal", "mort"],
+  pj: ["normal", "a-terre"],
+};
+
 export interface Pion {
   id: string;
   type: TypePion;
@@ -35,6 +47,9 @@ export interface Pion {
   /** Case du coin haut-gauche. */
   col: number;
   lig: number;
+  etat: EtatPion;
+  /** PNJ caché aux joueurs (le MJ le voit en transparence ; les joueurs ne le reçoivent pas). */
+  cache: boolean;
 }
 
 export interface EtatCarte {
