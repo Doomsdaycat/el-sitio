@@ -72,6 +72,10 @@ export interface MessagesClient {
       secret: boolean;
       /** MJ seulement : id du joueur pour qui il lance (null ou absent : PNJ ou monstre). */
       pourId?: number | null;
+      /** Jet en opposition : id du jet auquel on s'oppose. */
+      opposeA?: number | null;
+      /** MJ seulement : opposition ouverte (personne n'agit). */
+      ouverte?: boolean;
     },
     reponse: (r: Reponse) => void,
   ) => void;

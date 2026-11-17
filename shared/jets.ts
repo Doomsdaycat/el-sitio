@@ -84,6 +84,10 @@ export interface EntreeJournal {
   etat: IdEtat | null;
   /** Le joueur a déjà forcé la chance sur ce jet. */
   dejaForce: boolean;
+  /** Jet en opposition : id du jet (d'origine) auquel celui-ci s'oppose, sinon null. */
+  opposeA: number | null;
+  /** Opposition ouverte (personne n'agit : bras de fer, poison…), décidée par le MJ. */
+  ouverte: boolean;
 }
 
 /**
@@ -93,6 +97,62 @@ export interface EntreeJournal {
 export function joueurConcerne(entree: EntreeJournal): number | null {
   if (entree.pourId !== null) return entree.pourId;
   return entree.auteurRole === "joueur" ? entree.auteurId : null;
+}
+
+/**
+ * Jets en opposition et forcer la chance (règle du livre) :
+ * - celui qui agit ne peut forcer la chance qu'avant le jet de son adversaire ;
+ * - l'adversaire (qui ne fait que réagir) ne le peut pas ;
+ * - en opposition ouverte, chacun le peut.
+ * `opposant` : le jet qui s'oppose à celui-ci, s'il existe.
+ */
+export function oppositionPermetDeForcer(
+  entree: EntreeJournal,
+  opposant: EntreeJournal | undefined,
+): boolean {
+  if (entree.opposeA !== null && !entree.ouverte) return false;
+  if (opposant && !opposant.ouverte) return false;
+  return true;
+}
+
+/** Le jet qui s'oppose au jet d'origine `id`, s'il est dans la liste. */
+export function trouverOpposant(id: number, journal: EntreeJournal[]): EntreeJournal | undefined {
+  return journal.find((e) => e.opposeA === id);
+}
+
+/** Le dernier essai d'un jet : sa nouvelle tentative s'il y en a une, sinon lui-même. */
+export function dernierEssai(id: number, journal: EntreeJournal[]): EntreeJournal | undefined {
+  return journal.find((e) => e.forceDe === id) ?? journal.find((e) => e.id === id);
+}
+
+export type IssueOpposition = "actif" | "opposant" | "egalite";
+
+/**
+ * Résultat d'un jet en opposition, à partir des derniers essais de chaque camp.
+ * - Normal : si celui qui agit rate, il échoue ; s'il réussit et l'adversaire rate, il l'emporte ;
+ *   si les deux réussissent, il l'emporte avec un dé inférieur ou égal.
+ * - Ouvert : on relance (« egalite ») si les deux ratent, ou réussissent avec le même dé.
+ */
+export function resoudreOpposition(
+  actif: ResultatCompetence,
+  opposant: ResultatCompetence,
+  ouverte: boolean,
+): IssueOpposition {
+  if (ouverte) {
+    if (!actif.reussi && !opposant.reussi) return "egalite";
+    if (actif.reussi !== opposant.reussi) return actif.reussi ? "actif" : "opposant";
+    if (actif.garde === opposant.garde) return "egalite";
+    return actif.garde < opposant.garde ? "actif" : "opposant";
+  }
+  if (!actif.reussi) return "opposant";
+  if (!opposant.reussi) return "actif";
+  return actif.garde <= opposant.garde ? "actif" : "opposant";
+}
+
+/** Nom affiché du camp d'un jet : le joueur concerné, « le MJ » pour un PNJ, ou l'auteur. */
+export function nomCamp(entree: EntreeJournal): string {
+  if (entree.pourNom) return entree.pourNom;
+  return entree.auteurRole === "mj" ? "le MJ" : entree.auteurNom;
 }
 
 /** Vrai si on peut encore forcer la chance sur ce jet (règles seulement, sans les droits). */

@@ -8,13 +8,15 @@ import type { Invitation, Present } from "../../shared/messages.ts";
 import { socket } from "./connexion.ts";
 
 interface Etat {
+  /** Jet auquel on s'apprête à s'opposer (choisi dans le journal), sinon null. */
+  cibleOpposition: EntreeJournal | null;
   presents: Present[] | null;
   invitations: Invitation[] | null;
   /** Du plus ancien au plus récent. */
   journal: EntreeJournal[] | null;
 }
 
-let etat: Etat = { presents: null, invitations: null, journal: null };
+let etat: Etat = { cibleOpposition: null, presents: null, invitations: null, journal: null };
 const abonnes = new Set<() => void>();
 
 function modifier(changement: Partial<Etat>): void {
@@ -27,7 +29,7 @@ const TAILLE_MAX_JOURNAL = 200;
 socket.on("presents", (presents) => modifier({ presents }));
 socket.on("invitations", (invitations) => modifier({ invitations }));
 socket.on("journal", (journal) => modifier({ journal }));
-socket.on("journal:vide", () => modifier({ journal: [] }));
+socket.on("journal:vide", () => modifier({ journal: [], cibleOpposition: null }));
 socket.on("journal:entree", (entree) => {
   const avant = etat.journal ?? [];
   const existe = avant.some((e) => e.id === entree.id);
@@ -36,6 +38,11 @@ socket.on("journal:entree", (entree) => {
     : [...avant, entree].slice(-TAILLE_MAX_JOURNAL);
   modifier({ journal });
 });
+
+/** Choisit le jet auquel s'opposer (ou null pour annuler). */
+export function choisirCibleOpposition(cible: EntreeJournal | null): void {
+  modifier({ cibleOpposition: cible });
+}
 
 function sAbonner(f: () => void): () => void {
   abonnes.add(f);

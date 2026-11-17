@@ -561,3 +561,42 @@ select {
   border-radius: 6px;
   padding: 0.45rem 0.6rem;
 }
+
+/* --- Jets en opposition --- */
+
+.bandeau-opposition {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0.75rem 0;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+}
+
+.bandeau-opposition p {
+  margin: 0;
+}
+
+.bandeau-opposition button.lien {
+  justify-self: start;
+}
+
+.badge-opposition {
+  font-size: 0.75rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+
+.issue-opposition {
+  margin: 0.4rem 0 0;
+  padding: 0.35rem 0.6rem;
+  border-radius: 5px;
+  background: var(--fond);
+  font-weight: 600;
+}
+
+.issue-opposition.egalite {
+  color: var(--attente);
+}

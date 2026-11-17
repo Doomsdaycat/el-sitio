@@ -1,13 +1,22 @@
 // Jets de dés et journal : réception des demandes et diffusion des résultats.
 
 import type { Server, Socket } from "socket.io";
-import { ETATS, LIBELLE_MAX, peutForcer, peutForcerPar, type EntreeJournal } from "../shared/jets.ts";
+import {
+  ETATS,
+  joueurConcerne,
+  LIBELLE_MAX,
+  oppositionPermetDeForcer,
+  peutForcer,
+  peutForcerPar,
+  type EntreeJournal,
+} from "../shared/jets.ts";
 import type { MessagesClient, MessagesServeur, Reponse } from "../shared/messages.ts";
 import { ErreurJet, jetCompetence, jetLibre } from "./des.ts";
 import {
   derniersJets,
   enregistrerJet,
   marquerForce,
+  opposantDe,
   revelerJet,
   trouverJet,
   viderJournal,
@@ -86,11 +95,38 @@ export function brancherJets(io: Io, socket: SocketBrumeland, partieId: number):
     return { id: joueur.id, nom: joueur.nom };
   }
 
+  /**
+   * Jet en opposition : vérifie le jet visé et renvoie son id d'origine,
+   * null pour un jet ordinaire, ou un message d'erreur.
+   */
+  function lireOpposition(
+    opposeA: unknown,
+    ouverte: unknown,
+  ): { id: number; ouverte: boolean } | null | string {
+    if (opposeA === null || opposeA === undefined) return null;
+    const vise = trouverJet(partieId, Number(opposeA));
+    // On s'oppose toujours au jet d'origine, même si on a cliqué sur sa nouvelle tentative.
+    const cible = vise && vise.forceDe !== null ? trouverJet(partieId, vise.forceDe) : vise;
+    if (!cible) return "Ce jet n'existe plus.";
+    if (cible.resultat?.type !== "competence") {
+      return "On ne peut s'opposer qu'à un jet de compétence ou de caractéristique.";
+    }
+    if (cible.opposeA !== null) return "Ce jet est déjà une réponse à un autre jet.";
+    if (opposantDe(partieId, cible.id)) return "Quelqu'un s'oppose déjà à ce jet.";
+    if (cible.secret && !cible.revele && !estMj()) return "Ce jet est secret.";
+    if (!estMj() && joueurConcerne(cible) === moi().id) {
+      return "Tu ne peux pas t'opposer à ton propre jet.";
+    }
+    if (ouverte === true && !estMj()) return "Seul le meneur de jeu décide d'une opposition ouverte.";
+    return { id: cible.id, ouverte: ouverte === true };
+  }
+
   function enregistrerEtDiffuser(
     libelle: unknown,
     secret: boolean,
     resultat: Parameters<typeof enregistrerJet>[0]["resultat"],
     pour: { id: number; nom: string } | null,
+    opposition: { id: number; ouverte: boolean } | null = null,
   ): void {
     const entree = enregistrerJet({
       partieId,
@@ -102,6 +138,8 @@ export function brancherJets(io: Io, socket: SocketBrumeland, partieId: number):
       resultat,
       pourId: pour?.id ?? null,
       pourNom: pour?.nom ?? null,
+      opposeA: opposition?.id ?? null,
+      ouverte: opposition?.ouverte ?? false,
     });
     diffuserEntree(io, entree);
   }
@@ -113,12 +151,22 @@ export function brancherJets(io: Io, socket: SocketBrumeland, partieId: number):
       if (refus) return { ok: false, erreur: refus };
       const pour = lirePour(d?.pourId);
       if (typeof pour === "string") return { ok: false, erreur: pour };
+      const opposition = lireOpposition(d?.opposeA, d?.ouverte);
+      if (typeof opposition === "string") return { ok: false, erreur: opposition };
       const resultat = jetCompetence({
         valeur: Number(d?.valeur),
         faveurs: Number(d?.faveurs ?? 0),
         fleaux: Number(d?.fleaux ?? 0),
       });
-      enregistrerEtDiffuser(d?.libelle, d?.secret === true, resultat, pour);
+      try {
+        enregistrerEtDiffuser(d?.libelle, d?.secret === true, resultat, pour, opposition);
+      } catch (erreur) {
+        // Deux réponses au même jet presque en même temps : la base n'en garde qu'une.
+        if (opposition && String(erreur).includes("UNIQUE")) {
+          return { ok: false, erreur: "Quelqu'un s'oppose déjà à ce jet." };
+        }
+        throw erreur;
+      }
       return { ok: true };
     }),
   );
@@ -151,6 +199,15 @@ export function brancherJets(io: Io, socket: SocketBrumeland, partieId: number):
       }
       if (origine.secret && !origine.revele && !estMj()) {
         return { ok: false, erreur: "Ce jet est secret." };
+      }
+      if (!oppositionPermetDeForcer(origine, opposantDe(partieId, id))) {
+        return {
+          ok: false,
+          erreur:
+            origine.opposeA !== null
+              ? "Dans un jet en opposition, seul celui qui agit peut forcer la chance."
+              : "Ton adversaire a déjà lancé : il est trop tard pour forcer la chance.",
+        };
       }
       const etat = ETATS.find((e) => e.id === d?.etat);
       if (!etat) return { ok: false, erreur: "Choisis un état dans la liste." };

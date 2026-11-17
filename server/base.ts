@@ -60,6 +60,12 @@ const MIGRATIONS: string[] = [
   ALTER TABLE jet ADD COLUMN pour_id INTEGER;
   ALTER TABLE jet ADD COLUMN pour_nom TEXT;
   `,
+  // Jets en opposition : lien vers le jet d'origine auquel on s'oppose.
+  `
+  ALTER TABLE jet ADD COLUMN oppose_a INTEGER REFERENCES jet(id) ON DELETE SET NULL;
+  ALTER TABLE jet ADD COLUMN ouverte INTEGER NOT NULL DEFAULT 0;
+  CREATE UNIQUE INDEX jet_oppose_a ON jet(oppose_a) WHERE oppose_a IS NOT NULL;
+  `,
 ];
 
 function migrer(): void {

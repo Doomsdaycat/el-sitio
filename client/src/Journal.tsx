@@ -2,8 +2,14 @@
 
 import { useState } from "react";
 import {
+  dernierEssai,
   ETATS,
+  joueurConcerne,
+  nomCamp,
+  oppositionPermetDeForcer,
   peutForcerPar,
+  resoudreOpposition,
+  trouverOpposant,
   type EntreeJournal,
   type IdEtat,
   type ResultatCompetence,
@@ -11,7 +17,7 @@ import {
 } from "../../shared/jets.ts";
 import type { Reponse } from "../../shared/messages.ts";
 import { socket } from "./connexion.ts";
-import { useEtat } from "./etat.ts";
+import { choisirCibleOpposition, useEtat } from "./etat.ts";
 
 function heure(iso: string): string {
   return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
@@ -82,14 +88,87 @@ function DetailLibre({ r }: { r: ResultatLibre }) {
   );
 }
 
-function Entree(props: { entree: EntreeJournal; moiId: number; estMj: boolean }) {
-  const { entree, moiId, estMj } = props;
+/** Les deux jets d'origine d'une opposition à laquelle ce jet appartient, s'il y en a une. */
+function paireOpposition(
+  entree: EntreeJournal,
+  journal: EntreeJournal[],
+): { actif: EntreeJournal; opposant: EntreeJournal } | null {
+  const racineId = entree.forceDe ?? entree.id;
+  const racine = journal.find((e) => e.id === racineId) ?? entree;
+  const actif =
+    racine.opposeA !== null ? journal.find((e) => e.id === racine.opposeA) : racine;
+  const opposant = racine.opposeA !== null ? racine : trouverOpposant(racine.id, journal);
+  return actif && opposant ? { actif, opposant } : null;
+}
+
+function majuscule(texte: string): string {
+  return texte.charAt(0).toUpperCase() + texte.slice(1);
+}
+
+/** Résultat d'une opposition, affiché sous le jet le plus récent des deux camps. */
+function ResultatOpposition(props: {
+  entree: EntreeJournal;
+  paire: { actif: EntreeJournal; opposant: EntreeJournal };
+  journal: EntreeJournal[];
+}) {
+  const { entree, paire, journal } = props;
+  const essaiA = dernierEssai(paire.actif.id, journal);
+  const essaiO = dernierEssai(paire.opposant.id, journal);
+  if (!essaiA || !essaiO) return null;
+  if (entree.id !== Math.max(essaiA.id, essaiO.id)) return null;
+
+  const rA = essaiA.resultat;
+  const rO = essaiO.resultat;
+  if (rA === null || rO === null) {
+    return <p className="issue-opposition discret">Résultat de l'opposition gardé secret par le MJ.</p>;
+  }
+  if (rA.type !== "competence" || rO.type !== "competence") return null;
+
+  const ouverte = paire.opposant.ouverte;
+  const issue = resoudreOpposition(rA, rO, ouverte);
+  const a = nomCamp(paire.actif);
+  const o = nomCamp(paire.opposant);
+  let texte: string;
+  if (ouverte) {
+    texte =
+      issue === "egalite"
+        ? "Égalité : relancez (chacun peut forcer la chance)."
+        : `${majuscule(issue === "actif" ? a : o)} l'emporte.`;
+  } else {
+    texte = issue === "actif" ? `${majuscule(a)} réussit face à ${o}.` : `${majuscule(a)} échoue face à ${o}.`;
+  }
+  return (
+    <p className={`issue-opposition ${issue}`}>
+      <span className="discret">Opposition{ouverte ? " ouverte" : ""} : </span>
+      {texte}
+    </p>
+  );
+}
+
+function Entree(props: {
+  entree: EntreeJournal;
+  journal: EntreeJournal[];
+  moiId: number;
+  estMj: boolean;
+}) {
+  const { entree, journal, moiId, estMj } = props;
   const [choixEtat, setChoixEtat] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const r = entree.resultat;
   const masque = r === null;
   const etat = ETATS.find((e) => e.id === entree.etat);
   const moi = { id: moiId, role: estMj ? ("mj" as const) : ("joueur" as const) };
+  const opposant = trouverOpposant(entree.id, journal);
+  const paire = r?.type === "competence" || masque ? paireOpposition(entree, journal) : null;
+  const cibleDeOpposition =
+    entree.opposeA !== null ? journal.find((e) => e.id === entree.opposeA) : undefined;
+  const peutSOpposer =
+    r?.type === "competence" &&
+    entree.forceDe === null &&
+    entree.opposeA === null &&
+    !opposant &&
+    (estMj || joueurConcerne(entree) !== moiId);
+  const peutForcerIci = peutForcerPar(entree, moi) && oppositionPermetDeForcer(entree, opposant);
 
   function repondre(rep: Reponse) {
     if (rep.ok) {
@@ -119,6 +198,12 @@ function Entree(props: { entree: EntreeJournal; moiId: number; estMj: boolean })
           </span>
         )}
         {entree.libelle && <span className="libelle">{entree.libelle}</span>}
+        {entree.opposeA !== null && (
+          <span className="badge-opposition">
+            {entree.ouverte ? "opposition ouverte" : "s'oppose"}
+            {cibleDeOpposition && <> à {nomCamp(cibleDeOpposition)}</>}
+          </span>
+        )}
         {estMj && entree.secret && (
           <span className="badge-secret">{entree.revele ? "révélé" : "secret"}</span>
         )}
@@ -147,9 +232,14 @@ function Entree(props: { entree: EntreeJournal; moiId: number; estMj: boolean })
         )}
 
       <div className="entree-actions">
-        {peutForcerPar(entree, moi) && !choixEtat && (
+        {peutForcerIci && !choixEtat && (
           <button type="button" className="secondaire" onClick={() => setChoixEtat(true)}>
             Forcer la chance
+          </button>
+        )}
+        {peutSOpposer && (
+          <button type="button" className="secondaire" onClick={() => choisirCibleOpposition(entree)}>
+            S'opposer
           </button>
         )}
         {estMj && entree.secret && !entree.revele && (
@@ -162,6 +252,8 @@ function Entree(props: { entree: EntreeJournal; moiId: number; estMj: boolean })
           </button>
         )}
       </div>
+
+      {paire && <ResultatOpposition entree={entree} paire={paire} journal={journal} />}
 
       {choixEtat && (
         <div className="choix-etat">
@@ -217,7 +309,7 @@ export function Journal({ moiId, estMj }: { moiId: number; estMj: boolean }) {
       ) : (
         <ol className="liste-journal">
           {[...journal].reverse().map((entree) => (
-            <Entree key={entree.id} entree={entree} moiId={moiId} estMj={estMj} />
+            <Entree key={entree.id} entree={entree} journal={journal} moiId={moiId} estMj={estMj} />
           ))}
         </ol>
       )}

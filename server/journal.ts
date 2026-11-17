@@ -22,11 +22,14 @@ interface LigneJet {
   dejaForce: number;
   pourId: number | null;
   pourNom: string | null;
+  opposeA: number | null;
+  ouverte: number;
 }
 
 const COLONNES = `id, auteur_id AS auteurId, auteur_nom AS auteurNom, auteur_role AS auteurRole,
   cree_le AS creeLe, libelle, secret, revele, resultat, force_de AS forceDe, etat,
-  deja_force AS dejaForce, pour_id AS pourId, pour_nom AS pourNom`;
+  deja_force AS dejaForce, pour_id AS pourId, pour_nom AS pourNom,
+  oppose_a AS opposeA, ouverte`;
 
 /** Entrée complète, telle que le MJ la voit. */
 function versEntree(ligne: LigneJet): EntreeJournal {
@@ -45,6 +48,8 @@ function versEntree(ligne: LigneJet): EntreeJournal {
     forceDe: ligne.forceDe,
     etat: ligne.etat,
     dejaForce: ligne.dejaForce === 1,
+    opposeA: ligne.opposeA,
+    ouverte: ligne.ouverte === 1,
   };
 }
 
@@ -66,14 +71,16 @@ export interface NouveauJet {
   etat?: IdEtat;
   pourId?: number | null;
   pourNom?: string | null;
+  opposeA?: number | null;
+  ouverte?: boolean;
 }
 
 export function enregistrerJet(jet: NouveauJet): EntreeJournal {
   const ligne = base
     .prepare(
       `INSERT INTO jet (partie_id, auteur_id, auteur_nom, auteur_role, cree_le, libelle, secret,
-         resultat, force_de, etat, pour_id, pour_nom)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING ${COLONNES}`,
+         resultat, force_de, etat, pour_id, pour_nom, oppose_a, ouverte)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING ${COLONNES}`,
     )
     .get(
       jet.partieId,
@@ -88,6 +95,8 @@ export function enregistrerJet(jet: NouveauJet): EntreeJournal {
       jet.etat ?? null,
       jet.pourId ?? null,
       jet.pourNom ?? null,
+      jet.opposeA ?? null,
+      jet.ouverte ? 1 : 0,
     ) as unknown as LigneJet;
   return versEntree(ligne);
 }
@@ -95,6 +104,14 @@ export function enregistrerJet(jet: NouveauJet): EntreeJournal {
 export function trouverJet(partieId: number, id: number): EntreeJournal | undefined {
   const ligne = base
     .prepare(`SELECT ${COLONNES} FROM jet WHERE partie_id = ? AND id = ?`)
+    .get(partieId, id) as unknown as LigneJet | undefined;
+  return ligne && versEntree(ligne);
+}
+
+/** Le jet qui s'oppose au jet d'origine `id`, s'il existe. */
+export function opposantDe(partieId: number, id: number): EntreeJournal | undefined {
+  const ligne = base
+    .prepare(`SELECT ${COLONNES} FROM jet WHERE partie_id = ? AND oppose_a = ?`)
     .get(partieId, id) as unknown as LigneJet | undefined;
   return ligne && versEntree(ligne);
 }

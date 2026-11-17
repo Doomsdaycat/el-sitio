@@ -8,10 +8,11 @@ import {
   LIBELLE_MAX,
   VALEUR_MAX,
   VALEUR_MIN,
+  nomCamp,
 } from "../../shared/jets.ts";
 import type { Reponse } from "../../shared/messages.ts";
 import { socket } from "./connexion.ts";
-import { useEtat } from "./etat.ts";
+import { choisirCibleOpposition, useEtat } from "./etat.ts";
 
 type Mode = "competence" | "libre";
 
@@ -53,7 +54,12 @@ function Compteur(props: {
 }
 
 export function PanneauJet({ estMj }: { estMj: boolean }) {
-  const [mode, setMode] = useState<Mode>("competence");
+  const [modeChoisi, setMode] = useState<Mode>("competence");
+  // Jet en opposition : choisi avec le bouton « S'opposer » du journal.
+  const cible = useEtat("cibleOpposition");
+  const [ouverte, setOuverte] = useState(false);
+  // Une opposition se fait toujours avec un jet de compétence ou de caractéristique.
+  const mode: Mode = cible ? "competence" : modeChoisi;
   const [libelle, setLibelle] = useState("");
   const [valeur, setValeur] = useState("");
   const [faveurs, setFaveurs] = useState(0);
@@ -77,6 +83,10 @@ export function PanneauJet({ estMj }: { estMj: boolean }) {
       setFaveurs(0);
       setFleaux(0);
       setErreur(null);
+      if (cible) {
+        choisirCibleOpposition(null);
+        setOuverte(false);
+      }
     } else {
       setErreur(r.erreur);
     }
@@ -89,7 +99,16 @@ export function PanneauJet({ estMj }: { estMj: boolean }) {
     if (mode === "competence") {
       socket.emit(
         "jet:competence",
-        { libelle, valeur: Number(valeur), faveurs, fleaux, secret: estMj && secret, pourId },
+        {
+          libelle,
+          valeur: Number(valeur),
+          faveurs,
+          fleaux,
+          secret: estMj && secret,
+          pourId,
+          opposeA: cible?.id ?? null,
+          ouverte: estMj && cible !== null && ouverte,
+        },
         terminer,
       );
     } else {
@@ -105,7 +124,37 @@ export function PanneauJet({ estMj }: { estMj: boolean }) {
     <section className="carte panneau-jet">
       <h2>Lancer les dés</h2>
 
-      <div className="onglets" role="tablist">
+      {cible && (
+        <div className="bandeau-opposition">
+          <p>
+            <strong>Jet en opposition</strong> à {nomCamp(cible)}
+            {cible.libelle && <> ({cible.libelle})</>}
+          </p>
+          {estMj && (
+            <label className="case">
+              <input
+                type="checkbox"
+                checked={ouverte}
+                onChange={(e) => setOuverte(e.target.checked)}
+              />
+              <span>Opposition ouverte : personne n'agit (bras de fer, poison, maladie…)</span>
+            </label>
+          )}
+          <button
+            type="button"
+            className="lien"
+            onClick={() => {
+              choisirCibleOpposition(null);
+              setOuverte(false);
+              setErreur(null);
+            }}
+          >
+            Annuler l'opposition
+          </button>
+        </div>
+      )}
+
+      <div className="onglets" role="tablist" hidden={cible !== null}>
         <button
           type="button"
           role="tab"

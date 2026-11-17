@@ -42,6 +42,10 @@ lancement. Si un lien ne s'ouvre pas tout de suite, attends une minute : le tunn
 - **Forcer la chance** : sur un jet raté (sauf démon) d'un personnage joueur, le joueur ou le MJ relance
   en choisissant un état. Les jets de PNJ et de monstres ne peuvent pas être forcés (règle du livre).
   L'outil ne vérifie pas encore que cet état n'est pas déjà subi : ce sera fait avec les fiches (étape 3).
+- **Jets en opposition** : sous un jet du journal, **S'opposer** prépare la réponse de l'adversaire.
+  Le journal indique qui l'emporte. Seul celui qui agit peut forcer la chance, et seulement avant
+  la réponse. Le MJ peut choisir une **opposition ouverte** (bras de fer, poison, maladie) : égalité
+  si les deux ratent ou font le même dé, et chacun peut forcer la chance.
 - **Jets secrets du MJ** : les joueurs voient « Le MJ lance les dés en secret… », sans le résultat,
   jusqu'à ce que le MJ clique sur **Révéler aux joueurs**.
 - **Journal** : tout le monde voit les jets, conservés d'une séance à l'autre (le MJ peut le vider).
