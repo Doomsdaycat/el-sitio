@@ -8,6 +8,7 @@
     "node": ">=22.12"
   },
   "scripts": {
+    "partie": "npm run -s compiler && tsx --disable-warning=ExperimentalWarning server/partie-en-ligne.ts",
     "start": "npm run -s compiler && npm run -s serveur",
     "compiler": "vite build --logLevel warn",
     "serveur": "NODE_ENV=production tsx --disable-warning=ExperimentalWarning server/index.ts",
