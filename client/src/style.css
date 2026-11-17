@@ -600,3 +600,22 @@ select {
 .issue-opposition.egalite {
   color: var(--attente);
 }
+
+/* Case « Opposition ouverte » : plus grande, pour être facile à voir et à cocher. */
+.bandeau-opposition label.case {
+  gap: 0.65rem;
+  cursor: pointer;
+}
+
+.bandeau-opposition label.case input[type="checkbox"] {
+  width: 1.4rem;
+  height: 1.4rem;
+  flex-shrink: 0;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.bandeau-opposition label.case > span {
+  font-size: 1rem;
+}
