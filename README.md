@@ -1,37 +1,58 @@
 # Brumeland VTT
 
 Table de jeu virtuelle maison pour jouer à **Dragonbane** en ligne entre amis.
+Les joueurs cliquent sur un lien et ils sont à la table : aucun compte, rien à installer.
+La voix passe par Discord.
 
-> Projet en construction : étape 1 (socle et connexion) presque terminée.
+> **Avancement :** étape 1 (socle et connexion) terminée. Prochaine étape : les dés et le journal.
 
-## Prérequis
+## Lancer une séance (2 commandes)
 
-- WSL 2 sous Windows, avec Node.js 22 (version 22.12 ou plus récente).
+Dans le terminal WSL, va dans le dossier du projet :
+
+```bash
+cd ~/workspace/brumeland-vtt
+```
+
+Ouvre le tunnel et démarre la partie :
+
+```bash
+npm run partie
+```
+
+Au bout de 10 à 20 secondes, le terminal affiche le **lien MJ** : ouvre-le dans ton navigateur.
+Sur ton écran MJ, clique sur **Copier** à côté de chaque joueur et envoie-lui son lien sur Discord.
+
+Pour arrêter la séance : `Ctrl + C` dans le terminal.
+
+**À chaque séance, renvoie leurs liens aux joueurs** : l'adresse du tunnel gratuit change à chaque
+lancement. Si un lien ne s'ouvre pas tout de suite, attends une minute : le tunnel finit de s'activer.
+
+## Ce que fait l'outil aujourd'hui
+
+- **Invitations** : sur ton écran MJ, crée un lien par joueur (avec une note pour toi, par exemple
+  « Julien »), copie-le, ou supprime-le. Un lien supprimé ne marche plus et déconnecte le joueur aussitôt.
+- **Arrivée d'un joueur** : à sa première visite, il choisit son nom. Ensuite, son lien suffit.
+- **À la table** : tout le monde voit qui est là. Pastille verte : connecté. Grise : parti.
+- **Reconnexion** : après une coupure (Wi-Fi, serveur redémarré), un bandeau jaune s'affiche et la page
+  se reconnecte toute seule.
+- **Sauvegarde** : la partie, les liens et les noms sont conservés quand tu arrêtes le serveur.
 
 ## Installation (une seule fois)
 
-Dans le terminal WSL, depuis le dossier du projet :
+### Prérequis
+
+WSL 2 sous Windows, avec Node.js 22 (version 22.12 ou plus récente).
+
+### Dépendances du projet
+
+Depuis le dossier du projet :
 
 ```bash
 npm install
 ```
 
-## Lancer une partie
-
-```bash
-npm start
-```
-
-Cette commande prépare l'interface puis démarre le serveur (quelques secondes).
-Le terminal affiche ensuite le **lien MJ** : ouvre-le dans le navigateur Windows.
-Pour arrêter : `Ctrl + C` dans le terminal.
-
-## Jouer avec des amis à distance
-
-Pour que tes amis rejoignent la partie depuis chez eux, Brumeland passe par un **tunnel Cloudflare** :
-une adresse publique en `https://…trycloudflare.com`, sans compte et sans rien ouvrir sur ta box.
-
-### Installer cloudflared (une seule fois)
+### cloudflared (le tunnel)
 
 Crée le dossier des programmes personnels (sans effet s'il existe déjà) :
 
@@ -57,38 +78,15 @@ Vérifie qu'il répond (il affiche son numéro de version) :
 cloudflared --version
 ```
 
-### Lancer une partie en ligne
+## Commandes utiles
 
-```bash
-npm run partie
-```
-
-Cette commande ouvre le tunnel, puis démarre le serveur. Le terminal affiche le **lien MJ** avec
-l'adresse publique. Pour arrêter : `Ctrl + C`.
-
-**Important :** l'adresse du tunnel change à chaque lancement. À chaque séance, renvoie leurs liens
-aux joueurs (bouton « Copier » sur ton écran MJ). Si un lien ne s'ouvre pas tout de suite, attends
-une minute : le tunnel finit de s'activer.
-
-`npm start` reste disponible pour jouer ou tester seul, sans tunnel (liens en `localhost`).
-
-## Inviter les joueurs
-
-Sur ton écran MJ, la section **Invitations des joueurs** permet de créer un lien par joueur
-(avec une note facultative, par exemple « Julien »), de le copier pour l'envoyer sur Discord,
-et de le supprimer. Un lien supprimé ne fonctionne plus : le joueur est déconnecté aussitôt.
-
-## Qui est à la table ?
-
-Tout le monde voit la liste **À la table** : une pastille verte pour les personnes connectées,
-grise pour celles qui sont parties. Après une coupure (Wi-Fi, redémarrage du serveur),
-un bandeau jaune s'affiche et la page se reconnecte toute seule.
-
-## Retrouver le lien MJ
-
-```bash
-npm run lien-mj
-```
+| Commande | À quoi elle sert |
+|---|---|
+| `npm run partie` | Séance en ligne : tunnel + serveur, liens publics en `https://…` |
+| `npm start` | Partie sur ton PC seulement, sans tunnel (liens en `localhost:3000`), pour tester seul |
+| `npm run lien-mj` | Réaffiche ton lien MJ, adresse `localhost` (marche sur ton PC même pendant une séance en ligne) |
+| `npm run dev` | Mode développement (port 5173), utilisé pendant la construction de l'outil |
+| `npm run verifier` | Vérifie le code |
 
 Le lien MJ donne tous les droits sur la partie : ne le partage pas.
 
@@ -96,15 +94,21 @@ Le lien MJ donne tous les droits sur la partie : ne le partage pas.
 
 La partie est enregistrée dans un seul fichier, `data/brumeland.db`.
 Pour la sauvegarder, copie ce fichier pendant que le serveur est arrêté.
-Ce dossier n'est jamais envoyé sur GitHub.
+Le dossier `data/` n'est jamais envoyé sur GitHub. Le journal du tunnel s'y trouve aussi
+(`data/tunnel.log`), utile en cas de problème.
 
-## Pour développer
+## En cas de problème
 
-`npm run dev` lance le serveur et l'interface en mode développement : la page se met à jour
-à chaque modification du code. Les liens utilisent alors le port 5173 au lieu de 3000.
+| Message ou symptôme | Que faire |
+|---|---|
+| « Le port 3000 est déjà utilisé » | Brumeland tourne déjà dans un autre terminal : ferme-le avec `Ctrl + C`, puis relance. |
+| « Le programme cloudflared est introuvable » | Refais l'installation de cloudflared ci-dessus. |
+| « Le tunnel n'a pas répondu » | Vérifie ta connexion Internet, puis relance `npm run partie`. |
+| Le lien d'un joueur ne s'ouvre pas du tout | Il date sans doute d'une séance précédente (ancienne adresse) : renvoie-lui le lien du jour. |
+| Un joueur voit « ce lien n'est pas reconnu » | Son invitation a été supprimée : crée-lui un nouveau lien. |
+| Bandeau jaune qui ne disparaît pas | Le serveur est arrêté : regarde le terminal, relance `npm run partie`. |
 
-## Vérifier le code
+## Héberger ailleurs (plus tard)
 
-```bash
-npm run verifier
-```
+Un `Dockerfile` permet d'installer Brumeland sur un autre serveur, avec une adresse fixe.
+Les instructions sont en tête du fichier. **Il n'a pas encore été testé.**

@@ -1,0 +1,10 @@
+node_modules
+dist
+data
+medias
+.git
+.env
+.env.*
+.cloudflared
+regles-dragonbane.md
+*.log

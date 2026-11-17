@@ -99,6 +99,15 @@ L'étape est terminée quand :
 - chacun voit qui est présent, et la liste se met à jour quand quelqu'un part ou revient ;
 - après un redémarrage du serveur, la partie et les joueurs sont toujours là.
 
+## État d'avancement
+
+- **Étape 1 terminée** le 17 novembre 2026 (sous-étapes 1.0 à 1.8), à confirmer par un vrai test avec un ami.
+- Lancer une séance : `cd ~/workspace/brumeland-vtt` puis `npm run partie` (tunnel rapide Cloudflare + serveur sur le port 3000).
+- Le tunnel rapide (`trycloudflare.com`) change d'adresse à chaque lancement : les liens joueurs sont à renvoyer à chaque séance. Une adresse fixe (domaine de l'ami hébergeur) réglerait ce point.
+- SQLite via le module `node:sqlite` intégré à Node 22 (aucune dépendance native). Migrations dans `server/base.ts` (`PRAGMA user_version`).
+- `Dockerfile` écrit mais **pas encore testé** (Docker n'est pas accessible depuis WSL sur le PC d'Antoine).
+- Pendant les tests : Antoine a souvent son propre serveur lancé sur les ports 3000 et 5173. Tester sur le port 3100 avec une base séparée (`BRUMELAND_BASE`), et n'arrêter un processus que par son numéro exact.
+
 ## Hors périmètre
 
 - Audio et vidéo intégrés (Discord s'en charge).
