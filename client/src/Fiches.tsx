@@ -535,8 +535,7 @@ export function Fiches({ moiId, estMj }: { moiId: number; estMj: boolean }) {
     ordonnees.find((f) => f.joueurId === choisie) ?? ordonnees[0] ?? null;
 
   return (
-    <section className="carte fiches">
-      <h2>Personnages</h2>
+    <div className="fiches">
       {ordonnees.length === 0 ? (
         <p className="discret">
           Aucun personnage pour l'instant : une fiche apparaît dès qu'un joueur a choisi son nom.
@@ -568,6 +567,6 @@ export function Fiches({ moiId, estMj }: { moiId: number; estMj: boolean }) {
           )}
         </>
       )}
-    </section>
+    </div>
   );
 }

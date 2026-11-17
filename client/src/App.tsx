@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ERREUR_LIEN_INCONNU, type Identite } from "../../shared/messages.ts";
 import { jeton, oublierJeton, socket } from "./connexion.ts";
 import { ChoixNom } from "./ChoixNom.tsx";
-import { Fiches } from "./Fiches.tsx";
+import { Centre } from "./Centre.tsx";
 import { Invitations } from "./Invitations.tsx";
 import { Journal } from "./Journal.tsx";
 import { PanneauJet } from "./PanneauJet.tsx";
@@ -129,7 +129,7 @@ export function App() {
               <Presents moiId={identite.moi.id} />
               <PanneauJet estMj={identite.moi.role === "mj"} />
             </div>
-            <Fiches moiId={identite.moi.id} estMj={identite.moi.role === "mj"} />
+            <Centre moiId={identite.moi.id} estMj={identite.moi.role === "mj"} />
             <Journal moiId={identite.moi.id} estMj={identite.moi.role === "mj"} />
           </div>
 

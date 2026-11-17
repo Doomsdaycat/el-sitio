@@ -6,6 +6,7 @@ import { useSyncExternalStore } from "react";
 import type { Fiche } from "../../shared/fiche.ts";
 import type { EntreeJournal } from "../../shared/jets.ts";
 import type { Invitation, Present } from "../../shared/messages.ts";
+import type { ImageBibliotheque, Scene } from "../../shared/scenes.ts";
 import { socket } from "./connexion.ts";
 
 /** Réglages du prochain jet, partagés entre le panneau de jet et la fiche. */
@@ -19,6 +20,10 @@ export interface ReglagesJet {
 }
 
 interface Etat {
+  /** Scène montrée à tous par le MJ. */
+  scene: Scene | null;
+  /** Bibliothèque d'images (MJ seulement). */
+  images: ImageBibliotheque[] | null;
   reglages: ReglagesJet;
   /** Une fiche par joueur, dans l'ordre des invitations. */
   fiches: Fiche[] | null;
@@ -31,6 +36,8 @@ interface Etat {
 }
 
 let etat: Etat = {
+  scene: null,
+  images: null,
   reglages: { faveurs: 0, fleaux: 0, secret: false, ouverte: false },
   fiches: null,
   cibleOpposition: null,
@@ -51,6 +58,8 @@ socket.on("presents", (presents) => modifier({ presents }));
 socket.on("invitations", (invitations) => modifier({ invitations }));
 socket.on("journal", (journal) => modifier({ journal }));
 socket.on("fiches", (fiches) => modifier({ fiches }));
+socket.on("scene", (scene) => modifier({ scene }));
+socket.on("images", (images) => modifier({ images }));
 socket.on("fiche", (fiche) => {
   const avant = etat.fiches ?? [];
   const existe = avant.some((f) => f.joueurId === fiche.joueurId);

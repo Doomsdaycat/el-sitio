@@ -21,6 +21,7 @@ import {
 import { base, CHEMIN_BASE } from "./base.ts";
 import { brancherFiches, diffuserFiche, envoyerFiches } from "./fiches-socket.ts";
 import { ficheDuJoueur } from "./fiches.ts";
+import { brancherImages, brancherRoutesImages, envoyerScenes } from "./images.ts";
 import { brancherJets, envoyerJournal, SALLE_JOUEURS, SALLE_MJ } from "./jets-socket.ts";
 import { lienInvitation, MODE_PARTIE } from "./liens.ts";
 import {
@@ -60,6 +61,9 @@ const io = new Server<MessagesClient, MessagesServeur, Record<string, never>, Do
 app.get("/api/sante", (_req, res) => {
   res.json({ ok: true, version: VERSION });
 });
+
+// Images : dépôt par le MJ et lecture (avant l'interface, qui prend toutes les autres adresses).
+brancherRoutesImages(app, io, partie.id);
 
 // En mode partie, le serveur sert aussi l'interface compilée (un seul port à ouvrir).
 const DOSSIER_INTERFACE = resolve(import.meta.dirname, "../dist/client");
@@ -181,8 +185,10 @@ io.on("connection", (socket) => {
   diffuserPresents();
   envoyerJournal(socket, partie.id);
   envoyerFiches(socket, partie.id);
+  envoyerScenes(socket, partie.id);
   brancherJets(io, socket, partie.id);
   brancherFiches(io, socket, partie.id);
+  brancherImages(io, socket, partie.id);
 
   socket.on("ping", (reponse) => {
     if (typeof reponse === "function") reponse(new Date().toISOString());

@@ -76,6 +76,19 @@ const MIGRATIONS: string[] = [
     maj_le     TEXT NOT NULL
   );
   `,
+  // Étape 4 : images déposées par le MJ (fichiers dans data/medias/) et scène montrée à tous.
+  `
+  CREATE TABLE image (
+    id         TEXT PRIMARY KEY,
+    partie_id  INTEGER NOT NULL REFERENCES partie(id) ON DELETE CASCADE,
+    nom        TEXT NOT NULL,
+    fichier    TEXT NOT NULL,
+    type       TEXT NOT NULL,
+    taille     INTEGER NOT NULL,
+    cree_le    TEXT NOT NULL
+  );
+  ALTER TABLE partie ADD COLUMN scene_image_id TEXT;
+  `,
 ];
 
 function migrer(): void {

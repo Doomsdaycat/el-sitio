@@ -3,6 +3,7 @@
 
 import type { CibleJetFiche, Fiche, ModificationFiche } from "./fiche.ts";
 import type { EntreeJournal, IdEtat } from "./jets.ts";
+import type { ImageBibliotheque, Scene } from "./scenes.ts";
 
 export type Role = "mj" | "joueur";
 
@@ -61,6 +62,10 @@ export interface MessagesServeur {
   fiche: (fiche: Fiche) => void;
   /** La fiche de ce joueur a disparu (invitation supprimée). */
   "fiche:supprimee": (joueurId: number) => void;
+  /** Bibliothèque d'images (MJ seulement). */
+  images: (images: ImageBibliotheque[]) => void;
+  /** Scène montrée à tous (ou aucune). */
+  scene: (scene: Scene) => void;
   /** Le lien de ce navigateur vient d'être supprimé par le MJ. */
   exclu: () => void;
 }
@@ -109,6 +114,10 @@ export interface MessagesClient {
     },
     reponse: (r: Reponse) => void,
   ) => void;
+  /** Montrer une image à tous (id), ou retirer la scène (null). */
+  "mj:montrerScene": (demande: { id: string | null }, reponse: (r: Reponse) => void) => void;
+  "mj:renommerImage": (demande: { id: string; nom: string }, reponse: (r: Reponse) => void) => void;
+  "mj:supprimerImage": (demande: { id: string }, reponse: (r: Reponse) => void) => void;
   "mj:revelerJet": (demande: { id: number }, reponse: (r: Reponse) => void) => void;
   "mj:viderJournal": (demande: Record<string, never>, reponse: (r: Reponse) => void) => void;
   /** Le joueur choisit (ou change) son nom. */

@@ -4,7 +4,8 @@ Table de jeu virtuelle maison pour jouer à **Dragonbane** en ligne entre amis.
 Les joueurs cliquent sur un lien et ils sont à la table : aucun compte, rien à installer.
 La voix passe par Discord.
 
-> **Avancement :** étapes 1 (socle et connexion), 2 (dés et journal) et 3 (fiches de personnage) terminées. Prochaine étape : les scènes et images.
+> **Avancement :** étapes 1 à 4 terminées : la version « théâtre de l'esprit » est jouable
+> (connexion, dés et journal, fiches de personnage, scènes). Prochaine étape : la carte et la grille.
 
 ## Lancer une séance (2 commandes)
 
@@ -52,6 +53,10 @@ lancement. Si un lien ne s'ouvre pas tout de suite, attends une minute : le tunn
   PS max, PV max, déplacement, bonus aux dégâts et chances de base sont calculés d'après le livre.
   Un clic sur une compétence, une caractéristique ou une école de magie lance le dé ; un état subi
   ajoute automatiquement un fléau aux jets de sa caractéristique.
+- **Scènes** : au centre, l'onglet **Scène** affiche l'image que le MJ montre à tous (en grand, ou en
+  plein écran). Le MJ dépose ses images dans sa bibliothèque (glisser-déposer, JPG, PNG, WebP ou GIF,
+  30 Mo au plus), les prévisualise pour lui seul, les renomme, les montre ou les retire. Les joueurs
+  ne voient jamais la bibliothèque, et passent sur l'onglet Scène quand une nouvelle image est montrée.
 - **Journal** : tout le monde voit les jets, conservés d'une séance à l'autre (le MJ peut le vider).
 - **Sauvegarde** : la partie, les liens, les noms et le journal sont conservés quand tu arrêtes le serveur.
 
@@ -110,8 +115,9 @@ Le lien MJ donne tous les droits sur la partie : ne le partage pas.
 
 ## Données de la partie
 
-La partie est enregistrée dans un seul fichier, `data/brumeland.db`.
-Pour la sauvegarder, copie ce fichier pendant que le serveur est arrêté.
+La partie est enregistrée dans le dossier `data/` : la base `data/brumeland.db` et les images
+déposées par le MJ dans `data/medias/`. Pour tout sauvegarder, copie le dossier `data/` entier
+pendant que le serveur est arrêté.
 Le dossier `data/` n'est jamais envoyé sur GitHub. Le journal du tunnel s'y trouve aussi
 (`data/tunnel.log`), utile en cas de problème.
 

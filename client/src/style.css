@@ -877,3 +877,189 @@ textarea {
 .liste-journal::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* --- Étape 4 : scènes et images --- */
+
+.onglets-centre {
+  margin-top: 0;
+}
+
+.onglets-centre .onglet {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.15rem;
+  position: relative;
+}
+
+/* Petit point doré : une scène est montrée pendant qu'on regarde les fiches. */
+.point-nouveau {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-left: 0.4rem;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
+}
+
+.scene {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.scene-vide {
+  padding: 3rem 1rem;
+  text-align: center;
+  border: 1px dashed var(--bordure);
+  border-radius: 6px;
+}
+
+.scene-affichage {
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
+  background: var(--fond);
+  border-radius: 6px;
+}
+
+.scene-affichage img {
+  display: block;
+  width: 100%;
+  max-height: 72vh;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.scene-affichage figcaption {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 0 0.25rem 0.25rem;
+}
+
+.scene-titre {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.1rem;
+  margin-right: auto;
+}
+
+/* Plein écran : l'image occupe tout l'écran, sur fond noir. */
+.scene-affichage:fullscreen {
+  background: #000;
+  padding: 1rem;
+  grid-template-rows: 1fr auto;
+}
+
+.scene-affichage:fullscreen img {
+  max-height: none;
+  height: 100%;
+}
+
+.bibliotheque h3 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.05rem;
+  margin: 0 0 0.25rem;
+}
+
+.zone-depot {
+  margin: 0.75rem 0;
+  padding: 1rem;
+  text-align: center;
+  border: 2px dashed var(--bordure);
+  border-radius: 8px;
+}
+
+.zone-depot p {
+  margin: 0.25rem 0;
+}
+
+.zone-depot.survol {
+  border-color: var(--accent);
+  background: var(--fond);
+}
+
+.envoi {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.3rem 0;
+}
+
+.envoi progress {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.grille-images {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.75rem;
+}
+
+.carte-image {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.4rem;
+  border: 1px solid var(--bordure);
+  border-radius: 6px;
+}
+
+.carte-image.montree {
+  border-color: var(--accent);
+}
+
+.carte-image.apercu {
+  outline: 2px dashed var(--discret);
+  outline-offset: 2px;
+}
+
+.vignette {
+  position: relative;
+  padding: 0;
+  border: none;
+  background: var(--fond);
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: zoom-in;
+}
+
+.vignette img {
+  display: block;
+  width: 100%;
+  height: 7rem;
+  object-fit: cover;
+}
+
+.badge-montree {
+  position: absolute;
+  top: 0.3rem;
+  left: 0.3rem;
+  font-size: 0.75rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  color: var(--accent-texte);
+  background: var(--accent);
+}
+
+.nom-image {
+  padding: 0.25rem 0.4rem;
+  font-size: 0.9rem;
+}
+
+.carte-image-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.carte-image-actions > :first-child {
+  margin-right: auto;
+}
+
+.carte-image-actions button {
+  padding: 0.2rem 0.6rem;
+  font-size: 0.85rem;
+}
