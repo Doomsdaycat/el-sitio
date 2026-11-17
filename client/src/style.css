@@ -546,3 +546,9 @@ label.case > span {
   gap: 0.35rem;
   align-items: center;
 }
+
+.note-jet {
+  margin: 0.3rem 0 0;
+  font-size: 0.85rem;
+  font-style: italic;
+}

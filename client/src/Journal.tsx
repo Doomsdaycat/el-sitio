@@ -133,6 +133,19 @@ function Entree(props: { entree: EntreeJournal; moiId: number; estMj: boolean })
         <DetailLibre r={r} />
       )}
 
+      {entree.auteurId === moiId && r?.type === "competence" && !r.reussi && (
+        <>
+          {r.demon && entree.auteurRole === "joueur" && (
+            <p className="discret note-jet">Démon : impossible de forcer la chance sur ce jet.</p>
+          )}
+          {!r.demon && entree.auteurRole === "mj" && (
+            <p className="discret note-jet">
+              Les PNJ et les monstres ne peuvent pas forcer la chance : seuls les joueurs le peuvent.
+            </p>
+          )}
+        </>
+      )}
+
       <div className="entree-actions">
         {entree.auteurId === moiId && peutForcer(entree) && !choixEtat && (
           <button type="button" className="secondaire" onClick={() => setChoixEtat(true)}>
