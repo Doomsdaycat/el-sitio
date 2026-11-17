@@ -238,22 +238,8 @@ function Entree(props: {
           </button>
         )}
         {peutSOpposer && (
-          <button
-            type="button"
-            className="secondaire"
-            onClick={() => choisirCibleOpposition({ entree, ouverte: false })}
-          >
+          <button type="button" className="secondaire" onClick={() => choisirCibleOpposition(entree)}>
             S'opposer
-          </button>
-        )}
-        {peutSOpposer && estMj && (
-          <button
-            type="button"
-            className="secondaire"
-            title="Personne n'agit : bras de fer, poison, maladie…"
-            onClick={() => choisirCibleOpposition({ entree, ouverte: true })}
-          >
-            Opposition ouverte
           </button>
         )}
         {estMj && entree.secret && !entree.revele && (
