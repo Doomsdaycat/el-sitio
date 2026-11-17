@@ -15,6 +15,7 @@ import {
   type Scene,
 } from "../shared/scenes.ts";
 import { base, CHEMIN_BASE } from "./base.ts";
+import { apresSuppressionImage, diffuserCarte, etatCarte } from "./carte.ts";
 import { nomDepuisFichier, reconnaitreImage } from "./images-format.ts";
 import { participantParJeton, type Participant } from "./partie.ts";
 
@@ -213,6 +214,7 @@ export function brancherImages(io: Io, socket: SocketBrumeland, partieId: number
       diffuserImages(io, partieId);
       // Si elle est montrée, les joueurs voient le nouveau titre.
       if (sceneCourante(partieId).image?.id === image.id) diffuserScene(io, partieId);
+      if (etatCarte(partieId).image?.id === image.id) diffuserCarte(io, partieId);
       return { ok: true };
     }),
   );
@@ -232,6 +234,7 @@ export function brancherImages(io: Io, socket: SocketBrumeland, partieId: number
       }
       diffuserImages(io, partieId);
       if (etaitMontree) diffuserScene(io, partieId);
+      apresSuppressionImage(io, partieId, image.id);
       return { ok: true };
     }),
   );

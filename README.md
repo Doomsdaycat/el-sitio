@@ -4,8 +4,8 @@ Table de jeu virtuelle maison pour jouer à **Dragonbane** en ligne entre amis.
 Les joueurs cliquent sur un lien et ils sont à la table : aucun compte, rien à installer.
 La voix passe par Discord.
 
-> **Avancement :** étapes 1 à 4 terminées : la version « théâtre de l'esprit » est jouable
-> (connexion, dés et journal, fiches de personnage, scènes). Prochaine étape : la carte et la grille.
+> **Avancement :** étapes 1 à 5 terminées : connexion, dés et journal, fiches de personnage,
+> scènes, carte de combat. Prochaine étape : le combat (initiative par cartes, suivi des tours).
 
 ## Lancer une séance (2 commandes)
 
@@ -59,6 +59,12 @@ lancement. Si un lien ne s'ouvre pas tout de suite, attends une minute : le tunn
   en faisant glisser l'image ; **Ajuster** revient à l'image entière. Le MJ dépose ses images dans sa bibliothèque (glisser-déposer, JPG, PNG, WebP ou GIF,
   30 Mo au plus), les prévisualise pour lui seul, les renomme, les montre ou les retire. Les joueurs
   ne voient jamais la bibliothèque, et passent sur l'onglet Scène quand une nouvelle image est montrée.
+- **Carte de combat** : onglet **Carte**. Le MJ choisit une image de sa bibliothèque, aligne la grille
+  sur celle de l'image (1 case = 2 m, une diagonale compte aussi 2 m), et ajoute les pions de PNJ et de
+  monstres (1×1, 2×2 ou 3×3). Chaque personnage joueur a son pion ; un joueur ne déplace que le sien.
+  En glissant un pion, on voit la distance parcourue et le déplacement de la fiche (« 8 m / 10 m »).
+  Outils : **Règle** (mesure visible par tous) et **Montrer** (signal animé chez tous). Zoom comme pour
+  les scènes (`Ctrl` + molette, ou molette seule en plein écran), et on glisse la carte pour se déplacer.
 - **Journal** : tout le monde voit les jets, conservés d'une séance à l'autre (le MJ peut le vider).
 - **Sauvegarde** : la partie, les liens, les noms et le journal sont conservés quand tu arrêtes le serveur.
 

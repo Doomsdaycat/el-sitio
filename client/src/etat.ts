@@ -3,6 +3,7 @@
 // même si un message arrive avant que l'écran correspondant soit affiché.
 
 import { useSyncExternalStore } from "react";
+import type { Case, EtatCarte } from "../../shared/carte.ts";
 import type { Fiche } from "../../shared/fiche.ts";
 import type { EntreeJournal } from "../../shared/jets.ts";
 import type { Invitation, Present } from "../../shared/messages.ts";
@@ -19,7 +20,26 @@ export interface ReglagesJet {
   ouverte: boolean;
 }
 
+/** Règle de mesure tenue par quelqu'un d'autre. */
+export interface RegleDistante {
+  auteurId: number;
+  auteur: string;
+  de: Case;
+  a: Case;
+}
+
+/** Signal « regardez ici » sur la carte. */
+export interface Pointeur {
+  cle: number;
+  auteur: string;
+  x: number;
+  y: number;
+}
+
 interface Etat {
+  carte: EtatCarte | null;
+  reglesDistantes: RegleDistante[];
+  pointeurs: Pointeur[];
   /** Scène montrée à tous par le MJ. */
   scene: Scene | null;
   /** Bibliothèque d'images (MJ seulement). */
@@ -36,6 +56,9 @@ interface Etat {
 }
 
 let etat: Etat = {
+  carte: null,
+  reglesDistantes: [],
+  pointeurs: [],
   scene: null,
   images: null,
   reglages: { faveurs: 0, fleaux: 0, secret: false, ouverte: false },
@@ -60,6 +83,20 @@ socket.on("journal", (journal) => modifier({ journal }));
 socket.on("fiches", (fiches) => modifier({ fiches }));
 socket.on("scene", (scene) => modifier({ scene }));
 socket.on("images", (images) => modifier({ images }));
+socket.on("carte", (carte) => modifier({ carte }));
+socket.on("carte:regle", ({ auteurId, auteur, mesure }) => {
+  const autres = etat.reglesDistantes.filter((r) => r.auteurId !== auteurId);
+  modifier({ reglesDistantes: mesure ? [...autres, { auteurId, auteur, ...mesure }] : autres });
+});
+socket.on("carte:pointeur", ({ auteur, x, y }) => ajouterPointeur(auteur, x, y));
+
+let prochaineCle = 1;
+/** Affiche un pointeur pendant quelques secondes (le sien ou celui de quelqu'un d'autre). */
+export function ajouterPointeur(auteur: string, x: number, y: number): void {
+  const cle = prochaineCle++;
+  modifier({ pointeurs: [...etat.pointeurs, { cle, auteur, x, y }] });
+  window.setTimeout(() => modifier({ pointeurs: etat.pointeurs.filter((p) => p.cle !== cle) }), 3000);
+}
 socket.on("fiche", (fiche) => {
   const avant = etat.fiches ?? [];
   const existe = avant.some((f) => f.joueurId === fiche.joueurId);

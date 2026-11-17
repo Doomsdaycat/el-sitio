@@ -1,6 +1,7 @@
 // Messages échangés entre le serveur et l'interface.
 // Ce fichier est partagé : le serveur et l'interface utilisent les mêmes définitions.
 
+import type { Case, EtatCarte, Grille } from "./carte.ts";
 import type { CibleJetFiche, Fiche, ModificationFiche } from "./fiche.ts";
 import type { EntreeJournal, IdEtat } from "./jets.ts";
 import type { ImageBibliotheque, Scene } from "./scenes.ts";
@@ -66,6 +67,12 @@ export interface MessagesServeur {
   images: (images: ImageBibliotheque[]) => void;
   /** Scène montrée à tous (ou aucune). */
   scene: (scene: Scene) => void;
+  /** Carte de combat : image, grille et pions. */
+  carte: (carte: EtatCarte) => void;
+  /** Règle de mesure tenue par quelqu'un d'autre (mesure null : il l'a lâchée). */
+  "carte:regle": (r: { auteurId: number; auteur: string; mesure: { de: Case; a: Case } | null }) => void;
+  /** Quelqu'un montre un endroit de la carte (en pixels de l'image). */
+  "carte:pointeur": (p: { auteurId: number; auteur: string; x: number; y: number }) => void;
   /** Le lien de ce navigateur vient d'être supprimé par le MJ. */
   exclu: () => void;
 }
@@ -118,6 +125,17 @@ export interface MessagesClient {
   "mj:montrerScene": (demande: { id: string | null }, reponse: (r: Reponse) => void) => void;
   "mj:renommerImage": (demande: { id: string; nom: string }, reponse: (r: Reponse) => void) => void;
   "mj:supprimerImage": (demande: { id: string }, reponse: (r: Reponse) => void) => void;
+  "mj:choisirCarte": (demande: { id: string | null }, reponse: (r: Reponse) => void) => void;
+  "mj:grille": (demande: Grille, reponse: (r: Reponse) => void) => void;
+  "mj:ajouterPion": (
+    demande: { nom: string; couleur: string; taille: number; col: number; lig: number },
+    reponse: (r: Reponse) => void,
+  ) => void;
+  "mj:retirerPion": (demande: { id: string }, reponse: (r: Reponse) => void) => void;
+  "carte:deplacerPion": (demande: { id: string; col: number; lig: number }, reponse: (r: Reponse) => void) => void;
+  /** Règle de mesure en cours (null quand on la lâche). Pas de réponse : envoi fréquent. */
+  "carte:regle": (mesure: { de: Case; a: Case } | null) => void;
+  "carte:pointeur": (point: { x: number; y: number }) => void;
   "mj:revelerJet": (demande: { id: number }, reponse: (r: Reponse) => void) => void;
   "mj:viderJournal": (demande: Record<string, never>, reponse: (r: Reponse) => void) => void;
   /** Le joueur choisit (ou change) son nom. */

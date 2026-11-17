@@ -89,6 +89,25 @@ const MIGRATIONS: string[] = [
   );
   ALTER TABLE partie ADD COLUMN scene_image_id TEXT;
   `,
+  // Étape 5 : carte de combat (une image de la bibliothèque), grille propre à chaque image,
+  // et pions posés sur chaque carte (un pion de personnage joueur par joueur et par carte).
+  `
+  ALTER TABLE partie ADD COLUMN carte_image_id TEXT;
+  ALTER TABLE image ADD COLUMN grille TEXT;
+  CREATE TABLE pion (
+    id         TEXT PRIMARY KEY,
+    partie_id  INTEGER NOT NULL REFERENCES partie(id) ON DELETE CASCADE,
+    image_id   TEXT NOT NULL REFERENCES image(id) ON DELETE CASCADE,
+    type       TEXT NOT NULL CHECK (type IN ('pj', 'pnj')),
+    joueur_id  INTEGER REFERENCES participant(id) ON DELETE CASCADE,
+    nom        TEXT NOT NULL DEFAULT '',
+    couleur    TEXT NOT NULL,
+    taille     INTEGER NOT NULL,
+    col        INTEGER NOT NULL,
+    lig        INTEGER NOT NULL
+  );
+  CREATE UNIQUE INDEX pion_pj ON pion(image_id, joueur_id) WHERE joueur_id IS NOT NULL;
+  `,
 ];
 
 function migrer(): void {

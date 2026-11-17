@@ -17,5 +17,8 @@ export default defineConfig({
   build: {
     outDir: "../dist/client",
     emptyOutDir: true,
+    // Avec Konva (carte), l'interface pèse environ 650 Ko (200 Ko compressée) : c'est normal,
+    // et le navigateur ne la télécharge qu'une fois.
+    chunkSizeWarningLimit: 1000,
   },
 });

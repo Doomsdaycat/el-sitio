@@ -1123,3 +1123,155 @@ textarea {
   border: 1px solid rgba(255, 255, 255, 0.45);
   border-radius: 4px;
 }
+
+/* --- Étape 5 : carte de combat --- */
+
+.carte-combat {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.carte-cadre {
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.carte-outils {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.groupe-outils {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.groupe-outils button {
+  padding: 0.3rem 0.7rem;
+}
+
+.carte-zone {
+  position: relative;
+  height: 72vh;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--fond);
+  border: 1px solid var(--bordure);
+}
+
+.carte-chargement {
+  position: absolute;
+  inset: 45% 0 auto;
+  text-align: center;
+}
+
+/* Plein écran : la carte occupe tout l'écran, les outils restent en haut. */
+.carte-cadre:fullscreen {
+  box-sizing: border-box;
+  width: 100vw;
+  height: 100vh;
+  padding: 0.75rem;
+  background: #000;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.carte-cadre:fullscreen .carte-zone {
+  height: 100%;
+}
+
+.reglages-carte h3 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.05rem;
+  margin: 0 0 0.6rem;
+}
+
+.reglages-carte h4 {
+  margin: 0 0 0.3rem;
+  font-size: 0.95rem;
+}
+
+.reglage-carte {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.reglage-carte > span:first-child {
+  color: var(--discret);
+}
+
+.bloc-reglages {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--bordure);
+}
+
+.ligne-reglages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem;
+}
+
+.reglage {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.reglage > span:first-child {
+  font-size: 0.8rem;
+  color: var(--discret);
+}
+
+.reglage-valeurs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.reglage-valeurs button {
+  width: 2rem;
+  padding: 0.2rem 0;
+}
+
+.reglage-valeurs .champ-nombre {
+  width: 4.2rem;
+}
+
+.ajout-pion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.4rem 0;
+}
+
+.ajout-pion input {
+  flex: 1;
+  min-width: 10rem;
+}
+
+.liste-pions {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+}
+
+.liste-pions li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pastille-couleur {
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  border: 1px solid var(--bordure);
+}
