@@ -921,12 +921,46 @@ textarea {
   border-radius: 6px;
 }
 
-.scene-affichage img {
+/* Cadre de l'image : taille fixe, l'image zoomée y est découpée. */
+.scene-zone {
+  position: relative;
+  height: 72vh;
+  overflow: hidden;
+  border-radius: 6px;
+  user-select: none;
+}
+
+.scene-zone.zoomee {
+  cursor: grab;
+}
+
+.scene-zone.zoomee:active {
+  cursor: grabbing;
+}
+
+.scene-zone img {
   display: block;
   width: 100%;
-  max-height: 72vh;
+  height: 100%;
   object-fit: contain;
-  border-radius: 6px;
+  transform-origin: 0 0;
+}
+
+.zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.zoom button {
+  padding: 0.25rem 0.6rem;
+}
+
+.zoom-valeur {
+  min-width: 3.2rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--discret);
 }
 
 .scene-affichage figcaption {
@@ -954,11 +988,8 @@ textarea {
   grid-template-rows: minmax(0, 1fr) auto;
 }
 
-.scene-affichage:fullscreen img {
-  width: 100%;
+.scene-affichage:fullscreen .scene-zone {
   height: 100%;
-  max-height: none;
-  object-fit: contain;
 }
 
 .bibliotheque h3 {

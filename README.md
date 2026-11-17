@@ -54,7 +54,8 @@ lancement. Si un lien ne s'ouvre pas tout de suite, attends une minute : le tunn
   Un clic sur une compétence, une caractéristique ou une école de magie lance le dé ; un état subi
   ajoute automatiquement un fléau aux jets de sa caractéristique.
 - **Scènes** : au centre, l'onglet **Scène** affiche l'image que le MJ montre à tous (en grand, ou en
-  plein écran). Le MJ dépose ses images dans sa bibliothèque (glisser-déposer, JPG, PNG, WebP ou GIF,
+  plein écran). Chacun peut zoomer de son côté (molette, double-clic, boutons − et +) et se déplacer
+  en faisant glisser l'image ; **Ajuster** revient à l'image entière. Le MJ dépose ses images dans sa bibliothèque (glisser-déposer, JPG, PNG, WebP ou GIF,
   30 Mo au plus), les prévisualise pour lui seul, les renomme, les montre ou les retire. Les joueurs
   ne voient jamais la bibliothèque, et passent sur l'onglet Scène quand une nouvelle image est montrée.
 - **Journal** : tout le monde voit les jets, conservés d'une séance à l'autre (le MJ peut le vider).

@@ -16,24 +16,147 @@ function mega(octets: number): string {
   return `${(octets / 1024 / 1024).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} Mo`;
 }
 
-/** Grande image, avec un bouton plein écran. */
+const ZOOM_MIN = 1;
+const ZOOM_MAX = 8;
+
+interface Vue {
+  /** Facteur de zoom (1 = image entière). */
+  zoom: number;
+  /** Décalage de l'image, en pixels. */
+  x: number;
+  y: number;
+}
+
+const VUE_ENTIERE: Vue = { zoom: 1, x: 0, y: 0 };
+
+/**
+ * Zoome vers un point du cadre (px, py) en gardant ce point sous la souris,
+ * puis empêche l'image de sortir du cadre.
+ */
+function zoomerVers(vue: Vue, zoom: number, px: number, py: number, l: number, h: number): Vue {
+  const z = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom));
+  const x = px - ((px - vue.x) * z) / vue.zoom;
+  const y = py - ((py - vue.y) * z) / vue.zoom;
+  return borner({ zoom: z, x, y }, l, h);
+}
+
+function borner(vue: Vue, l: number, h: number): Vue {
+  return {
+    zoom: vue.zoom,
+    x: Math.min(0, Math.max(l - l * vue.zoom, vue.x)),
+    y: Math.min(0, Math.max(h - h * vue.zoom, vue.y)),
+  };
+}
+
+/**
+ * Grande image, avec zoom et déplacement personnels (chacun regarde où il veut)
+ * et un bouton plein écran.
+ */
 function Affichage(props: { id: string; titre: string; bandeau?: React.ReactNode }) {
-  const cadre = useRef<HTMLDivElement>(null);
+  const cadre = useRef<HTMLElement>(null);
+  const zone = useRef<HTMLDivElement>(null);
   const [pleinEcran, setPleinEcran] = useState(false);
+  const [vue, setVue] = useState<Vue>(VUE_ENTIERE);
+  const glisse = useRef<{ x: number; y: number } | null>(null);
 
   // Suit l'entrée et la sortie du plein écran (bouton, ou touche Échap).
   useEffect(() => {
-    const suivre = () => setPleinEcran(document.fullscreenElement === cadre.current);
+    const suivre = () => {
+      setPleinEcran(document.fullscreenElement === cadre.current);
+      setVue(VUE_ENTIERE); // la taille du cadre change : on repart de l'image entière
+    };
     document.addEventListener("fullscreenchange", suivre);
     return () => document.removeEventListener("fullscreenchange", suivre);
   }, []);
 
+  // Nouvelle image : on revient à l'image entière.
+  useEffect(() => setVue(VUE_ENTIERE), [props.id]);
+
+  // Molette : zoom vers la souris. (Écouteur manuel pour pouvoir bloquer le défilement de la page.)
+  useEffect(() => {
+    const el = zone.current;
+    if (!el) return;
+    const surMolette = (e: WheelEvent) => {
+      e.preventDefault();
+      const r = el.getBoundingClientRect();
+      const facteur = Math.exp(-e.deltaY * 0.0015);
+      setVue((v) => zoomerVers(v, v.zoom * facteur, e.clientX - r.left, e.clientY - r.top, r.width, r.height));
+    };
+    el.addEventListener("wheel", surMolette, { passive: false });
+    return () => el.removeEventListener("wheel", surMolette);
+  }, []);
+
+  /** Zoom par les boutons : vers le centre du cadre. */
+  function zoomerAuCentre(facteur: number) {
+    const r = zone.current?.getBoundingClientRect();
+    if (!r) return;
+    setVue((v) => zoomerVers(v, v.zoom * facteur, r.width / 2, r.height / 2, r.width, r.height));
+  }
+
+  const zoome = vue.zoom > 1.001;
+
   return (
-    <figure className="scene-affichage" ref={cadre}>
-      <img src={urlImage(props.id)} alt={props.titre} />
+    <figure className={pleinEcran ? "scene-affichage plein" : "scene-affichage"} ref={cadre}>
+      <div
+        ref={zone}
+        className={zoome ? "scene-zone zoomee" : "scene-zone"}
+        onPointerDown={(e) => {
+          if (!zoome || e.button !== 0) return;
+          e.currentTarget.setPointerCapture(e.pointerId);
+          glisse.current = { x: e.clientX, y: e.clientY };
+        }}
+        onPointerMove={(e) => {
+          const depart = glisse.current;
+          if (!depart) return;
+          const r = e.currentTarget.getBoundingClientRect();
+          const dx = e.clientX - depart.x;
+          const dy = e.clientY - depart.y;
+          glisse.current = { x: e.clientX, y: e.clientY };
+          setVue((v) => borner({ zoom: v.zoom, x: v.x + dx, y: v.y + dy }, r.width, r.height));
+        }}
+        onPointerUp={() => (glisse.current = null)}
+        onPointerCancel={() => (glisse.current = null)}
+        onDoubleClick={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          setVue((v) => zoomerVers(v, v.zoom * 2, e.clientX - r.left, e.clientY - r.top, r.width, r.height));
+        }}
+      >
+        <img
+          src={urlImage(props.id)}
+          alt={props.titre}
+          draggable={false}
+          style={{ transform: `translate(${vue.x}px, ${vue.y}px) scale(${vue.zoom})` }}
+        />
+      </div>
       <figcaption>
         <span className="scene-titre">{props.titre}</span>
         {props.bandeau}
+        <span className="zoom">
+          <button
+            type="button"
+            className="secondaire"
+            aria-label="Dézoomer"
+            disabled={!zoome}
+            onClick={() => zoomerAuCentre(1 / 1.5)}
+          >
+            −
+          </button>
+          <span className="zoom-valeur" title="Molette : zoomer · glisser : se déplacer · double-clic : zoomer ici">
+            {Math.round(vue.zoom * 100)} %
+          </span>
+          <button
+            type="button"
+            className="secondaire"
+            aria-label="Zoomer"
+            disabled={vue.zoom >= ZOOM_MAX}
+            onClick={() => zoomerAuCentre(1.5)}
+          >
+            +
+          </button>
+          <button type="button" className="secondaire" disabled={!zoome} onClick={() => setVue(VUE_ENTIERE)}>
+            Ajuster
+          </button>
+        </span>
         <button
           type="button"
           className="secondaire"
