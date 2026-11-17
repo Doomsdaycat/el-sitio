@@ -56,8 +56,10 @@ function Compteur(props: {
 export function PanneauJet({ estMj }: { estMj: boolean }) {
   const [modeChoisi, setMode] = useState<Mode>("competence");
   // Jet en opposition : choisi avec le bouton « S'opposer » du journal.
-  const cible = useEtat("cibleOpposition");
-  const [ouverte, setOuverte] = useState(false);
+  const opposition = useEtat("cibleOpposition");
+  const cible = opposition?.entree ?? null;
+  const ouverte = opposition?.ouverte ?? false;
+  const setOuverte = (o: boolean) => cible && choisirCibleOpposition({ entree: cible, ouverte: o });
   // Une opposition se fait toujours avec un jet de compétence ou de caractéristique.
   const mode: Mode = cible ? "competence" : modeChoisi;
   const [libelle, setLibelle] = useState("");
@@ -83,10 +85,7 @@ export function PanneauJet({ estMj }: { estMj: boolean }) {
       setFaveurs(0);
       setFleaux(0);
       setErreur(null);
-      if (cible) {
-        choisirCibleOpposition(null);
-        setOuverte(false);
-      }
+      if (cible) choisirCibleOpposition(null);
     } else {
       setErreur(r.erreur);
     }
@@ -127,7 +126,8 @@ export function PanneauJet({ estMj }: { estMj: boolean }) {
       {cible && (
         <div className="bandeau-opposition">
           <p>
-            <strong>Jet en opposition</strong> à {nomCamp(cible)}
+            <strong>{estMj && ouverte ? "Opposition ouverte" : "Jet en opposition"}</strong> à{" "}
+            {nomCamp(cible)}
             {cible.libelle && <> ({cible.libelle})</>}
           </p>
           {estMj && (
@@ -145,7 +145,6 @@ export function PanneauJet({ estMj }: { estMj: boolean }) {
             className="lien"
             onClick={() => {
               choisirCibleOpposition(null);
-              setOuverte(false);
               setErreur(null);
             }}
           >

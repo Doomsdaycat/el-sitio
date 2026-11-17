@@ -7,9 +7,15 @@ import type { EntreeJournal } from "../../shared/jets.ts";
 import type { Invitation, Present } from "../../shared/messages.ts";
 import { socket } from "./connexion.ts";
 
+export interface CibleOpposition {
+  entree: EntreeJournal;
+  /** Opposition ouverte (MJ seulement) : personne n'agit. */
+  ouverte: boolean;
+}
+
 interface Etat {
   /** Jet auquel on s'apprête à s'opposer (choisi dans le journal), sinon null. */
-  cibleOpposition: EntreeJournal | null;
+  cibleOpposition: CibleOpposition | null;
   presents: Present[] | null;
   invitations: Invitation[] | null;
   /** Du plus ancien au plus récent. */
@@ -40,7 +46,7 @@ socket.on("journal:entree", (entree) => {
 });
 
 /** Choisit le jet auquel s'opposer (ou null pour annuler). */
-export function choisirCibleOpposition(cible: EntreeJournal | null): void {
+export function choisirCibleOpposition(cible: CibleOpposition | null): void {
   modifier({ cibleOpposition: cible });
 }
 
