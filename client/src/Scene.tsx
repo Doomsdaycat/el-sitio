@@ -389,14 +389,29 @@ function Bibliotheque(props: { surNouvelleScene: (b: Brouillon) => void }) {
 // ---------------------------------------------------------------------------
 // Mes scènes (MJ)
 
+/** Glisser-déposer et flèches pour réordonner « Mes scènes ». */
+interface Ordre {
+  rang: number;
+  total: number;
+  deplacer: (versRang: number) => void;
+  glisseeId: string | null;
+  /** Survolée pendant un glisser : la scène glissée viendra au-dessus, ou en dessous si elle descend. */
+  survolee: "dessus" | "dessous" | null;
+  surDebutGlisse: () => void;
+  surSurvol: () => void;
+  surFinGlisse: () => void;
+  surDepot: () => void;
+}
+
 function LigneScene(props: {
   scene: SceneDonnees;
   montree: boolean;
   preparee: boolean;
   images: ImageBibliotheque[];
   surErreur: (e: string | null) => void;
+  ordre: Ordre;
 }) {
-  const { scene, montree, preparee, images, surErreur } = props;
+  const { scene, montree, preparee, images, surErreur, ordre } = props;
   const [nom, setNom] = useState<string | null>(null);
   const [confirmer, setConfirmer] = useState(false);
   const repondre = (r: Reponse) => surErreur(r.ok ? null : r.erreur);
@@ -416,9 +431,56 @@ function LigneScene(props: {
   const classes = ["ligne-scene"];
   if (montree) classes.push("montree");
   if (preparee) classes.push("preparee");
+  if (ordre.glisseeId === scene.id) classes.push("glissee");
+  if (ordre.survolee && ordre.glisseeId !== scene.id) classes.push(`survolee-${ordre.survolee}`);
 
   return (
-    <li className={classes.join(" ")}>
+    <li
+      className={classes.join(" ")}
+      onDragOver={(e) => {
+        if (!ordre.glisseeId) return;
+        e.preventDefault();
+        ordre.surSurvol();
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        ordre.surDepot();
+      }}
+    >
+      <div className="ordre-scene">
+        <span
+          className="poignee"
+          draggable
+          title="Glisser pour déplacer la scène"
+          aria-hidden="true"
+          onDragStart={(e) => {
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("text/plain", scene.id);
+            ordre.surDebutGlisse();
+          }}
+          onDragEnd={ordre.surFinGlisse}
+        >
+          ⋮⋮
+        </span>
+        <button
+          type="button"
+          className="fleche"
+          aria-label={`Monter « ${scene.nom} »`}
+          disabled={ordre.rang === 0}
+          onClick={() => ordre.deplacer(ordre.rang - 1)}
+        >
+          ↑
+        </button>
+        <button
+          type="button"
+          className="fleche"
+          aria-label={`Descendre « ${scene.nom} »`}
+          disabled={ordre.rang === ordre.total - 1}
+          onClick={() => ordre.deplacer(ordre.rang + 1)}
+        >
+          ↓
+        </button>
+      </div>
       <img className="ligne-scene-vignette" src={urlImage(scene.image.id)} alt="" loading="lazy" />
       <div className="ligne-scene-infos">
         <input
@@ -507,6 +569,16 @@ function MesScenes(props: { brouillon: Brouillon | null; surBrouillonUtilise: ()
   const [type, setType] = useState<TypeScene>("illustration");
   const [imageId, setImageId] = useState("");
   const formulaire = useRef<HTMLFormElement>(null);
+  const [glisseeId, setGlisseeId] = useState<string | null>(null);
+  const [survoleeId, setSurvoleeId] = useState<string | null>(null);
+
+  /** Déplace une scène à un rang donné ; la liste ne change qu'une fois le serveur d'accord. */
+  function deplacer(id: string, versRang: number) {
+    if (!scenes) return;
+    const ids = scenes.map((x) => x.id).filter((x) => x !== id);
+    ids.splice(Math.max(0, Math.min(versRang, ids.length)), 0, id);
+    socket.emit("mj:ordonnerScenes", { ids }, (r: Reponse) => setErreur(r.ok ? null : r.erreur));
+  }
 
   // « Nouvelle scène » depuis la bibliothèque : on préremplit le formulaire.
   useEffect(() => {
@@ -524,7 +596,7 @@ function MesScenes(props: { brouillon: Brouillon | null; surBrouillonUtilise: ()
       <h3>Mes scènes</h3>
       {scenes && scenes.length > 0 ? (
         <ul className="liste-scenes">
-          {[...scenes].reverse().map((s) => (
+          {scenes.map((s, rang) => (
             <LigneScene
               key={s.id}
               scene={s}
@@ -532,6 +604,30 @@ function MesScenes(props: { brouillon: Brouillon | null; surBrouillonUtilise: ()
               preparee={preparee === s.id}
               images={images ?? []}
               surErreur={setErreur}
+              ordre={{
+                rang,
+                total: scenes.length,
+                deplacer: (versRang) => deplacer(s.id, versRang),
+                glisseeId,
+                survolee:
+                  survoleeId !== s.id
+                    ? null
+                    : scenes.findIndex((x) => x.id === glisseeId) < rang
+                      ? "dessous"
+                      : "dessus",
+                surDebutGlisse: () => setGlisseeId(s.id),
+                surSurvol: () => setSurvoleeId(s.id),
+                surFinGlisse: () => {
+                  setGlisseeId(null);
+                  setSurvoleeId(null);
+                },
+                surDepot: () => {
+                  // Déposée sur une autre scène : elle prend sa place.
+                  if (glisseeId && glisseeId !== s.id) deplacer(glisseeId, rang);
+                  setGlisseeId(null);
+                  setSurvoleeId(null);
+                },
+              }}
             />
           ))}
         </ul>

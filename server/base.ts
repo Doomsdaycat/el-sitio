@@ -161,6 +161,16 @@ const MIGRATIONS: string[] = [
   ALTER TABLE pion_scene RENAME TO pion;
   CREATE UNIQUE INDEX pion_pj ON pion(scene_id, joueur_id) WHERE joueur_id IS NOT NULL;
   `,
+  // Ordre des scènes, choisi par le MJ (0 = en haut de la liste). On part de l'ordre affiché
+  // jusqu'ici : la plus récente en haut.
+  `
+  ALTER TABLE scene ADD COLUMN ordre INTEGER NOT NULL DEFAULT 0;
+  UPDATE scene SET ordre = (
+    SELECT count(*) FROM scene AS autre
+    WHERE autre.partie_id = scene.partie_id
+      AND (autre.cree_le > scene.cree_le OR (autre.cree_le = scene.cree_le AND autre.rowid > scene.rowid))
+  );
+  `,
 ];
 
 function migrer(): void {

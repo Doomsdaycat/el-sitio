@@ -136,6 +136,8 @@ export interface MessagesClient {
     reponse: (r: Reponse) => void,
   ) => void;
   "mj:supprimerScene": (demande: { id: string }, reponse: (r: Reponse) => void) => void;
+  /** Nouvel ordre de « Mes scènes » : tous les identifiants, du haut vers le bas. */
+  "mj:ordonnerScenes": (demande: { ids: string[] }, reponse: (r: Reponse) => void) => void;
   /** Montrer une scène à tous (id), ou ne plus rien montrer (null). */
   "mj:montrerScene": (demande: { id: string | null }, reponse: (r: Reponse) => void) => void;
   "mj:renommerImage": (demande: { id: string; nom: string }, reponse: (r: Reponse) => void) => void;

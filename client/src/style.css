@@ -1407,3 +1407,59 @@ button.secondaire.actif {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Réordonner « Mes scènes » : poignée à glisser et flèches. */
+.ordre-scene {
+  display: grid;
+  grid-template-columns: auto;
+  justify-items: center;
+  gap: 0.1rem;
+  flex-shrink: 0;
+}
+
+.poignee {
+  cursor: grab;
+  color: var(--discret);
+  font-size: 1.1rem;
+  line-height: 1;
+  letter-spacing: -0.15em;
+  padding: 0.1rem 0.3rem;
+  user-select: none;
+}
+
+.poignee:active {
+  cursor: grabbing;
+}
+
+.fleche {
+  color: var(--discret);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 0 0.35rem;
+  font-size: 0.85rem;
+  line-height: 1.2;
+}
+
+.fleche:hover:not(:disabled) {
+  color: var(--texte);
+  border-color: var(--bordure);
+}
+
+.fleche:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.ligne-scene.glissee {
+  opacity: 0.45;
+}
+
+/* Trait doré : là où la scène glissée viendra se placer. */
+.ligne-scene.survolee-dessus {
+  box-shadow: 0 -3px 0 var(--accent);
+}
+
+.ligne-scene.survolee-dessous {
+  box-shadow: 0 3px 0 var(--accent);
+}

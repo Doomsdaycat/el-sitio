@@ -85,7 +85,7 @@ function lireScene(partieId: number, id: string): Scene | undefined {
 
 export function toutesLesScenes(partieId: number): Scene[] {
   const lignes = base
-    .prepare(`${SELECT_SCENE} WHERE scene.partie_id = ? ORDER BY scene.cree_le, scene.rowid`)
+    .prepare(`${SELECT_SCENE} WHERE scene.partie_id = ? ORDER BY scene.ordre, scene.cree_le DESC`)
     .all(partieId) as unknown as LigneScene[];
   return lignes.map(versScene);
 }
@@ -217,8 +217,11 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
       if (!imageExiste(partieId, d.imageId)) return { ok: false, erreur: "Choisis une image de la bibliothèque." };
       const id = randomBytes(16).toString("hex");
       base
-        .prepare("INSERT INTO scene (id, partie_id, nom, type, image_id, cree_le) VALUES (?, ?, ?, ?, ?, ?)")
-        .run(id, partieId, nom, d.type, d.imageId, new Date().toISOString());
+        .prepare(
+          `INSERT INTO scene (id, partie_id, nom, type, image_id, cree_le, ordre)
+           VALUES (?, ?, ?, ?, ?, ?, (SELECT coalesce(min(ordre), 0) - 1 FROM scene WHERE partie_id = ?))`,
+        )
+        .run(id, partieId, nom, d.type, d.imageId, new Date().toISOString(), partieId); // en haut de la liste
       assurerPionsPj(partieId);
       diffuserScenes(io, partieId);
       return { ok: true, id };
@@ -245,6 +248,33 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
         base.prepare("UPDATE scene SET image_id = ? WHERE id = ?").run(d.imageId, scene.id);
       }
       assurerPionsPj(partieId);
+      diffuserScenes(io, partieId);
+      return { ok: true };
+    }, true),
+  );
+
+  // Nouvel ordre de la liste « Mes scènes » : tous les identifiants, du haut vers le bas.
+  socket.on(
+    "mj:ordonnerScenes",
+    proteger((d: { ids: string[] }) => {
+      const existantes = (
+        base.prepare("SELECT id FROM scene WHERE partie_id = ?").all(partieId) as { id: string }[]
+      ).map((s) => s.id);
+      const ids = Array.isArray(d?.ids) ? d.ids : [];
+      const memeListe =
+        ids.length === existantes.length &&
+        new Set(ids).size === ids.length &&
+        ids.every((id) => existantes.includes(id));
+      if (!memeListe) return { ok: false, erreur: "La liste des scènes a changé entre-temps : réessaie." };
+      base.exec("BEGIN");
+      try {
+        const maj = base.prepare("UPDATE scene SET ordre = ? WHERE id = ?");
+        ids.forEach((id, rang) => maj.run(rang, id));
+        base.exec("COMMIT");
+      } catch (erreur) {
+        base.exec("ROLLBACK");
+        throw erreur;
+      }
       diffuserScenes(io, partieId);
       return { ok: true };
     }, true),
