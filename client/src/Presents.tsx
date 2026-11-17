@@ -1,18 +1,9 @@
 // Liste des participants et de leur statut (connecté ou non), visible par tout le monde.
 
-import { useEffect, useState } from "react";
-import type { Present } from "../../shared/messages.ts";
-import { socket } from "./connexion.ts";
+import { useEtat } from "./etat.ts";
 
 export function Presents({ moiId }: { moiId: number }) {
-  const [liste, setListe] = useState<Present[] | null>(null);
-
-  useEffect(() => {
-    socket.on("presents", setListe);
-    return () => {
-      socket.off("presents", setListe);
-    };
-  }, []);
+  const liste = useEtat("presents");
 
   if (liste === null) return null;
   const nbConnectes = liste.filter((p) => p.connecte).length;

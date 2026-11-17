@@ -21,7 +21,7 @@ body {
 }
 
 .page {
-  max-width: 52rem;
+  max-width: 72rem;
   margin: 0 auto;
   padding: 2rem 1rem 4rem;
 }
@@ -267,8 +267,282 @@ button.lien {
 }
 
 /* Pendant une coupure, l'écran reste visible mais grisé : rien n'y est à jour. */
-.en-coupure .colonnes,
+.en-coupure .table-de-jeu,
+.en-coupure .zone-mj,
 .en-coupure .identite {
   opacity: 0.55;
   pointer-events: none;
+}
+
+/* --- Étape 2 : dés et journal --- */
+
+.table-de-jeu {
+  display: grid;
+  grid-template-columns: 20rem 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.colonne-gauche {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.zone-mj {
+  margin-top: 1.25rem;
+}
+
+.onglets {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0.75rem 0;
+  border-bottom: 1px solid var(--bordure);
+}
+
+.onglet {
+  color: var(--discret);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 0.4rem 0.75rem;
+}
+
+.onglet.actif {
+  color: var(--texte);
+  border-bottom-color: var(--accent);
+}
+
+.formulaire-jet {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.formulaire-jet label {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.formulaire-jet label > span {
+  font-size: 0.85rem;
+  color: var(--discret);
+}
+
+.champ-court {
+  width: 6rem;
+}
+
+.compteurs {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.compteur {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.compteur-nom {
+  flex: 1;
+}
+
+.compteur button {
+  width: 2rem;
+  padding: 0.2rem 0;
+}
+
+.compteur-valeur {
+  width: 1.5rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.compteur.faveur .compteur-nom { color: var(--ok); }
+.compteur.fleau .compteur-nom { color: var(--erreur); }
+
+.raccourcis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.raccourcis button {
+  padding: 0.2rem 0.55rem;
+  font-size: 0.85rem;
+}
+
+label.case {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+label.case > span {
+  font-size: 0.9rem;
+  color: var(--texte);
+}
+
+.bouton-lancer {
+  font-size: 1.05rem;
+  padding: 0.6rem;
+}
+
+.journal-entete {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.liste-journal {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0 0;
+  display: grid;
+  gap: 0.6rem;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.entree {
+  border-top: 1px solid var(--bordure);
+  padding-top: 0.6rem;
+}
+
+.entree.tentative {
+  border-left: 3px solid var(--attente);
+  padding-left: 0.6rem;
+}
+
+.entree.secret {
+  opacity: 0.85;
+}
+
+.entree-entete {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.entree-entete .badge-mj {
+  margin-left: 0;
+}
+
+.libelle {
+  font-style: italic;
+}
+
+.heure {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--discret);
+}
+
+.badge-secret {
+  font-size: 0.75rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  border: 1px dashed var(--discret);
+  color: var(--discret);
+}
+
+.detail-jet {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.35rem;
+}
+
+.des {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.de {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.8rem;
+  height: 1.8rem;
+  padding: 0 0.2rem;
+  border-radius: 5px;
+  border: 1px solid var(--bordure);
+  background: var(--fond);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.de.garde {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.de.ecarte {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+.terme {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.signe,
+.fixe {
+  font-weight: 600;
+}
+
+.verdict {
+  font-weight: 700;
+  padding: 0.1rem 0.55rem;
+  border-radius: 5px;
+}
+
+.verdict.reussite { color: var(--ok); }
+.verdict.echec { color: var(--erreur); }
+.verdict.total { color: var(--texte); }
+.verdict.dragon { color: var(--accent-texte); background: var(--accent); }
+.verdict.demon { color: #fff; background: var(--erreur); }
+
+.force-chance {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  color: var(--attente);
+}
+
+.jet-cache {
+  margin: 0.35rem 0 0;
+  font-style: italic;
+}
+
+.entree-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.entree-actions:empty {
+  display: none;
+}
+
+.entree-actions button,
+.etats button {
+  padding: 0.2rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+.choix-etat p {
+  margin: 0.4rem 0;
+  font-size: 0.9rem;
+}
+
+.etats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
 }

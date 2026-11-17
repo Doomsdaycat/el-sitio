@@ -35,6 +35,26 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE participant ADD COLUMN etiquette TEXT;
   `,
+  // Étape 2 : journal des jets de dés. Le nom et le rôle de l'auteur sont recopiés,
+  // pour que le journal reste lisible même si une invitation est supprimée.
+  `
+  CREATE TABLE jet (
+    id           INTEGER PRIMARY KEY,
+    partie_id    INTEGER NOT NULL REFERENCES partie(id) ON DELETE CASCADE,
+    auteur_id    INTEGER NOT NULL,
+    auteur_nom   TEXT NOT NULL,
+    auteur_role  TEXT NOT NULL CHECK (auteur_role IN ('mj', 'joueur')),
+    cree_le      TEXT NOT NULL,
+    libelle      TEXT,
+    secret       INTEGER NOT NULL DEFAULT 0,
+    revele       INTEGER NOT NULL DEFAULT 0,
+    resultat     TEXT NOT NULL,
+    force_de     INTEGER REFERENCES jet(id) ON DELETE SET NULL,
+    etat         TEXT,
+    deja_force   INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX jet_partie ON jet(partie_id, id);
+  `,
 ];
 
 function migrer(): void {

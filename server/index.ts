@@ -19,6 +19,7 @@ import {
   type Reponse,
 } from "../shared/messages.ts";
 import { CHEMIN_BASE } from "./base.ts";
+import { brancherJets, envoyerJournal, SALLE_JOUEURS, SALLE_MJ } from "./jets-socket.ts";
 import { lienInvitation, MODE_PARTIE } from "./liens.ts";
 import {
   changerNom,
@@ -37,8 +38,6 @@ import {
 const PORT = Number(process.env.PORT ?? 3000);
 const VERSION = "0.1.0";
 
-/** Salle Socket.IO qui regroupe les navigateurs du MJ. */
-const SALLE_MJ = "mj";
 /** Salle Socket.IO propre à un participant (il peut avoir plusieurs onglets ouverts). */
 const salleParticipant = (id: number) => `participant:${id}`;
 
@@ -172,11 +171,14 @@ io.on("connection", (socket) => {
     socket.join(SALLE_MJ);
     socket.emit("invitations", invitationsPourMj());
   } else {
+    socket.join(SALLE_JOUEURS);
     // Un joueur vient d'arriver : le MJ voit qu'il est « déjà venu ».
     diffuserInvitations();
   }
   // Tout le monde voit arriver cette personne, et elle reçoit la liste complète.
   diffuserPresents();
+  envoyerJournal(socket, partie.id);
+  brancherJets(io, socket, partie.id);
 
   socket.on("ping", (reponse) => {
     if (typeof reponse === "function") reponse(new Date().toISOString());

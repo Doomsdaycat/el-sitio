@@ -4,7 +4,7 @@ Table de jeu virtuelle maison pour jouer à **Dragonbane** en ligne entre amis.
 Les joueurs cliquent sur un lien et ils sont à la table : aucun compte, rien à installer.
 La voix passe par Discord.
 
-> **Avancement :** étape 1 (socle et connexion) terminée. Prochaine étape : les dés et le journal.
+> **Avancement :** étapes 1 (socle et connexion) et 2 (dés et journal) terminées. Prochaine étape : les fiches de personnage.
 
 ## Lancer une séance (2 commandes)
 
@@ -36,7 +36,14 @@ lancement. Si un lien ne s'ouvre pas tout de suite, attends une minute : le tunn
 - **À la table** : tout le monde voit qui est là. Pastille verte : connecté. Grise : parti.
 - **Reconnexion** : après une coupure (Wi-Fi, serveur redémarré), un bandeau jaune s'affiche et la page
   se reconnecte toute seule.
-- **Sauvegarde** : la partie, les liens et les noms sont conservés quand tu arrêtes le serveur.
+- **Dés** : jets de compétence (1D20 sous la valeur) avec faveurs et fléaux, dragon (1) et démon (20),
+  et jets libres pour les dégâts (`2D6+3`, `D8+D4`, `D3`…). Les dés sont lancés par le serveur.
+- **Forcer la chance** : sur un de ses jets ratés (sauf démon), un joueur relance en choisissant un état.
+  L'outil ne vérifie pas encore que cet état n'est pas déjà subi : ce sera fait avec les fiches (étape 3).
+- **Jets secrets du MJ** : les joueurs voient « Le MJ lance les dés en secret… », sans le résultat,
+  jusqu'à ce que le MJ clique sur **Révéler aux joueurs**.
+- **Journal** : tout le monde voit les jets, conservés d'une séance à l'autre (le MJ peut le vider).
+- **Sauvegarde** : la partie, les liens, les noms et le journal sont conservés quand tu arrêtes le serveur.
 
 ## Installation (une seule fois)
 
@@ -87,6 +94,7 @@ cloudflared --version
 | `npm run lien-mj` | Réaffiche ton lien MJ, adresse `localhost` (marche sur ton PC même pendant une séance en ligne) |
 | `npm run dev` | Mode développement (port 5173), utilisé pendant la construction de l'outil |
 | `npm run verifier` | Vérifie le code |
+| `npm run tester` | Lance les tests automatiques des règles de dés |
 
 Le lien MJ donne tous les droits sur la partie : ne le partage pas.
 

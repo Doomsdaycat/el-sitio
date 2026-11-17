@@ -1,8 +1,9 @@
 // Écran MJ : créer, copier et supprimer les liens d'invitation des joueurs.
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { ETIQUETTE_MAX, type Invitation, type Reponse } from "../../shared/messages.ts";
 import { socket } from "./connexion.ts";
+import { useEtat } from "./etat.ts";
 
 /** Copie un texte dans le presse-papiers. Renvoie false si le navigateur refuse. */
 async function copier(texte: string): Promise<boolean> {
@@ -68,17 +69,10 @@ function LigneInvitation({ invitation }: { invitation: Invitation }) {
 }
 
 export function Invitations() {
-  const [liste, setListe] = useState<Invitation[] | null>(null);
+  const liste = useEtat("invitations");
   const [etiquette, setEtiquette] = useState("");
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
-
-  useEffect(() => {
-    socket.on("invitations", setListe);
-    return () => {
-      socket.off("invitations", setListe);
-    };
-  }, []);
 
   function surAjouter(e: FormEvent) {
     e.preventDefault();

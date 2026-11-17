@@ -3,6 +3,8 @@ import { ERREUR_LIEN_INCONNU, type Identite } from "../../shared/messages.ts";
 import { jeton, oublierJeton, socket } from "./connexion.ts";
 import { ChoixNom } from "./ChoixNom.tsx";
 import { Invitations } from "./Invitations.tsx";
+import { Journal } from "./Journal.tsx";
+import { PanneauJet } from "./PanneauJet.tsx";
 import { Presents } from "./Presents.tsx";
 
 type EtatConnexion =
@@ -121,10 +123,19 @@ export function App() {
             <ChoixNom nomActuel={identite.moi.nom} surTermine={() => setChangementNom(false)} />
           )}
 
-          <div className="colonnes">
-            <Presents moiId={identite.moi.id} />
-            {identite.moi.role === "mj" && <Invitations />}
+          <div className="table-de-jeu">
+            <div className="colonne-gauche">
+              <Presents moiId={identite.moi.id} />
+              <PanneauJet estMj={identite.moi.role === "mj"} />
+            </div>
+            <Journal moiId={identite.moi.id} estMj={identite.moi.role === "mj"} />
           </div>
+
+          {identite.moi.role === "mj" && (
+            <div className="zone-mj">
+              <Invitations />
+            </div>
+          )}
 
           <p className="version">version {identite.version}</p>
         </>

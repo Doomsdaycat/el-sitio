@@ -1,0 +1,184 @@
+// Panneau pour lancer les dés : jet de compétence ou jet libre.
+// Le navigateur n'invente aucun résultat : il envoie la demande, le serveur lance.
+
+import { useState, type FormEvent } from "react";
+import {
+  BONUS_MAX,
+  FORMULE_MAX,
+  LIBELLE_MAX,
+  VALEUR_MAX,
+  VALEUR_MIN,
+} from "../../shared/jets.ts";
+import type { Reponse } from "../../shared/messages.ts";
+import { socket } from "./connexion.ts";
+
+type Mode = "competence" | "libre";
+
+const RACCOURCIS = ["D4", "D6", "D8", "D10", "D12", "D20", "2D6", "D3"];
+
+function Compteur(props: {
+  nom: string;
+  valeur: number;
+  surChangement: (n: number) => void;
+  classe: string;
+}) {
+  const { nom, valeur, surChangement, classe } = props;
+  return (
+    <div className={`compteur ${classe}`}>
+      <span className="compteur-nom">{nom}</span>
+      <button
+        type="button"
+        className="secondaire"
+        onClick={() => surChangement(Math.max(0, valeur - 1))}
+        disabled={valeur === 0}
+        aria-label={`Une ${nom.toLowerCase()} de moins`}
+      >
+        −
+      </button>
+      <span className="compteur-valeur" aria-live="polite">
+        {valeur}
+      </span>
+      <button
+        type="button"
+        className="secondaire"
+        onClick={() => surChangement(Math.min(BONUS_MAX, valeur + 1))}
+        disabled={valeur === BONUS_MAX}
+        aria-label={`Une ${nom.toLowerCase()} de plus`}
+      >
+        +
+      </button>
+    </div>
+  );
+}
+
+export function PanneauJet({ estMj }: { estMj: boolean }) {
+  const [mode, setMode] = useState<Mode>("competence");
+  const [libelle, setLibelle] = useState("");
+  const [valeur, setValeur] = useState("");
+  const [faveurs, setFaveurs] = useState(0);
+  const [fleaux, setFleaux] = useState(0);
+  const [formule, setFormule] = useState("");
+  const [secret, setSecret] = useState(false);
+  const [envoi, setEnvoi] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
+
+  function terminer(r: Reponse) {
+    setEnvoi(false);
+    if (r.ok) {
+      // Faveurs et fléaux valent pour un seul jet : on les remet à zéro.
+      setFaveurs(0);
+      setFleaux(0);
+      setErreur(null);
+    } else {
+      setErreur(r.erreur);
+    }
+  }
+
+  function surLancer(e: FormEvent) {
+    e.preventDefault();
+    setEnvoi(true);
+    setErreur(null);
+    if (mode === "competence") {
+      socket.emit(
+        "jet:competence",
+        { libelle, valeur: Number(valeur), faveurs, fleaux, secret: estMj && secret },
+        terminer,
+      );
+    } else {
+      socket.emit("jet:libre", { libelle, formule, secret: estMj && secret }, terminer);
+    }
+  }
+
+  const valeurOk =
+    /^\d+$/.test(valeur) && Number(valeur) >= VALEUR_MIN && Number(valeur) <= VALEUR_MAX;
+  const pret = mode === "competence" ? valeurOk : formule.trim() !== "";
+
+  return (
+    <section className="carte panneau-jet">
+      <h2>Lancer les dés</h2>
+
+      <div className="onglets" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "competence"}
+          className={mode === "competence" ? "onglet actif" : "onglet"}
+          onClick={() => setMode("competence")}
+        >
+          Compétence
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "libre"}
+          className={mode === "libre" ? "onglet actif" : "onglet"}
+          onClick={() => setMode("libre")}
+        >
+          Jet libre
+        </button>
+      </div>
+
+      <form onSubmit={surLancer} className="formulaire-jet">
+        <label>
+          <span>{mode === "competence" ? "Compétence ou caractéristique" : "Pour quoi ?"}</span>
+          <input
+            value={libelle}
+            onChange={(e) => setLibelle(e.target.value)}
+            maxLength={LIBELLE_MAX}
+            placeholder={mode === "competence" ? "ex. : Discrétion (facultatif)" : "ex. : dégâts de l'épée"}
+          />
+        </label>
+
+        {mode === "competence" ? (
+          <>
+            <label>
+              <span>Valeur (de {VALEUR_MIN} à {VALEUR_MAX})</span>
+              <input
+                value={valeur}
+                onChange={(e) => setValeur(e.target.value.replace(/\D/g, "").slice(0, 2))}
+                inputMode="numeric"
+                placeholder="ex. : 12"
+                className="champ-court"
+              />
+            </label>
+            <div className="compteurs">
+              <Compteur nom="Faveurs" valeur={faveurs} surChangement={setFaveurs} classe="faveur" />
+              <Compteur nom="Fléaux" valeur={fleaux} surChangement={setFleaux} classe="fleau" />
+            </div>
+          </>
+        ) : (
+          <>
+            <label>
+              <span>Dés à lancer</span>
+              <input
+                value={formule}
+                onChange={(e) => setFormule(e.target.value)}
+                maxLength={FORMULE_MAX}
+                placeholder="ex. : 2D6+3"
+              />
+            </label>
+            <div className="raccourcis">
+              {RACCOURCIS.map((r) => (
+                <button key={r} type="button" className="secondaire" onClick={() => setFormule(r)}>
+                  {r}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {estMj && (
+          <label className="case">
+            <input type="checkbox" checked={secret} onChange={(e) => setSecret(e.target.checked)} />
+            <span>Jet secret (les joueurs ne voient pas le résultat)</span>
+          </label>
+        )}
+
+        <button type="submit" disabled={!pret || envoi} className="bouton-lancer">
+          {secret && estMj ? "Lancer en secret" : "Lancer"}
+        </button>
+        {erreur && <p className="erreur">{erreur}</p>}
+      </form>
+    </section>
+  );
+}
