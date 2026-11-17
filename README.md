@@ -38,7 +38,9 @@ lancement. Si un lien ne s'ouvre pas tout de suite, attends une minute : le tunn
   se reconnecte toute seule.
 - **Dés** : jets de compétence (1D20 sous la valeur) avec faveurs et fléaux, dragon (1) et démon (20),
   et jets libres pour les dégâts (`2D6+3`, `D8+D4`, `D3`…). Les dés sont lancés par le serveur.
-- **Forcer la chance** : sur un de ses jets ratés (sauf démon), un joueur relance en choisissant un état.
+- **Jets pour un joueur** : le MJ peut lancer pour le personnage d'un joueur (choix « Pour qui ? »).
+- **Forcer la chance** : sur un jet raté (sauf démon) d'un personnage joueur, le joueur ou le MJ relance
+  en choisissant un état. Les jets de PNJ et de monstres ne peuvent pas être forcés (règle du livre).
   L'outil ne vérifie pas encore que cet état n'est pas déjà subi : ce sera fait avec les fiches (étape 3).
 - **Jets secrets du MJ** : les joueurs voient « Le MJ lance les dés en secret… », sans le résultat,
   jusqu'à ce que le MJ clique sur **Révéler aux joueurs**.

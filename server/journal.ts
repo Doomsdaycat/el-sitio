@@ -20,11 +20,13 @@ interface LigneJet {
   forceDe: number | null;
   etat: IdEtat | null;
   dejaForce: number;
+  pourId: number | null;
+  pourNom: string | null;
 }
 
 const COLONNES = `id, auteur_id AS auteurId, auteur_nom AS auteurNom, auteur_role AS auteurRole,
   cree_le AS creeLe, libelle, secret, revele, resultat, force_de AS forceDe, etat,
-  deja_force AS dejaForce`;
+  deja_force AS dejaForce, pour_id AS pourId, pour_nom AS pourNom`;
 
 /** Entrée complète, telle que le MJ la voit. */
 function versEntree(ligne: LigneJet): EntreeJournal {
@@ -35,6 +37,8 @@ function versEntree(ligne: LigneJet): EntreeJournal {
     auteurRole: ligne.auteurRole,
     creeLe: ligne.creeLe,
     libelle: ligne.libelle,
+    pourId: ligne.pourId,
+    pourNom: ligne.pourNom,
     secret: ligne.secret === 1,
     revele: ligne.revele === 1,
     resultat: JSON.parse(ligne.resultat) as Resultat,
@@ -60,14 +64,16 @@ export interface NouveauJet {
   resultat: Resultat;
   forceDe?: number;
   etat?: IdEtat;
+  pourId?: number | null;
+  pourNom?: string | null;
 }
 
 export function enregistrerJet(jet: NouveauJet): EntreeJournal {
   const ligne = base
     .prepare(
       `INSERT INTO jet (partie_id, auteur_id, auteur_nom, auteur_role, cree_le, libelle, secret,
-         resultat, force_de, etat)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING ${COLONNES}`,
+         resultat, force_de, etat, pour_id, pour_nom)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING ${COLONNES}`,
     )
     .get(
       jet.partieId,
@@ -80,6 +86,8 @@ export function enregistrerJet(jet: NouveauJet): EntreeJournal {
       JSON.stringify(jet.resultat),
       jet.forceDe ?? null,
       jet.etat ?? null,
+      jet.pourId ?? null,
+      jet.pourNom ?? null,
     ) as unknown as LigneJet;
   return versEntree(ligne);
 }

@@ -55,6 +55,11 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX jet_partie ON jet(partie_id, id);
   `,
+  // Jet lancé par le MJ pour le personnage d'un joueur (nom recopié, comme pour l'auteur).
+  `
+  ALTER TABLE jet ADD COLUMN pour_id INTEGER;
+  ALTER TABLE jet ADD COLUMN pour_nom TEXT;
+  `,
 ];
 
 function migrer(): void {

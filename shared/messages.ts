@@ -64,11 +64,19 @@ export interface MessagesClient {
   "mj:creerInvitation": (demande: { etiquette: string }, reponse: (r: Reponse) => void) => void;
   "mj:supprimerInvitation": (demande: { id: number }, reponse: (r: Reponse) => void) => void;
   "jet:competence": (
-    demande: { libelle: string; valeur: number; faveurs: number; fleaux: number; secret: boolean },
+    demande: {
+      libelle: string;
+      valeur: number;
+      faveurs: number;
+      fleaux: number;
+      secret: boolean;
+      /** MJ seulement : id du joueur pour qui il lance (null ou absent : PNJ ou monstre). */
+      pourId?: number | null;
+    },
     reponse: (r: Reponse) => void,
   ) => void;
   "jet:libre": (
-    demande: { libelle: string; formule: string; secret: boolean },
+    demande: { libelle: string; formule: string; secret: boolean; pourId?: number | null },
     reponse: (r: Reponse) => void,
   ) => void;
   /** Forcer la chance sur un de ses jets ratés, en choisissant un état. */

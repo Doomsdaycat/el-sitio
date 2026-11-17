@@ -70,6 +70,9 @@ export interface EntreeJournal {
   auteurRole: "mj" | "joueur";
   creeLe: string;
   libelle: string | null;
+  /** Jet lancé par le MJ pour le personnage d'un joueur (sinon null). */
+  pourId: number | null;
+  pourNom: string | null;
   /** Jet secret du MJ. */
   secret: boolean;
   /** Jet secret que le MJ a rendu visible. */
@@ -83,11 +86,20 @@ export interface EntreeJournal {
   dejaForce: boolean;
 }
 
-/** Vrai si l'auteur de ce jet peut encore forcer la chance dessus. */
+/**
+ * Le joueur dont le personnage a fait ce jet, ou null pour un jet de PNJ ou de monstre.
+ * C'est l'auteur s'il est joueur, ou le joueur pour qui le MJ a lancé.
+ */
+export function joueurConcerne(entree: EntreeJournal): number | null {
+  if (entree.pourId !== null) return entree.pourId;
+  return entree.auteurRole === "joueur" ? entree.auteurId : null;
+}
+
+/** Vrai si on peut encore forcer la chance sur ce jet (règles seulement, sans les droits). */
 export function peutForcer(entree: EntreeJournal): boolean {
   const r = entree.resultat;
   return (
-    entree.auteurRole === "joueur" &&
+    joueurConcerne(entree) !== null &&
     !entree.dejaForce &&
     entree.forceDe === null &&
     r !== null &&
@@ -95,4 +107,9 @@ export function peutForcer(entree: EntreeJournal): boolean {
     !r.reussi &&
     !r.demon
   );
+}
+
+/** Vrai si cette personne a le droit de forcer la chance sur ce jet : le joueur concerné, ou le MJ. */
+export function peutForcerPar(entree: EntreeJournal, moi: { id: number; role: "mj" | "joueur" }): boolean {
+  return peutForcer(entree) && (moi.role === "mj" || joueurConcerne(entree) === moi.id);
 }

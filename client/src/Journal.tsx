@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   ETATS,
-  peutForcer,
+  peutForcerPar,
   type EntreeJournal,
   type IdEtat,
   type ResultatCompetence,
@@ -89,6 +89,7 @@ function Entree(props: { entree: EntreeJournal; moiId: number; estMj: boolean })
   const r = entree.resultat;
   const masque = r === null;
   const etat = ETATS.find((e) => e.id === entree.etat);
+  const moi = { id: moiId, role: estMj ? ("mj" as const) : ("joueur" as const) };
 
   function repondre(rep: Reponse) {
     if (rep.ok) {
@@ -112,6 +113,11 @@ function Entree(props: { entree: EntreeJournal; moiId: number; estMj: boolean })
       <div className="entree-entete">
         <strong>{entree.auteurNom}</strong>
         {entree.auteurRole === "mj" && <span className="badge-mj">MJ</span>}
+        {entree.pourNom && (
+          <span>
+            pour <strong>{entree.pourNom}</strong>
+          </span>
+        )}
         {entree.libelle && <span className="libelle">{entree.libelle}</span>}
         {estMj && entree.secret && (
           <span className="badge-secret">{entree.revele ? "révélé" : "secret"}</span>
@@ -138,16 +144,17 @@ function Entree(props: { entree: EntreeJournal; moiId: number; estMj: boolean })
           {r.demon && entree.auteurRole === "joueur" && (
             <p className="discret note-jet">Démon : impossible de forcer la chance sur ce jet.</p>
           )}
-          {!r.demon && entree.auteurRole === "mj" && (
+          {!r.demon && entree.auteurRole === "mj" && entree.pourId === null && (
             <p className="discret note-jet">
-              Les PNJ et les monstres ne peuvent pas forcer la chance : seuls les joueurs le peuvent.
+              Les PNJ et les monstres ne peuvent pas forcer la chance. Pour un jet de personnage
+              joueur, choisis le joueur dans « Pour qui ? » avant de lancer.
             </p>
           )}
         </>
       )}
 
       <div className="entree-actions">
-        {entree.auteurId === moiId && peutForcer(entree) && !choixEtat && (
+        {peutForcerPar(entree, moi) && !choixEtat && (
           <button type="button" className="secondaire" onClick={() => setChoixEtat(true)}>
             Forcer la chance
           </button>
@@ -165,7 +172,11 @@ function Entree(props: { entree: EntreeJournal; moiId: number; estMj: boolean })
 
       {choixEtat && (
         <div className="choix-etat">
-          <p>Quel état subis-tu ? (pas un état que tu as déjà)</p>
+          <p>
+            {estMj && entree.pourNom
+              ? `Quel état pour ${entree.pourNom} ? (pas un état déjà subi)`
+              : "Quel état subis-tu ? (pas un état que tu as déjà)"}
+          </p>
           <div className="etats">
             {ETATS.map((e) => (
               <button key={e.id} type="button" className="secondaire" onClick={() => forcer(e.id)}>

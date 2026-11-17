@@ -11,6 +11,7 @@ import {
 } from "../../shared/jets.ts";
 import type { Reponse } from "../../shared/messages.ts";
 import { socket } from "./connexion.ts";
+import { useEtat } from "./etat.ts";
 
 type Mode = "competence" | "libre";
 
@@ -59,6 +60,13 @@ export function PanneauJet({ estMj }: { estMj: boolean }) {
   const [fleaux, setFleaux] = useState(0);
   const [formule, setFormule] = useState("");
   const [secret, setSecret] = useState(false);
+  // MJ : pour qui lance-t-il ? "" = PNJ ou monstre, sinon l'id du joueur.
+  const [pour, setPour] = useState("");
+  const presents = useEtat("presents");
+  const joueurs = (presents ?? []).filter((p) => p.role === "joueur" && p.nom !== null);
+  // Si le joueur choisi disparaît de la liste (invitation supprimée), on revient à « PNJ ».
+  const pourValide = joueurs.some((j) => String(j.id) === pour) ? pour : "";
+  const pourId = estMj && pourValide !== "" ? Number(pourValide) : null;
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
 
@@ -81,11 +89,11 @@ export function PanneauJet({ estMj }: { estMj: boolean }) {
     if (mode === "competence") {
       socket.emit(
         "jet:competence",
-        { libelle, valeur: Number(valeur), faveurs, fleaux, secret: estMj && secret },
+        { libelle, valeur: Number(valeur), faveurs, fleaux, secret: estMj && secret, pourId },
         terminer,
       );
     } else {
-      socket.emit("jet:libre", { libelle, formule, secret: estMj && secret }, terminer);
+      socket.emit("jet:libre", { libelle, formule, secret: estMj && secret, pourId }, terminer);
     }
   }
 
@@ -119,6 +127,19 @@ export function PanneauJet({ estMj }: { estMj: boolean }) {
       </div>
 
       <form onSubmit={surLancer} className="formulaire-jet">
+        {estMj && (
+          <label>
+            <span>Pour qui ?</span>
+            <select value={pourValide} onChange={(e) => setPour(e.target.value)}>
+              <option value="">PNJ ou monstre</option>
+              {joueurs.map((j) => (
+                <option key={j.id} value={j.id}>
+                  {j.nom} (personnage joueur)
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label>
           <span>{mode === "competence" ? "Compétence ou caractéristique" : "Pour quoi ?"}</span>
           <input

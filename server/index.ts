@@ -18,7 +18,7 @@ import {
   type MessagesServeur,
   type Reponse,
 } from "../shared/messages.ts";
-import { CHEMIN_BASE } from "./base.ts";
+import { base, CHEMIN_BASE } from "./base.ts";
 import { brancherJets, envoyerJournal, SALLE_JOUEURS, SALLE_MJ } from "./jets-socket.ts";
 import { lienInvitation, MODE_PARTIE } from "./liens.ts";
 import {
@@ -254,6 +254,23 @@ io.on("connection", (socket) => {
 
 // ---------------------------------------------------------------------------
 // Démarrage
+
+// Arrêt propre (Ctrl + C) : la base est refermée, ce qui range toutes les dernières écritures
+// dans data/brumeland.db. Une simple copie de ce fichier suffit alors comme sauvegarde.
+let arretEnCours = false;
+function arreter(): void {
+  if (arretEnCours) return;
+  arretEnCours = true;
+  io.close();
+  try {
+    base.close();
+  } catch (erreur) {
+    console.error(erreur);
+  }
+  process.exit(0);
+}
+process.on("SIGINT", arreter);
+process.on("SIGTERM", arreter);
 
 serveurHttp.on("error", (erreur: NodeJS.ErrnoException) => {
   if (erreur.code === "EADDRINUSE") {
