@@ -1,6 +1,6 @@
 // Scène : l'image que le MJ montre à tous, et (pour le MJ) la bibliothèque d'images.
 
-import { useRef, useState, type DragEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import type { Reponse } from "../../shared/messages.ts";
 import {
   FORMATS_IMAGE,
@@ -19,6 +19,15 @@ function mega(octets: number): string {
 /** Grande image, avec un bouton plein écran. */
 function Affichage(props: { id: string; titre: string; bandeau?: React.ReactNode }) {
   const cadre = useRef<HTMLDivElement>(null);
+  const [pleinEcran, setPleinEcran] = useState(false);
+
+  // Suit l'entrée et la sortie du plein écran (bouton, ou touche Échap).
+  useEffect(() => {
+    const suivre = () => setPleinEcran(document.fullscreenElement === cadre.current);
+    document.addEventListener("fullscreenchange", suivre);
+    return () => document.removeEventListener("fullscreenchange", suivre);
+  }, []);
+
   return (
     <figure className="scene-affichage" ref={cadre}>
       <img src={urlImage(props.id)} alt={props.titre} />
@@ -33,7 +42,7 @@ function Affichage(props: { id: string; titre: string; bandeau?: React.ReactNode
             else void cadre.current?.requestFullscreen();
           }}
         >
-          Plein écran
+          {pleinEcran ? "Quitter le plein écran" : "Plein écran"}
         </button>
       </figcaption>
     </figure>
