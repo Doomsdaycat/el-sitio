@@ -1,4 +1,5 @@
-// Scène : l'image que le MJ montre à tous, et (pour le MJ) la bibliothèque d'images.
+// Onglet Scène : la scène montrée (illustration ou immersive) ; pour le MJ, la préparation
+// d'une scène, la liste « Mes scènes » et la bibliothèque d'images.
 
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import type { Reponse } from "../../shared/messages.ts";
@@ -6,11 +7,16 @@ import {
   FORMATS_IMAGE,
   IMAGE_NOM_MAX,
   IMAGE_TAILLE_MAX,
+  SCENE_NOM_MAX,
+  TYPES_SCENE,
   urlImage,
   type ImageBibliotheque,
+  type Scene as SceneDonnees,
+  type TypeScene,
 } from "../../shared/scenes.ts";
+import { Carte } from "./Carte.tsx";
 import { jeton, socket } from "./connexion.ts";
-import { useEtat } from "./etat.ts";
+import { preparerScene, useEtat } from "./etat.ts";
 
 function mega(octets: number): string {
   return `${(octets / 1024 / 1024).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} Mo`;
@@ -219,14 +225,18 @@ function deposer(fichier: File, progression: (pourcent: number) => void): Promis
   });
 }
 
+/** Nouvelle scène à préremplir (depuis la bibliothèque : « Créer une scène » avec cette image). */
+interface Brouillon {
+  imageId: string;
+  nom: string;
+}
+
 function CarteImage(props: {
   image: ImageBibliotheque;
-  montree: boolean;
-  enApercu: boolean;
-  surApercu: () => void;
+  surNouvelleScene: () => void;
   surErreur: (e: string | null) => void;
 }) {
-  const { image, montree, enApercu, surApercu, surErreur } = props;
+  const { image, surNouvelleScene, surErreur } = props;
   const [nom, setNom] = useState<string | null>(null);
   const [confirmer, setConfirmer] = useState(false);
   const repondre = (r: Reponse) => surErreur(r.ok ? null : r.erreur);
@@ -244,18 +254,14 @@ function CarteImage(props: {
       window.setTimeout(() => setConfirmer(false), 4000);
       return;
     }
+    setConfirmer(false);
     socket.emit("mj:supprimerImage", { id: image.id }, repondre);
   }
 
-  const classes = ["carte-image"];
-  if (montree) classes.push("montree");
-  if (enApercu) classes.push("apercu");
-
   return (
-    <li className={classes.join(" ")}>
-      <button type="button" className="vignette" onClick={surApercu} title="Aperçu (pour toi seul)">
+    <li className="carte-image">
+      <button type="button" className="vignette" onClick={surNouvelleScene} title="Créer une scène avec cette image">
         <img src={urlImage(image.id)} alt="" loading="lazy" />
-        {montree && <span className="badge-montree">Montrée</span>}
       </button>
       <input
         className="nom-image"
@@ -273,21 +279,16 @@ function CarteImage(props: {
           }
         }}
       />
+      <p className="discret petit utilisation">
+        {image.scenes.length === 0
+          ? "Aucune scène"
+          : `${image.scenes.length > 1 ? "Scènes" : "Scène"} : ${image.scenes.join(", ")}`}
+      </p>
       <div className="carte-image-actions">
         <span className="discret petit">{mega(image.taille)}</span>
-        {montree ? (
-          <button
-            type="button"
-            className="secondaire"
-            onClick={() => socket.emit("mj:montrerScene", { id: null }, repondre)}
-          >
-            Retirer
-          </button>
-        ) : (
-          <button type="button" onClick={() => socket.emit("mj:montrerScene", { id: image.id }, repondre)}>
-            Montrer
-          </button>
-        )}
+        <button type="button" className="secondaire" onClick={surNouvelleScene}>
+          Nouvelle scène
+        </button>
         <button type="button" className={confirmer ? "danger" : "lien"} onClick={supprimer}>
           {confirmer ? "Confirmer" : "Supprimer"}
         </button>
@@ -296,9 +297,8 @@ function CarteImage(props: {
   );
 }
 
-function Bibliotheque(props: { apercu: string | null; surApercu: (id: string | null) => void }) {
+function Bibliotheque(props: { surNouvelleScene: (b: Brouillon) => void }) {
   const images = useEtat("images");
-  const scene = useEtat("scene");
   const [envois, setEnvois] = useState<{ nom: string; pourcent: number }[]>([]);
   const [erreur, setErreur] = useState<string | null>(null);
   const [survol, setSurvol] = useState(false);
@@ -330,8 +330,7 @@ function Bibliotheque(props: { apercu: string | null; surApercu: (id: string | n
     <section className="bibliotheque">
       <h3>Bibliothèque d'images</h3>
       <p className="discret petit">
-        Les joueurs ne voient que l'image que tu montres. Clique sur une vignette pour un aperçu
-        rien que pour toi.
+        Les joueurs ne voient jamais la bibliothèque. Une image peut servir à plusieurs scènes.
       </p>
       <div
         className={survol ? "zone-depot survol" : "zone-depot"}
@@ -377,9 +376,7 @@ function Bibliotheque(props: { apercu: string | null; surApercu: (id: string | n
             <CarteImage
               key={image.id}
               image={image}
-              montree={scene?.image?.id === image.id}
-              enApercu={props.apercu === image.id}
-              surApercu={() => props.surApercu(props.apercu === image.id ? null : image.id)}
+              surNouvelleScene={() => props.surNouvelleScene({ imageId: image.id, nom: image.nom })}
               surErreur={setErreur}
             />
           ))}
@@ -389,62 +386,270 @@ function Bibliotheque(props: { apercu: string | null; surApercu: (id: string | n
   );
 }
 
-export function Scene({ estMj }: { estMj: boolean }) {
-  const scene = useEtat("scene");
+// ---------------------------------------------------------------------------
+// Mes scènes (MJ)
+
+function LigneScene(props: {
+  scene: SceneDonnees;
+  montree: boolean;
+  preparee: boolean;
+  images: ImageBibliotheque[];
+  surErreur: (e: string | null) => void;
+}) {
+  const { scene, montree, preparee, images, surErreur } = props;
+  const [nom, setNom] = useState<string | null>(null);
+  const [confirmer, setConfirmer] = useState(false);
+  const repondre = (r: Reponse) => surErreur(r.ok ? null : r.erreur);
+  const modifier = (changement: { nom?: string; type?: TypeScene; imageId?: string }) =>
+    socket.emit("mj:modifierScene", { id: scene.id, ...changement }, repondre);
+
+  function supprimer() {
+    if (!confirmer) {
+      setConfirmer(true);
+      window.setTimeout(() => setConfirmer(false), 4000);
+      return;
+    }
+    setConfirmer(false);
+    socket.emit("mj:supprimerScene", { id: scene.id }, repondre);
+  }
+
+  const classes = ["ligne-scene"];
+  if (montree) classes.push("montree");
+  if (preparee) classes.push("preparee");
+
+  return (
+    <li className={classes.join(" ")}>
+      <img className="ligne-scene-vignette" src={urlImage(scene.image.id)} alt="" loading="lazy" />
+      <div className="ligne-scene-infos">
+        <input
+          className="nom-image"
+          aria-label="Nom de la scène"
+          maxLength={SCENE_NOM_MAX}
+          value={nom ?? scene.nom}
+          onFocus={() => setNom(scene.nom)}
+          onChange={(e) => setNom(e.target.value)}
+          onBlur={() => {
+            if (nom !== null && nom.trim() !== "" && nom !== scene.nom) modifier({ nom });
+            setNom(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.currentTarget.blur();
+          }}
+        />
+        <div className="ligne-scene-reglages">
+          <select
+            aria-label="Type de scène"
+            value={scene.type}
+            onChange={(e) => modifier({ type: e.target.value as TypeScene })}
+          >
+            {TYPES_SCENE.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.nom}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Image de la scène"
+            value={scene.image.id}
+            onChange={(e) => modifier({ imageId: e.target.value })}
+          >
+            {images.map((i) => (
+              <option key={i.id} value={i.id}>
+                {i.nom}
+              </option>
+            ))}
+          </select>
+          {montree && <span className="badge-montree-texte">montrée</span>}
+        </div>
+      </div>
+      <div className="ligne-scene-actions">
+        {montree ? (
+          <button type="button" className="secondaire" onClick={() => socket.emit("mj:montrerScene", { id: null }, repondre)}>
+            Ne plus montrer
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() =>
+              socket.emit("mj:montrerScene", { id: scene.id }, (r: Reponse) => {
+                repondre(r);
+                if (r.ok) preparerScene(null);
+              })
+            }
+          >
+            Montrer
+          </button>
+        )}
+        {!montree && (
+          <button
+            type="button"
+            className={preparee ? "secondaire actif" : "secondaire"}
+            onClick={() => preparerScene(preparee ? null : scene.id)}
+          >
+            {preparee ? "Fermer" : "Préparer"}
+          </button>
+        )}
+        <button type="button" className={confirmer ? "danger" : "lien"} onClick={supprimer}>
+          {confirmer ? "Confirmer" : "Supprimer"}
+        </button>
+      </div>
+    </li>
+  );
+}
+
+function MesScenes(props: { brouillon: Brouillon | null; surBrouillonUtilise: () => void }) {
+  const scenes = useEtat("scenes");
   const images = useEtat("images");
-  const [apercu, setApercu] = useState<string | null>(null);
-  const imageApercu = apercu ? images?.find((i) => i.id === apercu) : undefined;
-  const montree = scene?.image ?? null;
+  const active = useEtat("scene");
+  const preparee = useEtat("scenePreparee");
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [nom, setNom] = useState("");
+  const [type, setType] = useState<TypeScene>("illustration");
+  const [imageId, setImageId] = useState("");
+  const formulaire = useRef<HTMLFormElement>(null);
+
+  // « Nouvelle scène » depuis la bibliothèque : on préremplit le formulaire.
+  useEffect(() => {
+    if (!props.brouillon) return;
+    setImageId(props.brouillon.imageId);
+    setNom(props.brouillon.nom);
+    formulaire.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    props.surBrouillonUtilise();
+  }, [props.brouillon]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const imageChoisie = images?.some((i) => i.id === imageId) ? imageId : "";
+
+  return (
+    <section className="mes-scenes">
+      <h3>Mes scènes</h3>
+      {scenes && scenes.length > 0 ? (
+        <ul className="liste-scenes">
+          {[...scenes].reverse().map((s) => (
+            <LigneScene
+              key={s.id}
+              scene={s}
+              montree={active?.id === s.id}
+              preparee={preparee === s.id}
+              images={images ?? []}
+              surErreur={setErreur}
+            />
+          ))}
+        </ul>
+      ) : (
+        <p className="discret petit">Aucune scène pour l'instant.</p>
+      )}
+      {erreur && <p className="erreur">{erreur}</p>}
+
+      <form
+        ref={formulaire}
+        className="nouvelle-scene"
+        onSubmit={(e) => {
+          e.preventDefault();
+          socket.emit("mj:creerScene", { nom, type, imageId: imageChoisie }, (r: Reponse) => {
+            if (!r.ok) {
+              setErreur(r.erreur);
+              return;
+            }
+            setErreur(null);
+            setNom("");
+            // On ouvre la nouvelle scène pour la préparer.
+            if (r.id) preparerScene(r.id);
+          });
+        }}
+      >
+        <h4>Nouvelle scène</h4>
+        <input
+          value={nom}
+          onChange={(e) => setNom(e.target.value)}
+          maxLength={SCENE_NOM_MAX}
+          placeholder="ex. : Embuscade sur la route"
+          aria-label="Nom de la scène"
+        />
+        <select value={type} onChange={(e) => setType(e.target.value as TypeScene)} aria-label="Type">
+          {TYPES_SCENE.map((t) => (
+            <option key={t.id} value={t.id} title={t.aide}>
+              {t.nom}
+            </option>
+          ))}
+        </select>
+        <select value={imageChoisie} onChange={(e) => setImageId(e.target.value)} aria-label="Image">
+          <option value="">— image —</option>
+          {(images ?? []).map((i) => (
+            <option key={i.id} value={i.id}>
+              {i.nom}
+            </option>
+          ))}
+        </select>
+        <button type="submit" disabled={nom.trim() === "" || imageChoisie === ""}>
+          Créer
+        </button>
+        <p className="discret petit aide-type">{TYPES_SCENE.find((t) => t.id === type)?.aide}</p>
+        {(images ?? []).length === 0 && (
+          <p className="discret petit">Dépose d'abord une image dans la bibliothèque, ci-dessous.</p>
+        )}
+      </form>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Onglet Scène
+
+export function Scene({ estMj, moiId }: { estMj: boolean; moiId: number }) {
+  const active = useEtat("scene");
+  const scenes = useEtat("scenes");
+  const prepareeId = useEtat("scenePreparee");
+  const [brouillon, setBrouillon] = useState<Brouillon | null>(null);
+
+  // Le MJ peut ouvrir une autre scène pour la préparer ; les joueurs voient la scène montrée.
+  const preparee =
+    estMj && prepareeId && prepareeId !== active?.id ? scenes?.find((s) => s.id === prepareeId) ?? null : null;
+  const affichee = preparee ?? active;
+
+  const bandeau = !estMj ? undefined : preparee ? (
+    <>
+      <span className="badge-secret">préparation : les joueurs ne voient pas cette scène</span>
+      <button
+        type="button"
+        onClick={() =>
+          socket.emit("mj:montrerScene", { id: preparee.id }, (r: Reponse) => {
+            if (r.ok) preparerScene(null);
+          })
+        }
+      >
+        Montrer à tous
+      </button>
+      <button type="button" className="lien" onClick={() => preparerScene(null)}>
+        Fermer
+      </button>
+    </>
+  ) : (
+    active && (
+      <button
+        type="button"
+        className="secondaire"
+        onClick={() => socket.emit("mj:montrerScene", { id: null }, () => undefined)}
+      >
+        Ne plus montrer
+      </button>
+    )
+  );
 
   return (
     <div className="scene">
-      {estMj && imageApercu && imageApercu.id !== montree?.id ? (
-        <Affichage
-          id={imageApercu.id}
-          titre={imageApercu.nom}
-          bandeau={
-            <>
-              <span className="badge-secret">aperçu : les joueurs ne le voient pas</span>
-              <button
-                type="button"
-                onClick={() =>
-                  socket.emit("mj:montrerScene", { id: imageApercu.id }, (r: Reponse) => {
-                    if (r.ok) setApercu(null);
-                  })
-                }
-              >
-                Montrer à tous
-              </button>
-              <button type="button" className="lien" onClick={() => setApercu(null)}>
-                Fermer l'aperçu
-              </button>
-            </>
-          }
-        />
-      ) : montree ? (
-        <Affichage
-          id={montree.id}
-          titre={montree.nom}
-          bandeau={
-            estMj && (
-              <button
-                type="button"
-                className="secondaire"
-                onClick={() => socket.emit("mj:montrerScene", { id: null }, () => undefined)}
-              >
-                Retirer la scène
-              </button>
-            )
-          }
-        />
-      ) : (
+      {affichee === null ? (
         <p className="discret scene-vide">
           {estMj
-            ? "Aucune scène montrée. Dépose une image ci-dessous, puis clique sur « Montrer »."
+            ? "Aucune scène montrée. Crée une scène ci-dessous, puis clique sur « Montrer »."
             : "Le MJ n'a pas encore montré de scène."}
         </p>
+      ) : affichee.type === "immersive" ? (
+        <Carte key={affichee.id} scene={affichee} moiId={moiId} estMj={estMj} bandeau={bandeau} />
+      ) : (
+        <Affichage id={affichee.image.id} titre={affichee.nom} bandeau={bandeau} />
       )}
-      {estMj && <Bibliotheque apercu={apercu} surApercu={setApercu} />}
+      {estMj && <MesScenes brouillon={brouillon} surBrouillonUtilise={() => setBrouillon(null)} />}
+      {estMj && <Bibliotheque surNouvelleScene={setBrouillon} />}
     </div>
   );
 }

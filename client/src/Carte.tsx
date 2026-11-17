@@ -1,4 +1,4 @@
-// Carte de combat : image, grille, pions ; zoom, règle de mesure et pointeur.
+// Scène immersive : image, grille, pions ; zoom, règle de mesure et pointeur.
 // Dessinée avec Konva (canvas). Le serveur décide : un pion déplacé ne bouge vraiment
 // que lorsque le serveur a accepté et renvoyé la nouvelle position.
 
@@ -15,13 +15,12 @@ import {
   TAILLE_CASE_MAX,
   TAILLE_CASE_MIN,
   type Case,
-  type EtatCarte,
   type Grille,
   type Pion,
 } from "../../shared/carte.ts";
 import { deplacement } from "../../shared/fiche.ts";
 import type { Reponse } from "../../shared/messages.ts";
-import { urlImage } from "../../shared/scenes.ts";
+import { urlImage, type Scene } from "../../shared/scenes.ts";
 import { socket } from "./connexion.ts";
 import { ajouterPointeur, useEtat } from "./etat.ts";
 import { nomPersonnage } from "./noms.ts";
@@ -304,19 +303,24 @@ interface Vue {
   zoom: number;
 }
 
-export function Carte({ moiId, estMj }: { moiId: number; estMj: boolean }) {
-  const carte = useEtat("carte");
+export function Carte(props: {
+  scene: Scene;
+  moiId: number;
+  estMj: boolean;
+  /** Boutons propres au MJ (montrer, préparation…), affichés dans la barre d'outils. */
+  bandeau?: React.ReactNode;
+}) {
+  const { scene, moiId, estMj } = props;
   const fiches = useEtat("fiches");
   const presents = useEtat("presents");
   const reglesDistantes = useEtat("reglesDistantes");
   const pointeurs = useEtat("pointeurs");
-  const images = useEtat("images");
 
   const cadre = useRef<HTMLDivElement>(null);
-  // Zone de dessin : suivie par « état » (et non par simple référence) car elle n'existe qu'avec une carte.
+  // Zone de dessin : suivie par « état » (et non par simple référence) pour la mesurer dès qu'elle existe.
   const [zone, setZone] = useState<HTMLDivElement | null>(null);
   const { l, h } = useTaille(zone);
-  const image = useImageChargee(carte?.image ? urlImage(carte.image.id) : null);
+  const image = useImageChargee(urlImage(scene.image.id));
   const [outil, setOutil] = useState<Outil>("deplacer");
   const [vue, setVue] = useState<Vue>({ x: 0, y: 0, zoom: 1 });
   const [maRegle, setMaRegle] = useState<{ de: Case; a: Case } | null>(null);
@@ -389,7 +393,7 @@ export function Carte({ moiId, estMj }: { moiId: number; estMj: boolean }) {
     const maintenant = Date.now();
     if (!forcer && maintenant - dernierEnvoiRegle.current < 60) return;
     dernierEnvoiRegle.current = maintenant;
-    socket.emit("carte:regle", mesure);
+    socket.emit("carte:regle", { sceneId: scene.id, mesure });
   }
 
   const nomDuPion = (p: Pion) => {
@@ -405,28 +409,18 @@ export function Carte({ moiId, estMj }: { moiId: number; estMj: boolean }) {
   // Les pions des personnages joueurs passent au-dessus des PNJ, le sien tout en haut.
   const pionsOrdonnes = useMemo(
     () =>
-      [...(carte?.pions ?? [])].sort(
+      [...scene.pions].sort(
         (a, b) =>
           Number(a.type === "pj") - Number(b.type === "pj") ||
           Number(a.joueurId === moiId) - Number(b.joueurId === moiId),
       ),
-    [carte?.pions, moiId],
+    [scene.pions, moiId],
   );
 
-  if (!carte || !carte.image) {
-    return (
-      <div className="carte-combat">
-        <p className="discret scene-vide">
-          {estMj
-            ? "Aucune carte de combat. Choisis une image de ta bibliothèque ci-dessous."
-            : "Le MJ n'a pas encore choisi de carte de combat."}
-        </p>
-        {estMj && <ReglagesMj carte={carte} images={images} centreVue={() => ({ col: 0, lig: 0 })} />}
-      </div>
-    );
-  }
-
-  const grille = carte.grille;
+  const grille = scene.grille;
+  // Règles et pointeurs des autres : seulement ceux de la scène affichée ici.
+  const reglesIci = reglesDistantes.filter((r) => r.sceneId === scene.id);
+  const pointeursIci = pointeurs.filter((p) => p.sceneId === scene.id);
 
   /** Case au centre de la vue (pour poser un nouveau pion à un endroit visible). */
   const centreVue = (): Case => {
@@ -440,7 +434,8 @@ export function Carte({ moiId, estMj }: { moiId: number; estMj: boolean }) {
     <div className="carte-combat">
       <figure className={pleinEcran ? "carte-cadre plein" : "carte-cadre"} ref={cadre}>
         <figcaption className="carte-outils">
-          <span className="scene-titre">{carte.image.nom}</span>
+          <span className="scene-titre">{scene.nom}</span>
+          {props.bandeau}
           <span className="groupe-outils" role="group" aria-label="Outil">
             {(
               [
@@ -522,8 +517,8 @@ export function Carte({ moiId, estMj }: { moiId: number; estMj: boolean }) {
                 if (outil !== "pointeur") return;
                 const p = pointImage(e.target.getStage());
                 if (!p) return;
-                ajouterPointeur("Toi", p.x, p.y);
-                socket.emit("carte:pointeur", p);
+                ajouterPointeur(scene.id, "Toi", p.x, p.y);
+                socket.emit("carte:pointeur", { sceneId: scene.id, ...p });
               }}
             >
               <Layer>
@@ -556,11 +551,11 @@ export function Carte({ moiId, estMj }: { moiId: number; estMj: boolean }) {
                       surErreur={setErreur}
                     />
                   ))}
-                  {reglesDistantes.map((r) => (
+                  {reglesIci.map((r) => (
                     <Mesure key={r.auteurId} de={r.de} a={r.a} grille={grille} echelle={echelle} auteur={r.auteur} />
                   ))}
                   {maRegle && <Mesure de={maRegle.de} a={maRegle.a} grille={grille} echelle={echelle} />}
-                  {pointeurs.map((p) => (
+                  {pointeursIci.map((p) => (
                     <Signal key={p.cle} x={p.x} y={p.y} auteur={p.auteur} echelle={echelle} />
                   ))}
                 </Group>
@@ -576,13 +571,13 @@ export function Carte({ moiId, estMj }: { moiId: number; estMj: boolean }) {
         </div>
       </figure>
       {erreur && <p className="erreur">{erreur}</p>}
-      {estMj && <ReglagesMj carte={carte} images={images} centreVue={centreVue} />}
+      {estMj && <ReglagesMj scene={scene} centreVue={centreVue} />}
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Réglages du MJ : choix de la carte, grille, pions de PNJ
+// Réglages du MJ : grille de l'image, pions de PNJ de la scène
 
 function Reglage(props: {
   nom: string;
@@ -628,50 +623,29 @@ function Reglage(props: {
   );
 }
 
-function ReglagesMj(props: {
-  carte: EtatCarte | null;
-  images: { id: string; nom: string }[] | null;
-  centreVue: () => Case;
-}) {
-  const { carte, images, centreVue } = props;
+function ReglagesMj(props: { scene: Scene; centreVue: () => Case }) {
+  const { scene, centreVue } = props;
   const [erreur, setErreur] = useState<string | null>(null);
   const [nom, setNom] = useState("");
   const [couleur, setCouleur] = useState<string>("#d9645a");
   const [taille, setTaille] = useState<1 | 2 | 3>(1);
   const repondre = (r: Reponse) => setErreur(r.ok ? null : r.erreur);
-  const grille = carte?.grille;
-  const changerGrille = (changement: Partial<Grille>) => {
-    if (grille) socket.emit("mj:grille", { ...grille, ...changement }, repondre);
-  };
-  const pnj = carte?.pions.filter((p) => p.type === "pnj") ?? [];
+  const grille = scene.grille;
+  const changerGrille = (changement: Partial<Grille>) =>
+    socket.emit("mj:grille", { imageId: scene.image.id, grille: { ...grille, ...changement } }, repondre);
+  const pnj = scene.pions.filter((p) => p.type === "pnj");
 
   return (
     <section className="reglages-carte">
-      <h3>Préparer la carte (toi seul vois ces réglages)</h3>
-      <label className="reglage-carte">
-        <span>Carte de combat</span>
-        <select
-          value={carte?.image?.id ?? ""}
-          onChange={(e) => socket.emit("mj:choisirCarte", { id: e.target.value || null }, repondre)}
-        >
-          <option value="">— aucune —</option>
-          {(images ?? []).map((i) => (
-            <option key={i.id} value={i.id}>
-              {i.nom}
-            </option>
-          ))}
-        </select>
-        {(images ?? []).length === 0 && (
-          <span className="discret petit">Dépose d'abord une image dans la bibliothèque (onglet Scène).</span>
-        )}
-      </label>
-
-      {carte?.image && grille && (
+      <h3>Préparer la scène (toi seul vois ces réglages)</h3>
+      {(
         <>
           <div className="bloc-reglages">
             <h4>Grille (1 case = 2 m)</h4>
             <p className="discret petit">
-              Ajuste la taille, puis le décalage, jusqu'à ce que la grille tombe sur celle dessinée sur l'image.
+              Ajuste la taille, puis le décalage, jusqu'à ce que la grille tombe sur celle dessinée sur
+              l'image. La grille est liée à l'image « {scene.image.nom} » : elle vaut pour toutes les
+              scènes qui l'utilisent.
             </p>
             <div className="ligne-reglages">
               <Reglage nom="Taille d'une case (px)" valeur={grille.taille} pas={1} min={TAILLE_CASE_MIN} max={TAILLE_CASE_MAX} surChangement={(v) => changerGrille({ taille: v })} />
@@ -690,7 +664,7 @@ function ReglagesMj(props: {
               className="ajout-pion"
               onSubmit={(e) => {
                 e.preventDefault();
-                socket.emit("mj:ajouterPion", { nom, couleur, taille, ...centreVue() }, (r: Reponse) => {
+                socket.emit("mj:ajouterPion", { sceneId: scene.id, nom, couleur, taille, ...centreVue() }, (r: Reponse) => {
                   repondre(r);
                   if (r.ok) setNom("");
                 });

@@ -1275,3 +1275,124 @@ textarea {
   border-radius: 50%;
   border: 1px solid var(--bordure);
 }
+
+/* --- Scènes : « Mes scènes » (MJ) --- */
+
+.mes-scenes h3 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.05rem;
+  margin: 0 0 0.5rem;
+}
+
+.mes-scenes h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  flex-basis: 100%;
+}
+
+.liste-scenes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ligne-scene {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.45rem;
+  border: 1px solid var(--bordure);
+  border-radius: 6px;
+}
+
+.ligne-scene.montree {
+  border-color: var(--accent);
+}
+
+.ligne-scene.preparee {
+  outline: 2px dashed var(--discret);
+  outline-offset: 2px;
+}
+
+.ligne-scene-vignette {
+  width: 5.5rem;
+  height: 3.6rem;
+  object-fit: cover;
+  border-radius: 4px;
+  background: var(--fond);
+  flex-shrink: 0;
+}
+
+.ligne-scene-infos {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.ligne-scene-reglages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.ligne-scene-reglages select {
+  padding: 0.2rem 0.4rem;
+  font-size: 0.85rem;
+  max-width: 14rem;
+}
+
+.badge-montree-texte {
+  font-size: 0.75rem;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  color: var(--accent-texte);
+  background: var(--accent);
+}
+
+.ligne-scene-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+
+.ligne-scene-actions button {
+  padding: 0.25rem 0.65rem;
+  font-size: 0.9rem;
+}
+
+button.secondaire.actif {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.nouvelle-scene {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--bordure);
+}
+
+.nouvelle-scene input {
+  flex: 1;
+  min-width: 12rem;
+}
+
+.nouvelle-scene .aide-type {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.carte-image .utilisation {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

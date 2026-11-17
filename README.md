@@ -5,7 +5,8 @@ Les joueurs cliquent sur un lien et ils sont à la table : aucun compte, rien à
 La voix passe par Discord.
 
 > **Avancement :** étapes 1 à 5 terminées : connexion, dés et journal, fiches de personnage,
-> scènes, carte de combat. Prochaine étape : le combat (initiative par cartes, suivi des tours).
+> scènes (illustrations et scènes immersives avec grille et pions). Prochaine étape : le combat
+> (initiative par cartes, suivi des tours).
 
 ## Lancer une séance (2 commandes)
 
@@ -53,18 +54,17 @@ lancement. Si un lien ne s'ouvre pas tout de suite, attends une minute : le tunn
   PS max, PV max, déplacement, bonus aux dégâts et chances de base sont calculés d'après le livre.
   Un clic sur une compétence, une caractéristique ou une école de magie lance le dé ; un état subi
   ajoute automatiquement un fléau aux jets de sa caractéristique.
-- **Scènes** : au centre, l'onglet **Scène** affiche l'image que le MJ montre à tous (en grand, ou en
-  plein écran). Chacun peut zoomer de son côté (`Ctrl` + molette, ou la molette seule en plein écran,
-  double-clic, boutons − et +) et se déplacer
-  en faisant glisser l'image ; **Ajuster** revient à l'image entière. Le MJ dépose ses images dans sa bibliothèque (glisser-déposer, JPG, PNG, WebP ou GIF,
-  30 Mo au plus), les prévisualise pour lui seul, les renomme, les montre ou les retire. Les joueurs
-  ne voient jamais la bibliothèque, et passent sur l'onglet Scène quand une nouvelle image est montrée.
-- **Carte de combat** : onglet **Carte**. Le MJ choisit une image de sa bibliothèque, aligne la grille
-  sur celle de l'image (1 case = 2 m, une diagonale compte aussi 2 m), et ajoute les pions de PNJ et de
-  monstres (1×1, 2×2 ou 3×3). Chaque personnage joueur a son pion ; un joueur ne déplace que le sien.
-  En glissant un pion, on voit la distance parcourue et le déplacement de la fiche (« 8 m / 10 m »).
-  Outils : **Règle** (mesure visible par tous) et **Montrer** (signal animé chez tous). Zoom comme pour
-  les scènes (`Ctrl` + molette, ou molette seule en plein écran), et on glisse la carte pour se déplacer.
+- **Scènes** : le MJ dépose ses images dans sa **bibliothèque** (JPG, PNG, WebP ou GIF, 30 Mo au plus),
+  puis crée des **scènes** : un nom, un type et une image. Une même image peut servir à plusieurs scènes
+  (par exemple une carte champêtre pour plusieurs combats). Une seule scène est montrée à la fois, dans
+  l'onglet **Scène** ; les joueurs y basculent quand une nouvelle scène est montrée.
+  - **Illustration** : l'image en grand, que chacun peut zoomer de son côté.
+  - **Immersive** : une carte avec grille (1 case = 2 m, une diagonale compte aussi 2 m), pions, règle de
+    mesure et pointeur. La grille s'aligne une fois par image ; chaque scène garde ses propres pions.
+    Chaque personnage joueur a son pion et un joueur ne déplace que le sien. En glissant un pion, on voit
+    la distance parcourue et le déplacement de la fiche (« 8 m / 10 m »).
+  - Le MJ peut **préparer** une scène (placer les PNJ, régler la grille) sans que les joueurs la voient.
+  - Zoom : `Ctrl` + molette (ou molette seule en plein écran), double-clic, boutons − et +.
 - **Journal** : tout le monde voit les jets, conservés d'une séance à l'autre (le MJ peut le vider).
 - **Sauvegarde** : la partie, les liens, les noms et le journal sont conservés quand tu arrêtes le serveur.
 

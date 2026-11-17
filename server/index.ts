@@ -21,8 +21,8 @@ import {
 import { base, CHEMIN_BASE } from "./base.ts";
 import { brancherFiches, diffuserFiche, envoyerFiches } from "./fiches-socket.ts";
 import { ficheDuJoueur } from "./fiches.ts";
-import { apresNouveauJoueur, brancherCarte, diffuserCarte, envoyerCarte } from "./carte.ts";
-import { brancherImages, brancherRoutesImages, envoyerScenes } from "./images.ts";
+import { brancherImages, brancherRoutesImages, envoyerImages } from "./images.ts";
+import { apresNouveauJoueur, brancherScenes, diffuserScenes, envoyerScenes } from "./scenes.ts";
 import { brancherJets, envoyerJournal, SALLE_JOUEURS, SALLE_MJ } from "./jets-socket.ts";
 import { lienInvitation, MODE_PARTIE } from "./liens.ts";
 import {
@@ -186,12 +186,12 @@ io.on("connection", (socket) => {
   diffuserPresents();
   envoyerJournal(socket, partie.id);
   envoyerFiches(socket, partie.id);
+  envoyerImages(socket, partie.id);
   envoyerScenes(socket, partie.id);
-  envoyerCarte(socket, partie.id);
   brancherJets(io, socket, partie.id);
   brancherFiches(io, socket, partie.id);
   brancherImages(io, socket, partie.id);
-  brancherCarte(io, socket, partie.id);
+  brancherScenes(io, socket, partie.id);
 
   socket.on("ping", (reponse) => {
     if (typeof reponse === "function") reponse(new Date().toISOString());
@@ -224,7 +224,7 @@ io.on("connection", (socket) => {
       diffuserInvitations();
       diffuserPresents();
       io.emit("fiche:supprimee", id);
-      diffuserCarte(io, partie.id);
+      diffuserScenes(io, partie.id);
       return { ok: true };
     }),
   );

@@ -108,6 +108,59 @@ const MIGRATIONS: string[] = [
   );
   CREATE UNIQUE INDEX pion_pj ON pion(image_id, joueur_id) WHERE joueur_id IS NOT NULL;
   `,
+  // Réorganisation des scènes : une scène a un nom, un type (illustration ou immersive) et une
+  // image ; une image peut servir à plusieurs scènes. Les pions appartiennent à une scène
+  // (et non plus à une image). Les données existantes sont reprises :
+  // - chaque image qui avait des pions (ou servait de carte) devient une scène immersive ;
+  // - l'image montrée devient une scène illustration ;
+  // - la scène montrée est la carte de combat si elle existait, sinon l'illustration.
+  `
+  CREATE TABLE scene (
+    id         TEXT PRIMARY KEY,
+    partie_id  INTEGER NOT NULL REFERENCES partie(id) ON DELETE CASCADE,
+    nom        TEXT NOT NULL,
+    type       TEXT NOT NULL CHECK (type IN ('illustration', 'immersive')),
+    image_id   TEXT NOT NULL REFERENCES image(id),
+    cree_le    TEXT NOT NULL
+  );
+  ALTER TABLE partie ADD COLUMN scene_active_id TEXT;
+
+  INSERT INTO scene (id, partie_id, nom, type, image_id, cree_le)
+    SELECT 'm' || image.id, image.partie_id, image.nom, 'immersive', image.id, image.cree_le
+    FROM image
+    WHERE image.id IN (SELECT image_id FROM pion)
+       OR image.id IN (SELECT carte_image_id FROM partie WHERE carte_image_id IS NOT NULL);
+
+  INSERT INTO scene (id, partie_id, nom, type, image_id, cree_le)
+    SELECT 'i' || image.id, image.partie_id, image.nom, 'illustration', image.id, image.cree_le
+    FROM image
+    WHERE image.id IN (SELECT scene_image_id FROM partie WHERE scene_image_id IS NOT NULL);
+
+  UPDATE partie SET scene_active_id = CASE
+    WHEN carte_image_id IS NOT NULL AND EXISTS (SELECT 1 FROM image WHERE id = carte_image_id)
+      THEN 'm' || carte_image_id
+    WHEN scene_image_id IS NOT NULL AND EXISTS (SELECT 1 FROM image WHERE id = scene_image_id)
+      THEN 'i' || scene_image_id
+    ELSE NULL END;
+
+  CREATE TABLE pion_scene (
+    id         TEXT PRIMARY KEY,
+    partie_id  INTEGER NOT NULL REFERENCES partie(id) ON DELETE CASCADE,
+    scene_id   TEXT NOT NULL REFERENCES scene(id) ON DELETE CASCADE,
+    type       TEXT NOT NULL CHECK (type IN ('pj', 'pnj')),
+    joueur_id  INTEGER REFERENCES participant(id) ON DELETE CASCADE,
+    nom        TEXT NOT NULL DEFAULT '',
+    couleur    TEXT NOT NULL,
+    taille     INTEGER NOT NULL,
+    col        INTEGER NOT NULL,
+    lig        INTEGER NOT NULL
+  );
+  INSERT INTO pion_scene (id, partie_id, scene_id, type, joueur_id, nom, couleur, taille, col, lig)
+    SELECT id, partie_id, 'm' || image_id, type, joueur_id, nom, couleur, taille, col, lig FROM pion;
+  DROP TABLE pion;
+  ALTER TABLE pion_scene RENAME TO pion;
+  CREATE UNIQUE INDEX pion_pj ON pion(scene_id, joueur_id) WHERE joueur_id IS NOT NULL;
+  `,
 ];
 
 function migrer(): void {

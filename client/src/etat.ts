@@ -3,7 +3,7 @@
 // même si un message arrive avant que l'écran correspondant soit affiché.
 
 import { useSyncExternalStore } from "react";
-import type { Case, EtatCarte } from "../../shared/carte.ts";
+import type { Case } from "../../shared/carte.ts";
 import type { Fiche } from "../../shared/fiche.ts";
 import type { EntreeJournal } from "../../shared/jets.ts";
 import type { Invitation, Present } from "../../shared/messages.ts";
@@ -22,6 +22,7 @@ export interface ReglagesJet {
 
 /** Règle de mesure tenue par quelqu'un d'autre. */
 export interface RegleDistante {
+  sceneId: string;
   auteurId: number;
   auteur: string;
   de: Case;
@@ -31,13 +32,17 @@ export interface RegleDistante {
 /** Signal « regardez ici » sur la carte. */
 export interface Pointeur {
   cle: number;
+  sceneId: string;
   auteur: string;
   x: number;
   y: number;
 }
 
 interface Etat {
-  carte: EtatCarte | null;
+  /** Toutes les scènes (MJ seulement). */
+  scenes: Scene[] | null;
+  /** MJ : scène ouverte pour la préparer sans la montrer (sinon null). */
+  scenePreparee: string | null;
   reglesDistantes: RegleDistante[];
   pointeurs: Pointeur[];
   /** Scène montrée à tous par le MJ. */
@@ -56,7 +61,8 @@ interface Etat {
 }
 
 let etat: Etat = {
-  carte: null,
+  scenes: null,
+  scenePreparee: null,
   reglesDistantes: [],
   pointeurs: [],
   scene: null,
@@ -83,18 +89,27 @@ socket.on("journal", (journal) => modifier({ journal }));
 socket.on("fiches", (fiches) => modifier({ fiches }));
 socket.on("scene", (scene) => modifier({ scene }));
 socket.on("images", (images) => modifier({ images }));
-socket.on("carte", (carte) => modifier({ carte }));
-socket.on("carte:regle", ({ auteurId, auteur, mesure }) => {
-  const autres = etat.reglesDistantes.filter((r) => r.auteurId !== auteurId);
-  modifier({ reglesDistantes: mesure ? [...autres, { auteurId, auteur, ...mesure }] : autres });
+socket.on("scenes", (scenes) => {
+  // Si la scène en préparation a été supprimée, on la ferme.
+  const preparee = etat.scenePreparee && scenes.some((s) => s.id === etat.scenePreparee) ? etat.scenePreparee : null;
+  modifier({ scenes, scenePreparee: preparee });
 });
-socket.on("carte:pointeur", ({ auteur, x, y }) => ajouterPointeur(auteur, x, y));
+socket.on("carte:regle", ({ sceneId, auteurId, auteur, mesure }) => {
+  const autres = etat.reglesDistantes.filter((r) => r.auteurId !== auteurId);
+  modifier({ reglesDistantes: mesure ? [...autres, { sceneId, auteurId, auteur, ...mesure }] : autres });
+});
+socket.on("carte:pointeur", ({ sceneId, auteur, x, y }) => ajouterPointeur(sceneId, auteur, x, y));
+
+/** MJ : ouvre une scène pour la préparer (ou null pour revenir à la scène montrée). */
+export function preparerScene(id: string | null): void {
+  modifier({ scenePreparee: id });
+}
 
 let prochaineCle = 1;
 /** Affiche un pointeur pendant quelques secondes (le sien ou celui de quelqu'un d'autre). */
-export function ajouterPointeur(auteur: string, x: number, y: number): void {
+export function ajouterPointeur(sceneId: string, auteur: string, x: number, y: number): void {
   const cle = prochaineCle++;
-  modifier({ pointeurs: [...etat.pointeurs, { cle, auteur, x, y }] });
+  modifier({ pointeurs: [...etat.pointeurs, { cle, sceneId, auteur, x, y }] });
   window.setTimeout(() => modifier({ pointeurs: etat.pointeurs.filter((p) => p.cle !== cle) }), 3000);
 }
 socket.on("fiche", (fiche) => {

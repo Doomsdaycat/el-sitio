@@ -1,4 +1,5 @@
-// Images et scènes : dépôt par le MJ, envoi aux navigateurs, scène montrée à tous.
+// Bibliothèque d'images du MJ : dépôt, envoi aux navigateurs, renommage, suppression.
+// Les scènes (qui utilisent ces images) sont gérées dans scenes.ts.
 // Les fichiers sont rangés dans data/medias/, à côté de la base (jamais dans le dépôt git).
 
 import { randomBytes } from "node:crypto";
@@ -12,12 +13,11 @@ import {
   IMAGE_NOM_MAX,
   IMAGE_TAILLE_MAX,
   type ImageBibliotheque,
-  type Scene,
 } from "../shared/scenes.ts";
 import { base, CHEMIN_BASE } from "./base.ts";
-import { apresSuppressionImage, diffuserCarte, etatCarte } from "./carte.ts";
 import { nomDepuisFichier, reconnaitreImage } from "./images-format.ts";
 import { participantParJeton, type Participant } from "./partie.ts";
+import { diffuserScenes, scenesUtilisant } from "./scenes.ts";
 
 export const DOSSIER_MEDIAS = join(dirname(CHEMIN_BASE), "medias");
 
@@ -32,7 +32,7 @@ const SALLE_MJ = "mj";
 // ---------------------------------------------------------------------------
 // Base de données
 
-interface LigneImage extends ImageBibliotheque {
+interface LigneImage extends Omit<ImageBibliotheque, "scenes"> {
   fichier: string;
 }
 
@@ -48,39 +48,17 @@ export function listerImages(partieId: number): ImageBibliotheque[] {
   const lignes = base
     .prepare(`SELECT ${COLONNES} FROM image WHERE partie_id = ? ORDER BY cree_le, id`)
     .all(partieId) as unknown as LigneImage[];
-  return lignes.map(({ fichier: _fichier, ...image }) => image);
-}
-
-export function sceneCourante(partieId: number): Scene {
-  const ligne = base
-    .prepare(
-      `SELECT image.id, image.nom FROM partie JOIN image ON image.id = partie.scene_image_id
-       WHERE partie.id = ?`,
-    )
-    .get(partieId) as { id: string; nom: string } | undefined;
-  return { image: ligne ? { id: ligne.id, nom: ligne.nom } : null };
-}
-
-function changerScene(partieId: number, imageId: string | null): void {
-  base.prepare("UPDATE partie SET scene_image_id = ? WHERE id = ?").run(imageId, partieId);
+  return lignes.map(({ fichier: _fichier, ...image }) => ({ ...image, scenes: scenesUtilisant(partieId, image.id) }));
 }
 
 // ---------------------------------------------------------------------------
-// Fichiers
+// Diffusions (la bibliothèque n'est envoyée qu'au MJ)
 
-// ---------------------------------------------------------------------------
-// Diffusions
-
-function diffuserImages(io: Io, partieId: number): void {
+export function diffuserImages(io: Io, partieId: number): void {
   io.to(SALLE_MJ).emit("images", listerImages(partieId));
 }
 
-function diffuserScene(io: Io, partieId: number): void {
-  io.emit("scene", sceneCourante(partieId));
-}
-
-export function envoyerScenes(socket: SocketBrumeland, partieId: number): void {
-  socket.emit("scene", sceneCourante(partieId));
+export function envoyerImages(socket: SocketBrumeland, partieId: number): void {
   if (socket.data.participant.role === "mj") socket.emit("images", listerImages(partieId));
 }
 
@@ -138,7 +116,7 @@ export function brancherRoutesImages(app: Express, io: Io, partieId: number): vo
   );
 
   // Les identifiants d'images sont aléatoires et impossibles à deviner : un joueur ne connaît
-  // que ceux des images que le MJ lui a montrées. Le navigateur les garde en cache.
+  // que ceux des images des scènes que le MJ lui a montrées. Le navigateur les garde en cache.
   app.get("/api/images/:id", (req, res) => {
     const image = /^[0-9a-f]{32}$/.test(req.params.id) ? lireImage(partieId, req.params.id) : undefined;
     const chemin = image && join(DOSSIER_MEDIAS, image.fichier);
@@ -187,22 +165,6 @@ export function brancherImages(io: Io, socket: SocketBrumeland, partieId: number
   }
 
   socket.on(
-    "mj:montrerScene",
-    reserveMj((d: { id: string | null }) => {
-      if (d?.id === null) {
-        changerScene(partieId, null);
-      } else {
-        if (typeof d?.id !== "string" || !lireImage(partieId, d.id)) {
-          return { ok: false, erreur: "Cette image n'existe plus." };
-        }
-        changerScene(partieId, d.id);
-      }
-      diffuserScene(io, partieId);
-      return { ok: true };
-    }),
-  );
-
-  socket.on(
     "mj:renommerImage",
     reserveMj((d: { id: string; nom: string }) => {
       const image = typeof d?.id === "string" ? lireImage(partieId, d.id) : undefined;
@@ -211,10 +173,7 @@ export function brancherImages(io: Io, socket: SocketBrumeland, partieId: number
       if (nom === "") return { ok: false, erreur: "Donne un nom à l'image." };
       if (nom.length > IMAGE_NOM_MAX) return { ok: false, erreur: `${IMAGE_NOM_MAX} caractères au plus.` };
       base.prepare("UPDATE image SET nom = ? WHERE id = ?").run(nom, image.id);
-      diffuserImages(io, partieId);
-      // Si elle est montrée, les joueurs voient le nouveau titre.
-      if (sceneCourante(partieId).image?.id === image.id) diffuserScene(io, partieId);
-      if (etatCarte(partieId).image?.id === image.id) diffuserCarte(io, partieId);
+      diffuserScenes(io, partieId); // envoie aussi la bibliothèque
       return { ok: true };
     }),
   );
@@ -224,8 +183,15 @@ export function brancherImages(io: Io, socket: SocketBrumeland, partieId: number
     reserveMj((d: { id: string }) => {
       const image = typeof d?.id === "string" ? lireImage(partieId, d.id) : undefined;
       if (!image) return { ok: false, erreur: "Cette image n'existe plus." };
-      const etaitMontree = sceneCourante(partieId).image?.id === image.id;
-      if (etaitMontree) changerScene(partieId, null);
+      // Une image utilisée par des scènes ne peut pas être supprimée.
+      const utilisee = scenesUtilisant(partieId, image.id);
+      if (utilisee.length > 0) {
+        const liste = utilisee.map((n) => `« ${n} »`).join(", ");
+        return {
+          ok: false,
+          erreur: `Image utilisée par ${utilisee.length > 1 ? "les scènes" : "la scène"} ${liste} : supprime ou modifie d'abord ${utilisee.length > 1 ? "ces scènes" : "cette scène"}.`,
+        };
+      }
       base.prepare("DELETE FROM image WHERE id = ?").run(image.id);
       try {
         unlinkSync(join(DOSSIER_MEDIAS, image.fichier));
@@ -233,8 +199,6 @@ export function brancherImages(io: Io, socket: SocketBrumeland, partieId: number
         // Fichier déjà absent : rien à faire.
       }
       diffuserImages(io, partieId);
-      if (etaitMontree) diffuserScene(io, partieId);
-      apresSuppressionImage(io, partieId, image.id);
       return { ok: true };
     }),
   );
