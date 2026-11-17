@@ -116,10 +116,14 @@ describe("Jets libres", () => {
     assert.equal(r.formule, "2D6+3");
   });
 
-  it("D8+D4, minuscules et espaces acceptés", () => {
+  it("D8+D4, minuscules et espaces acceptés ; affiché 1D8+1D4", () => {
     const r = jetLibre(" d8 + d4 ", truque(5, 3));
     assert.equal(r.total, 8);
-    assert.equal(r.formule, "D8+D4");
+    assert.equal(r.formule, "1D8+1D4");
+  });
+
+  it("formule affichée avec le nombre de dés, signes conservés", () => {
+    assert.equal(jetLibre("-D3+2D6-1", truque(4, 1, 1)).formule, "-1D3+2D6-1");
   });
 
   it("soustraction", () => {

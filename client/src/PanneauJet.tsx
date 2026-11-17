@@ -16,7 +16,7 @@ import { apresJet, changerReglages, choisirCibleOpposition, useEtat } from "./et
 
 type Mode = "competence" | "libre";
 
-const RACCOURCIS = ["D4", "D6", "D8", "D10", "D12", "D20", "2D6", "D3"];
+const RACCOURCIS = ["1D4", "1D6", "1D8", "1D10", "1D12", "1D20", "2D6", "1D3"];
 
 function Compteur(props: {
   nom: string;

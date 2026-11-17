@@ -42,8 +42,8 @@ describe("Valeurs calculées (livre, chapitre 2)", () => {
     assert.equal(deplacement(ficheVide(1)), null);
   });
 
-  it("bonus aux dégâts : rien jusqu'à 12, D4 de 13 à 16, D6 dès 17", () => {
-    assert.deepEqual([12, 13, 16, 17, 18].map(bonusDegats), [null, "D4", "D4", "D6", "D6"]);
+  it("bonus aux dégâts : rien jusqu'à 12, 1D4 de 13 à 16, 1D6 dès 17", () => {
+    assert.deepEqual([12, 13, 16, 17, 18].map(bonusDegats), [null, "1D4", "1D4", "1D6", "1D6"]);
   });
 
   it("compétence sans niveau : chance de base de sa caractéristique", () => {

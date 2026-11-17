@@ -160,10 +160,10 @@ export function deplacement(f: Fiche): number | null {
   return famille.deplacement + modif;
 }
 
-/** Bonus aux dégâts d'une caractéristique (FOR ou AGI) : null, « D4 » ou « D6 ». */
-export function bonusDegats(valeur: number): "D4" | "D6" | null {
-  if (valeur >= 17) return "D6";
-  if (valeur >= 13) return "D4";
+/** Bonus aux dégâts d'une caractéristique (FOR ou AGI) : null, « 1D4 » ou « 1D6 ». */
+export function bonusDegats(valeur: number): "1D4" | "1D6" | null {
+  if (valeur >= 17) return "1D6";
+  if (valeur >= 13) return "1D4";
   return null;
 }
 

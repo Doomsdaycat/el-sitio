@@ -72,7 +72,8 @@ const TERMES_MAX = 10;
 const FIXE_MAX = 100;
 
 /**
- * Jet libre : « 2D6+3 », « D8+D4 », « 1d10-1 », « D3 »…
+ * Jet libre : « 2D6+3 », « 1D8+1D4 », « 1d10-1 », « D3 »…
+ * La formule renvoyée écrit toujours le nombre de dés : « D4 » devient « 1D4 ».
  * Un D3 est un D6 divisé par deux, arrondi au supérieur (règle du livre).
  */
 export function jetLibre(formuleBrute: string, tirage: Tirage = tirageSur): ResultatLibre {
@@ -81,7 +82,7 @@ export function jetLibre(formuleBrute: string, tirage: Tirage = tirageSur): Resu
   if (formule === "") throw new ErreurJet("Écris une formule, par exemple 2D6+3.");
   if (formule.length > FORMULE_MAX) throw new ErreurJet("Formule trop longue.");
   if (!/^[+-]?(\d*D\d+|\d+)([+-](\d*D\d+|\d+))*$/.test(formule)) {
-    throw new ErreurJet("Formule non comprise. Exemples : 2D6+3, D8+D4, D3.");
+    throw new ErreurJet("Formule non comprise. Exemples : 2D6+3, 1D8+1D4, 1D3.");
   }
 
   const morceaux = formule.match(/[+-]?(\d*D\d+|\d+)/g) ?? [];
@@ -104,7 +105,9 @@ export function jetLibre(formuleBrute: string, tirage: Tirage = tirageSur): Resu
       throw new ErreurJet(`De 1 à ${NOMBRE_MAX_PAR_TERME} dés par terme.`);
     }
     if (!FACES_AUTORISEES.has(faces)) {
-      throw new ErreurJet(`Dé D${faces} inconnu. Dés possibles : D3, D4, D6, D8, D10, D12, D20, D100.`);
+      throw new ErreurJet(
+        `Dé 1D${faces} inconnu. Dés possibles : 1D3, 1D4, 1D6, 1D8, 1D10, 1D12, 1D20, 1D100.`,
+      );
     }
     const des = Array.from({ length: nombre }, () =>
       faces === 3 ? Math.ceil(tirage(6) / 2) : tirage(faces),
@@ -115,7 +118,12 @@ export function jetLibre(formuleBrute: string, tirage: Tirage = tirageSur): Resu
 
   return {
     type: "libre",
-    formule: morceaux.join("").replace(/^\+/, ""),
+    formule: termes
+      .map((t, i) => {
+        const signe = t.signe < 0 ? "-" : i > 0 ? "+" : "";
+        return signe + (t.nombre === 0 ? String(t.fixe) : `${t.nombre}D${t.faces}`);
+      })
+      .join(""),
     termes,
     total: termes.reduce((a, t) => a + t.sousTotal, 0),
   };

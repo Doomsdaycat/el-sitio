@@ -145,6 +145,9 @@ function ChampTexte(props: {
 
 // ---------------------------------------------------------------------------
 
+/** Bonus aux dégâts affiché comme dans le livre : « +1D4 », ou « — » sans bonus. */
+const signe = (bonus: string | null) => (bonus ? `+${bonus}` : "—");
+
 /** Nom cliquable pour lancer, ou simple texte si on ne peut pas lancer depuis cette fiche. */
 function BoutonJet(p: {
   cible: CibleJetFiche;
@@ -409,8 +412,8 @@ function FicheVue(props: {
         <div className="jauge">
           <span className="jauge-nom">Bonus aux dégâts</span>
           <span>
-            FOR : <strong>{bonusDegats(fiche.caracs.FOR) ?? "—"}</strong> · AGI :{" "}
-            <strong>{bonusDegats(fiche.caracs.AGI) ?? "—"}</strong>
+            FOR : <strong>{signe(bonusDegats(fiche.caracs.FOR))}</strong> · AGI :{" "}
+            <strong>{signe(bonusDegats(fiche.caracs.AGI))}</strong>
           </span>
         </div>
       </section>

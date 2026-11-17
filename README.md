@@ -37,7 +37,7 @@ lancement. Si un lien ne s'ouvre pas tout de suite, attends une minute : le tunn
 - **Reconnexion** : après une coupure (Wi-Fi, serveur redémarré), un bandeau jaune s'affiche et la page
   se reconnecte toute seule.
 - **Dés** : jets de compétence (1D20 sous la valeur) avec faveurs et fléaux, dragon (1) et démon (20),
-  et jets libres pour les dégâts (`2D6+3`, `D8+D4`, `D3`…). Les dés sont lancés par le serveur.
+  et jets libres pour les dégâts (`2D6+3`, `1D8+1D4`, `1D3`…). Les dés sont lancés par le serveur.
 - **Jets pour un joueur** : le MJ peut lancer pour le personnage d'un joueur (choix « Pour qui ? »).
 - **Forcer la chance** : sur un jet raté (sauf démon) d'un personnage joueur, le joueur ou le MJ relance
   en choisissant un état, qui se coche sur la fiche. Un état déjà subi ne peut pas être choisi, et

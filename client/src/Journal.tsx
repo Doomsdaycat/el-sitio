@@ -64,10 +64,20 @@ function DetailCompetence({ r }: { r: ResultatCompetence }) {
   );
 }
 
+/** Formule écrite avec le nombre de dés (« 1D8+1D4 »), même pour les jets enregistrés avant. */
+function formuleAffichee(r: ResultatLibre): string {
+  return r.termes
+    .map((t, i) => {
+      const signe = t.signe < 0 ? "-" : i > 0 ? "+" : "";
+      return signe + (t.nombre === 0 ? String(t.fixe) : `${t.nombre}D${t.faces}`);
+    })
+    .join("");
+}
+
 function DetailLibre({ r }: { r: ResultatLibre }) {
   return (
     <div className="detail-jet">
-      <span className="discret">{r.formule}</span>
+      <span className="discret">{formuleAffichee(r)}</span>
       <span className="des">
         {r.termes.map((t, i) => (
           <span key={i} className="terme">
@@ -76,7 +86,7 @@ function DetailLibre({ r }: { r: ResultatLibre }) {
               <span className="fixe">{t.fixe}</span>
             ) : (
               t.des.map((de, j) => (
-                <span key={j} className="de" title={`D${t.faces}`}>
+                <span key={j} className="de" title={`1D${t.faces}`}>
                   {de}
                 </span>
               ))
