@@ -1,6 +1,7 @@
 // Messages échangés entre le serveur et l'interface.
 // Ce fichier est partagé : le serveur et l'interface utilisent les mêmes définitions.
 
+import type { CibleJetFiche, Fiche, ModificationFiche } from "./fiche.ts";
 import type { EntreeJournal, IdEtat } from "./jets.ts";
 
 export type Role = "mj" | "joueur";
@@ -54,6 +55,12 @@ export interface MessagesServeur {
   "journal:entree": (entree: EntreeJournal) => void;
   /** Le MJ a vidé le journal. */
   "journal:vide": () => void;
+  /** Toutes les fiches de personnage, envoyées à l'arrivée. */
+  fiches: (fiches: Fiche[]) => void;
+  /** Une fiche nouvelle ou modifiée : remplace celle du même joueur. */
+  fiche: (fiche: Fiche) => void;
+  /** La fiche de ce joueur a disparu (invitation supprimée). */
+  "fiche:supprimee": (joueurId: number) => void;
   /** Le lien de ce navigateur vient d'être supprimé par le MJ. */
   exclu: () => void;
 }
@@ -85,6 +92,23 @@ export interface MessagesClient {
   ) => void;
   /** Forcer la chance sur un de ses jets ratés, en choisissant un état. */
   "jet:forcer": (demande: { id: number; etat: IdEtat }, reponse: (r: Reponse) => void) => void;
+  "fiche:modifier": (
+    demande: { joueurId: number; modification: ModificationFiche },
+    reponse: (r: Reponse) => void,
+  ) => void;
+  /** Jet en un clic depuis une fiche : le serveur lit la valeur et les états sur la fiche. */
+  "jet:fiche": (
+    demande: {
+      joueurId: number;
+      cible: CibleJetFiche;
+      faveurs: number;
+      fleaux: number;
+      secret: boolean;
+      opposeA?: number | null;
+      ouverte?: boolean;
+    },
+    reponse: (r: Reponse) => void,
+  ) => void;
   "mj:revelerJet": (demande: { id: number }, reponse: (r: Reponse) => void) => void;
   "mj:viderJournal": (demande: Record<string, never>, reponse: (r: Reponse) => void) => void;
   /** Le joueur choisit (ou change) son nom. */

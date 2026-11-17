@@ -36,6 +36,8 @@ export interface ResultatCompetence {
   dragon: boolean;
   /** 20 naturel : « tomber sur un démon ». */
   demon: boolean;
+  /** Jet lancé depuis la fiche : état qui a ajouté un fléau (compté dans `fleaux`). */
+  fleauEtat?: IdEtat | null;
 }
 
 /** Un terme d'une formule libre : « 2D6 », « D3 » ou un nombre fixe. */

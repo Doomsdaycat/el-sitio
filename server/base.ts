@@ -66,6 +66,16 @@ const MIGRATIONS: string[] = [
   ALTER TABLE jet ADD COLUMN ouverte INTEGER NOT NULL DEFAULT 0;
   CREATE UNIQUE INDEX jet_oppose_a ON jet(oppose_a) WHERE oppose_a IS NOT NULL;
   `,
+  // Étape 3 : une fiche de personnage par joueur, enregistrée en JSON.
+  // Elle disparaît avec le joueur si son invitation est supprimée.
+  `
+  CREATE TABLE personnage (
+    joueur_id  INTEGER PRIMARY KEY REFERENCES participant(id) ON DELETE CASCADE,
+    partie_id  INTEGER NOT NULL REFERENCES partie(id) ON DELETE CASCADE,
+    donnees    TEXT NOT NULL,
+    maj_le     TEXT NOT NULL
+  );
+  `,
 ];
 
 function migrer(): void {

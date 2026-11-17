@@ -45,6 +45,7 @@ function DetailCompetence({ r }: { r: ResultatCompetence }) {
         sous {r.valeur}
         {r.faveurs > 0 && <> · {r.faveurs} faveur{r.faveurs > 1 ? "s" : ""}</>}
         {r.fleaux > 0 && <> · {pluriel(r.fleaux, "fléau")}</>}
+        {r.fleauEtat && <> (dont 1 dû à l'état {ETATS.find((e) => e.id === r.fleauEtat)?.nom})</>}
         {r.faveurs > 0 && r.fleaux > 0 && net === 0 && <> (s'annulent)</>}
       </span>
       <span className="des">
@@ -157,6 +158,9 @@ function Entree(props: {
   const r = entree.resultat;
   const masque = r === null;
   const etat = ETATS.find((e) => e.id === entree.etat);
+  const fiches = useEtat("fiches");
+  const concerne = joueurConcerne(entree);
+  const etatsDejaSubis = fiches?.find((f) => f.joueurId === concerne)?.etats ?? [];
   const moi = { id: moiId, role: estMj ? ("mj" as const) : ("joueur" as const) };
   const opposant = trouverOpposant(entree.id, journal);
   const paire = r?.type === "competence" || masque ? paireOpposition(entree, journal) : null;
@@ -263,11 +267,21 @@ function Entree(props: {
               : "Quel état subis-tu ? (pas un état que tu as déjà)"}
           </p>
           <div className="etats">
-            {ETATS.map((e) => (
-              <button key={e.id} type="button" className="secondaire" onClick={() => forcer(e.id)}>
-                {e.nom} <span className="discret">({e.carac})</span>
-              </button>
-            ))}
+            {ETATS.map((e) => {
+              const deja = etatsDejaSubis.includes(e.id);
+              return (
+                <button
+                  key={e.id}
+                  type="button"
+                  className="secondaire"
+                  disabled={deja}
+                  title={deja ? "État déjà subi" : undefined}
+                  onClick={() => forcer(e.id)}
+                >
+                  {e.nom} <span className="discret">({e.carac})</span>
+                </button>
+              );
+            })}
             <button type="button" className="lien" onClick={() => setChoixEtat(false)}>
               Annuler
             </button>

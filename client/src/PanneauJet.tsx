@@ -12,7 +12,7 @@ import {
 } from "../../shared/jets.ts";
 import type { Reponse } from "../../shared/messages.ts";
 import { socket } from "./connexion.ts";
-import { choisirCibleOpposition, useEtat } from "./etat.ts";
+import { apresJet, changerReglages, choisirCibleOpposition, useEtat } from "./etat.ts";
 
 type Mode = "competence" | "libre";
 
@@ -57,15 +57,17 @@ export function PanneauJet({ estMj }: { estMj: boolean }) {
   const [modeChoisi, setMode] = useState<Mode>("competence");
   // Jet en opposition : choisi avec le bouton « S'opposer » du journal.
   const cible = useEtat("cibleOpposition");
-  const [ouverte, setOuverte] = useState(false);
   // Une opposition se fait toujours avec un jet de compétence ou de caractéristique.
   const mode: Mode = cible ? "competence" : modeChoisi;
   const [libelle, setLibelle] = useState("");
   const [valeur, setValeur] = useState("");
-  const [faveurs, setFaveurs] = useState(0);
-  const [fleaux, setFleaux] = useState(0);
+  // Faveurs, fléaux et « secret » sont partagés avec les jets en un clic depuis la fiche.
+  const { faveurs, fleaux, secret, ouverte } = useEtat("reglages");
+  const setOuverte = (o: boolean) => changerReglages({ ouverte: o });
+  const setFaveurs = (n: number) => changerReglages({ faveurs: n });
+  const setFleaux = (n: number) => changerReglages({ fleaux: n });
+  const setSecret = (s: boolean) => changerReglages({ secret: s });
   const [formule, setFormule] = useState("");
-  const [secret, setSecret] = useState(false);
   // MJ : pour qui lance-t-il ? "" = PNJ ou monstre, sinon l'id du joueur.
   const [pour, setPour] = useState("");
   const presents = useEtat("presents");
@@ -79,14 +81,9 @@ export function PanneauJet({ estMj }: { estMj: boolean }) {
   function terminer(r: Reponse) {
     setEnvoi(false);
     if (r.ok) {
-      // Faveurs et fléaux valent pour un seul jet : on les remet à zéro.
-      setFaveurs(0);
-      setFleaux(0);
+      // Faveurs et fléaux valent pour un seul jet ; l'opposition éventuelle est faite.
+      apresJet();
       setErreur(null);
-      if (cible) {
-        choisirCibleOpposition(null);
-        setOuverte(false);
-      }
     } else {
       setErreur(r.erreur);
     }

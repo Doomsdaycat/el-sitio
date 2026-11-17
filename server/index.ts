@@ -19,6 +19,8 @@ import {
   type Reponse,
 } from "../shared/messages.ts";
 import { base, CHEMIN_BASE } from "./base.ts";
+import { brancherFiches, diffuserFiche, envoyerFiches } from "./fiches-socket.ts";
+import { ficheDuJoueur } from "./fiches.ts";
 import { brancherJets, envoyerJournal, SALLE_JOUEURS, SALLE_MJ } from "./jets-socket.ts";
 import { lienInvitation, MODE_PARTIE } from "./liens.ts";
 import {
@@ -178,7 +180,9 @@ io.on("connection", (socket) => {
   // Tout le monde voit arriver cette personne, et elle reçoit la liste complète.
   diffuserPresents();
   envoyerJournal(socket, partie.id);
+  envoyerFiches(socket, partie.id);
   brancherJets(io, socket, partie.id);
+  brancherFiches(io, socket, partie.id);
 
   socket.on("ping", (reponse) => {
     if (typeof reponse === "function") reponse(new Date().toISOString());
@@ -210,6 +214,7 @@ io.on("connection", (socket) => {
       io.in(salle).disconnectSockets(true);
       diffuserInvitations();
       diffuserPresents();
+      io.emit("fiche:supprimee", id);
       return { ok: true };
     }),
   );
@@ -242,6 +247,8 @@ io.on("connection", (socket) => {
     io.to(salleParticipant(participant.id)).emit("bienvenue", identite({ ...participant, nom }));
     diffuserInvitations();
     diffuserPresents();
+    // Première fois que le joueur choisit son nom : sa fiche (vide) apparaît chez tout le monde.
+    diffuserFiche(io, ficheDuJoueur(partie.id, participant.id));
     reponse({ ok: true });
   });
 

@@ -1,7 +1,9 @@
 // Jets de dés et journal : réception des demandes et diffusion des résultats.
 
 import type { Server, Socket } from "socket.io";
+import { appliquerModification, ErreurFiche, preparerJetFiche, type CibleJetFiche } from "../shared/fiche.ts";
 import {
+  BONUS_MAX,
   ETATS,
   joueurConcerne,
   LIBELLE_MAX,
@@ -22,6 +24,8 @@ import {
   viderJournal,
   vuePourJoueur,
 } from "./journal.ts";
+import { diffuserFiche, peutGererFiche } from "./fiches-socket.ts";
+import { enregistrerFiche, lireFiche } from "./fiches.ts";
 import { listerParticipants, type Participant } from "./partie.ts";
 
 /** Salles Socket.IO : les navigateurs du MJ, et ceux des joueurs. */
@@ -60,7 +64,7 @@ function proteger<D>(action: (demande: D) => Reponse) {
     try {
       reponse(action(demande));
     } catch (erreur) {
-      if (erreur instanceof ErreurJet) {
+      if (erreur instanceof ErreurJet || erreur instanceof ErreurFiche) {
         reponse({ ok: false, erreur: erreur.message });
       } else {
         console.error(erreur);
@@ -172,6 +176,45 @@ export function brancherJets(io: Io, socket: SocketBrumeland, partieId: number):
   );
 
   socket.on(
+    "jet:fiche",
+    proteger((d: Parameters<MessagesClient["jet:fiche"]>[0]) => {
+      const refus = refusJet(d?.secret);
+      if (refus) return { ok: false, erreur: refus };
+      const joueurId = Number(d?.joueurId);
+      const fiche = Number.isInteger(joueurId) ? lireFiche(partieId, joueurId) : undefined;
+      if (!fiche) return { ok: false, erreur: "Cette fiche n'existe plus." };
+      if (!peutGererFiche(moi(), joueurId)) {
+        return { ok: false, erreur: "Tu ne peux lancer que depuis la fiche de ton personnage." };
+      }
+      const opposition = lireOpposition(d?.opposeA, d?.ouverte);
+      if (typeof opposition === "string") return { ok: false, erreur: opposition };
+
+      // Valeur et états lus sur la fiche, côté serveur : un état ajoute un fléau.
+      const { libelle, valeur, etat } = preparerJetFiche(fiche, d?.cible as CibleJetFiche);
+      const fleauxDemandes = Number(d?.fleaux ?? 0);
+      const resultat = jetCompetence({
+        valeur,
+        faveurs: Number(d?.faveurs ?? 0),
+        fleaux: etat ? Math.min(BONUS_MAX, fleauxDemandes + 1) : fleauxDemandes,
+      });
+      resultat.fleauEtat = etat;
+
+      // Le MJ qui lance depuis la fiche d'un joueur lance « pour » ce joueur.
+      const pour = estMj() ? lirePour(joueurId) : null;
+      if (typeof pour === "string") return { ok: false, erreur: pour };
+      try {
+        enregistrerEtDiffuser(libelle, d?.secret === true, resultat, pour, opposition);
+      } catch (erreur) {
+        if (opposition && String(erreur).includes("UNIQUE")) {
+          return { ok: false, erreur: "Quelqu'un s'oppose déjà à ce jet." };
+        }
+        throw erreur;
+      }
+      return { ok: true };
+    }),
+  );
+
+  socket.on(
     "jet:libre",
     proteger((d: Parameters<MessagesClient["jet:libre"]>[0]) => {
       const refus = refusJet(d?.secret);
@@ -211,6 +254,16 @@ export function brancherJets(io: Io, socket: SocketBrumeland, partieId: number):
       }
       const etat = ETATS.find((e) => e.id === d?.etat);
       if (!etat) return { ok: false, erreur: "Choisis un état dans la liste." };
+
+      // L'état est noté sur la fiche du personnage : il ne doit pas déjà le subir.
+      const concerne = joueurConcerne(origine);
+      const fiche = concerne !== null ? lireFiche(partieId, concerne) : undefined;
+      if (fiche && fiche.etats.length >= ETATS.length) {
+        return { ok: false, erreur: "Les six états sont déjà subis : impossible de forcer la chance." };
+      }
+      if (fiche?.etats.includes(etat.id)) {
+        return { ok: false, erreur: `${etat.nom} est déjà subi : choisis un autre état.` };
+      }
       if (!marquerForce(partieId, id)) {
         return { ok: false, erreur: "La chance a déjà été forcée sur ce jet." };
       }
@@ -235,6 +288,11 @@ export function brancherJets(io: Io, socket: SocketBrumeland, partieId: number):
         pourNom: origine.pourNom,
       });
       diffuserEntree(io, tentative);
+      if (fiche) {
+        const avecEtat = appliquerModification(fiche, { champ: "etat", etat: etat.id, actif: true });
+        enregistrerFiche(partieId, avecEtat);
+        diffuserFiche(io, avecEtat);
+      }
       return { ok: true };
     }),
   );

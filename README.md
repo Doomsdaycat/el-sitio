@@ -4,7 +4,7 @@ Table de jeu virtuelle maison pour jouer à **Dragonbane** en ligne entre amis.
 Les joueurs cliquent sur un lien et ils sont à la table : aucun compte, rien à installer.
 La voix passe par Discord.
 
-> **Avancement :** étapes 1 (socle et connexion) et 2 (dés et journal) terminées. Prochaine étape : les fiches de personnage.
+> **Avancement :** étapes 1 (socle et connexion), 2 (dés et journal) et 3 (fiches de personnage) terminées. Prochaine étape : les scènes et images.
 
 ## Lancer une séance (2 commandes)
 
@@ -40,14 +40,18 @@ lancement. Si un lien ne s'ouvre pas tout de suite, attends une minute : le tunn
   et jets libres pour les dégâts (`2D6+3`, `D8+D4`, `D3`…). Les dés sont lancés par le serveur.
 - **Jets pour un joueur** : le MJ peut lancer pour le personnage d'un joueur (choix « Pour qui ? »).
 - **Forcer la chance** : sur un jet raté (sauf démon) d'un personnage joueur, le joueur ou le MJ relance
-  en choisissant un état. Les jets de PNJ et de monstres ne peuvent pas être forcés (règle du livre).
-  L'outil ne vérifie pas encore que cet état n'est pas déjà subi : ce sera fait avec les fiches (étape 3).
+  en choisissant un état, qui se coche sur la fiche. Un état déjà subi ne peut pas être choisi, et
+  avec les six états on ne peut plus forcer la chance. Les jets de PNJ ne peuvent pas être forcés.
 - **Jets en opposition** : sous un jet du journal, **S'opposer** prépare la réponse de l'adversaire.
   Le journal indique qui l'emporte. Seul celui qui agit peut forcer la chance, et seulement avant
   la réponse. Le MJ peut choisir une **opposition ouverte** (bras de fer, poison, maladie) : égalité
   si les deux ratent ou font le même dé, et chacun peut forcer la chance.
 - **Jets secrets du MJ** : les joueurs voient « Le MJ lance les dés en secret… », sans le résultat,
   jusqu'à ce que le MJ clique sur **Révéler aux joueurs**.
+- **Fiches de personnage** : une par joueur, visibles par tous, modifiables par le joueur et le MJ.
+  PS max, PV max, déplacement, bonus aux dégâts et chances de base sont calculés d'après le livre.
+  Un clic sur une compétence, une caractéristique ou une école de magie lance le dé ; un état subi
+  ajoute automatiquement un fléau aux jets de sa caractéristique.
 - **Journal** : tout le monde voit les jets, conservés d'une séance à l'autre (le MJ peut le vider).
 - **Sauvegarde** : la partie, les liens, les noms et le journal sont conservés quand tu arrêtes le serveur.
 

@@ -21,7 +21,7 @@ body {
 }
 
 .page {
-  max-width: 72rem;
+  max-width: 110rem;
   margin: 0 auto;
   padding: 2rem 1rem 4rem;
 }
@@ -278,7 +278,7 @@ button.lien {
 
 .table-de-jeu {
   display: grid;
-  grid-template-columns: 20rem 1fr;
+  grid-template-columns: 19rem minmax(0, 1fr) 24rem;
   gap: 1.25rem;
   align-items: start;
 }
@@ -618,4 +618,241 @@ select {
 
 .bandeau-opposition label.case > span {
   font-size: 1rem;
+}
+
+/* --- Étape 3 : fiches de personnage --- */
+
+/* Écran plus étroit : le journal passe sous la fiche. */
+@media (max-width: 1250px) {
+  .table-de-jeu {
+    grid-template-columns: 19rem minmax(0, 1fr);
+  }
+  .table-de-jeu > .journal {
+    grid-column: 2;
+  }
+}
+
+.fiches .onglets {
+  flex-wrap: wrap;
+}
+
+.fiche {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.fiche h3 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.05rem;
+  margin: 0 0 0.5rem;
+}
+
+.fiche h4 {
+  font-size: 0.9rem;
+  color: var(--discret);
+  margin: 0.75rem 0 0.35rem;
+}
+
+.petit {
+  font-size: 0.85rem;
+}
+
+.fiche label {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.fiche label > span {
+  font-size: 0.8rem;
+  color: var(--discret);
+}
+
+.fiche input:disabled,
+.fiche select:disabled,
+.fiche textarea:disabled {
+  opacity: 0.85;
+  cursor: default;
+}
+
+.fiche-identite {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.fiche-caracs {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.carte-carac {
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.25rem;
+  border: 1px solid var(--bordure);
+  border-radius: 6px;
+  background: var(--fond);
+}
+
+.carte-carac.genee {
+  border-color: var(--erreur);
+}
+
+.carte-carac .case.etat {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.carte-carac .case.etat > span {
+  font-size: 0.8rem;
+  color: var(--texte);
+}
+
+.champ-nombre {
+  width: 3.2rem;
+  text-align: center;
+  padding: 0.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.champ-nombre.grand {
+  width: 3.6rem;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.champ-nombre.base::placeholder {
+  color: var(--discret);
+}
+
+.fiche-derivees {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.jauge {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--bordure);
+  border-radius: 6px;
+}
+
+.jauge-nom {
+  font-size: 0.8rem;
+  color: var(--discret);
+}
+
+.jauge-valeurs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.jauge-valeurs button {
+  width: 2rem;
+  padding: 0.15rem 0;
+}
+
+.jauge-chiffre {
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.jauge-chiffre.vide {
+  color: var(--erreur);
+}
+
+.fiche-competences {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1.5rem;
+}
+
+.fiche-competences ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.ligne-competence {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.ligne-competence .champ-nombre {
+  margin-left: auto;
+}
+
+.bouton-jet {
+  color: var(--texte);
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 0.15rem 0.3rem;
+  text-align: left;
+}
+
+.bouton-jet:hover,
+.bouton-jet:focus-visible {
+  color: var(--accent-texte);
+  background: var(--accent);
+}
+
+.nom-jet {
+  padding: 0.15rem 0.3rem;
+}
+
+.carac-competence {
+  font-size: 0.75rem;
+  color: var(--discret);
+}
+
+.marque-fleau {
+  font-size: 0.7rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--erreur);
+}
+
+.ajout-ecole {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+
+.ajout-ecole input:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.fiche-textes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+textarea {
+  font: inherit;
+  color: var(--texte);
+  background: var(--fond);
+  border: 1px solid var(--bordure);
+  border-radius: 6px;
+  padding: 0.45rem 0.6rem;
+  resize: vertical;
+}
+
+.etats button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  text-decoration: line-through;
 }
