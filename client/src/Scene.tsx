@@ -72,18 +72,34 @@ function Affichage(props: { id: string; titre: string; bandeau?: React.ReactNode
   // Nouvelle image : on revient à l'image entière.
   useEffect(() => setVue(VUE_ENTIERE), [props.id]);
 
-  // Molette : zoom vers la souris. (Écouteur manuel pour pouvoir bloquer le défilement de la page.)
+  // Molette : en plein écran, elle zoome ; en affichage normal, il faut Ctrl + molette,
+  // pour que la molette seule continue de faire défiler la page (comme les cartes des sites web).
+  // Écouteur manuel pour pouvoir bloquer le défilement quand on zoome.
+  const [astuce, setAstuce] = useState(false);
+  const minuterieAstuce = useRef<number | undefined>(undefined);
   useEffect(() => {
     const el = zone.current;
     if (!el) return;
     const surMolette = (e: WheelEvent) => {
+      const enPleinEcran = document.fullscreenElement === cadre.current;
+      if (!enPleinEcran && !e.ctrlKey) {
+        // La page défile normalement ; on rappelle juste comment zoomer.
+        setAstuce(true);
+        window.clearTimeout(minuterieAstuce.current);
+        minuterieAstuce.current = window.setTimeout(() => setAstuce(false), 1200);
+        return;
+      }
       e.preventDefault();
+      setAstuce(false);
       const r = el.getBoundingClientRect();
       const facteur = Math.exp(-e.deltaY * 0.0015);
       setVue((v) => zoomerVers(v, v.zoom * facteur, e.clientX - r.left, e.clientY - r.top, r.width, r.height));
     };
     el.addEventListener("wheel", surMolette, { passive: false });
-    return () => el.removeEventListener("wheel", surMolette);
+    return () => {
+      el.removeEventListener("wheel", surMolette);
+      window.clearTimeout(minuterieAstuce.current);
+    };
   }, []);
 
   /** Zoom par les boutons : vers le centre du cadre. */
@@ -97,6 +113,50 @@ function Affichage(props: { id: string; titre: string; bandeau?: React.ReactNode
 
   return (
     <figure className={pleinEcran ? "scene-affichage plein" : "scene-affichage"} ref={cadre}>
+      <figcaption>
+        <span className="scene-titre">{props.titre}</span>
+        {props.bandeau}
+        <span className="zoom">
+          <button
+            type="button"
+            className="secondaire"
+            aria-label="Dézoomer"
+            disabled={!zoome}
+            onClick={() => zoomerAuCentre(1 / 1.5)}
+          >
+            −
+          </button>
+          <span className="zoom-valeur" title={
+              pleinEcran
+                ? "Molette : zoomer · glisser : se déplacer · double-clic : zoomer ici"
+                : "Ctrl + molette : zoomer · glisser : se déplacer · double-clic : zoomer ici"
+            }>
+            {Math.round(vue.zoom * 100)} %
+          </span>
+          <button
+            type="button"
+            className="secondaire"
+            aria-label="Zoomer"
+            disabled={vue.zoom >= ZOOM_MAX}
+            onClick={() => zoomerAuCentre(1.5)}
+          >
+            +
+          </button>
+          <button type="button" className="secondaire" disabled={!zoome} onClick={() => setVue(VUE_ENTIERE)}>
+            Ajuster
+          </button>
+        </span>
+        <button
+          type="button"
+          className="secondaire"
+          onClick={() => {
+            if (document.fullscreenElement) void document.exitFullscreen();
+            else void cadre.current?.requestFullscreen();
+          }}
+        >
+          {pleinEcran ? "Quitter le plein écran" : "Plein écran"}
+        </button>
+      </figcaption>
       <div
         ref={zone}
         className={zoome ? "scene-zone zoomee" : "scene-zone"}
@@ -127,47 +187,12 @@ function Affichage(props: { id: string; titre: string; bandeau?: React.ReactNode
           draggable={false}
           style={{ transform: `translate(${vue.x}px, ${vue.y}px) scale(${vue.zoom})` }}
         />
+        {astuce && (
+          <div className="astuce-zoom" aria-hidden="true">
+            <kbd>Ctrl</kbd> + molette pour zoomer
+          </div>
+        )}
       </div>
-      <figcaption>
-        <span className="scene-titre">{props.titre}</span>
-        {props.bandeau}
-        <span className="zoom">
-          <button
-            type="button"
-            className="secondaire"
-            aria-label="Dézoomer"
-            disabled={!zoome}
-            onClick={() => zoomerAuCentre(1 / 1.5)}
-          >
-            −
-          </button>
-          <span className="zoom-valeur" title="Molette : zoomer · glisser : se déplacer · double-clic : zoomer ici">
-            {Math.round(vue.zoom * 100)} %
-          </span>
-          <button
-            type="button"
-            className="secondaire"
-            aria-label="Zoomer"
-            disabled={vue.zoom >= ZOOM_MAX}
-            onClick={() => zoomerAuCentre(1.5)}
-          >
-            +
-          </button>
-          <button type="button" className="secondaire" disabled={!zoome} onClick={() => setVue(VUE_ENTIERE)}>
-            Ajuster
-          </button>
-        </span>
-        <button
-          type="button"
-          className="secondaire"
-          onClick={() => {
-            if (document.fullscreenElement) void document.exitFullscreen();
-            else void cadre.current?.requestFullscreen();
-          }}
-        >
-          {pleinEcran ? "Quitter le plein écran" : "Plein écran"}
-        </button>
-      </figcaption>
     </figure>
   );
 }
