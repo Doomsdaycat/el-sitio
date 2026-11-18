@@ -1,0 +1,4 @@
+Brumeland VTT est déployé ({{ .Chart.AppVersion }}) : {{ .Values.adressePublique }}
+
+Première installation : ouvre l'adresse, puis importe l'export .zip de la partie
+(ou « Commencer une nouvelle partie »). Fais-le avant d'ouvrir l'adresse au public.

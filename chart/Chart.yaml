@@ -1,0 +1,10 @@
+apiVersion: v2
+# Le nom « el-sitio » est gardé exprès : l'installation existante chez l'hébergeur (ArgoCD,
+# service « el-sitio » vers lequel pointe l'adresse antoine.vanyda.cloud) reste valable.
+name: el-sitio
+description: Brumeland VTT, table de jeu virtuelle pour Dragonbane (serveur Node.js + base SQLite).
+type: application
+version: 1.0.0
+# Version de l'image à déployer (ghcr.io/doomsdaycat/el-sitio:<appVersion>).
+# Mise à jour par « npm run mettre-en-ligne », une fois l'image fabriquée.
+appVersion: "0.1.0"

@@ -1,0 +1,48 @@
+# Brumeland VTT tourne en un seul exemplaire : la partie vit dans une base SQLite
+# sur un disque permanent, et l'état temps réel est en mémoire du serveur.
+
+image:
+  repository: ghcr.io/doomsdaycat/el-sitio
+  pullPolicy: IfNotPresent
+  # Vide : on prend appVersion de Chart.yaml.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Adresse publique : les liens d'invitation l'utilisent.
+adressePublique: https://antoine.vanyda.cloud
+
+service:
+  type: ClusterIP
+  port: 80
+
+# Disque permanent pour data/ (base, images, sauvegardes). Gardé même si l'application
+# est supprimée (helm.sh/resource-policy: keep).
+persistence:
+  size: 2Gi
+  # Vide : classe de stockage par défaut du cluster.
+  storageClass: ""
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: antoine.vanyda.cloud
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 512Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

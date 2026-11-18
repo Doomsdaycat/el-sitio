@@ -1,0 +1,32 @@
+# Vérifications à chaque envoi sur main : code, tests des règles, chart d'hébergement.
+name: verification
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verification:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run verifier
+      - run: npm run tester
+      - run: npm run compiler
+
+      - name: Chart d'hébergement
+        run: |
+          helm lint chart
+          helm template el-sitio chart > /dev/null

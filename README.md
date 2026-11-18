@@ -143,6 +143,7 @@ cloudflared --version
 | `npm start` | Partie sur ton PC seulement, sans tunnel (liens en `localhost:3000`), pour tester seul |
 | `npm run sauvegardes` | Liste les sauvegardes automatiques, numérotées (la plus récente en n° 1) |
 | `npm run restaurer -- 3` | Revient à la sauvegarde n° 3 (serveur arrêté) ; ou `npm run restaurer -- fichier.zip` pour un export |
+| `npm run mettre-en-ligne` | Publie la version actuelle sur l'hébergement en ligne (voir plus bas) |
 | `npm run lien-mj` | Réaffiche ton lien MJ, adresse `localhost` (marche sur ton PC même pendant une séance en ligne) |
 | `npm run dev` | Mode développement (port 5173), utilisé pendant la construction de l'outil |
 | `npm run verifier` | Vérifie le code |
@@ -203,7 +204,34 @@ ne le partage pas.
 | Un joueur voit « ce lien n'est pas reconnu » | Son invitation a été supprimée : crée-lui un nouveau lien. |
 | Bandeau jaune qui ne disparaît pas | Le serveur est arrêté : regarde le terminal, relance `npm run partie`. |
 
-## Héberger ailleurs (plus tard)
+## Hébergement en ligne (adresse fixe)
 
-Un `Dockerfile` permet d'installer Brumeland sur un autre serveur, avec une adresse fixe.
-Les instructions sont en tête du fichier. **Il n'a pas encore été testé.**
+Brumeland peut tourner en permanence sur le serveur d'un ami, à l'adresse fixe
+**https://antoine.vanyda.cloud**. Plus besoin de tunnel ni de laisser ton PC allumé, et les liens
+des joueurs ne changent plus d'une séance à l'autre.
+
+Ça réutilise le dépôt GitHub **el-sitio**, que le serveur de l'ami surveille : el-sitio contient
+désormais une copie exacte de Brumeland (l'ancien site reste dans la branche `ancien-site`).
+
+**Publier une nouvelle version** (pas pendant une séance : le serveur en ligne redémarre) :
+
+```bash
+npm run mettre-en-ligne
+```
+
+La commande vérifie le code, envoie la version sur GitHub, attend que GitHub fabrique l'image
+(3 à 6 minutes), puis demande au serveur de l'installer. La partie et les liens ne changent pas.
+
+**Première installation** : à la première ouverture de l'adresse, une page propose
+d'**importer une partie** (le `.zip` de « 📦 Exporter la partie ») ou d'en commencer une nouvelle.
+Après l'import, ton lien MJ s'ouvre tout seul. À faire avant que l'adresse soit ouverte au public.
+
+**Ensuite**, depuis ton écran MJ en ligne : **📦 Exporter la partie** pour en garder une copie,
+**📥 Importer une partie** pour la remplacer par un export (l'état actuel est d'abord sauvegardé).
+
+Détails techniques (pour l'hébergeur) : le chart Helm est dans `chart/` (nom `el-sitio` gardé
+pour que l'installation existante reste valable) ; un seul exemplaire, disque permanent de 2 Go
+monté sur `/app/data`, port 3000 derrière le service `el-sitio` (port 80), WebSockets nécessaires.
+L'image `ghcr.io/doomsdaycat/el-sitio` est fabriquée par `.github/workflows/release.yml`.
+
+Le `Dockerfile` permet aussi d'installer Brumeland sur n'importe quel serveur (instructions en tête du fichier).
