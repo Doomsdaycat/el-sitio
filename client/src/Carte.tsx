@@ -162,6 +162,52 @@ function Mesure(props: { de: Case; a: Case; grille: Grille; echelle: number; aut
   );
 }
 
+/**
+ * Chemin d'un pion pendant le round de combat : pointillés dorés de case en case,
+ * un point à chaque étape, et la distance totale près du départ.
+ */
+function Trace(props: { points: Case[]; taille: number; grille: Grille; echelle: number; actif: boolean }) {
+  const { points, taille, grille, echelle, actif } = props;
+  if (points.length < 2) return null;
+  const demi = (taille * grille.taille) / 2;
+  const centres = points.map((c) => {
+    const coin = coinCase(c, grille);
+    return { x: coin.x + demi, y: coin.y + demi };
+  });
+  let cases = 0;
+  for (let i = 1; i < points.length; i++) cases += distanceCases(points[i - 1], points[i]);
+  const couleur = actif ? "#f3d58f" : "#c9a25b";
+  return (
+    <Group listening={false} opacity={actif ? 1 : 0.75}>
+      <Line
+        points={centres.flatMap((p) => [p.x, p.y])}
+        stroke="rgba(0,0,0,0.55)"
+        strokeWidth={7 / echelle}
+        lineCap="round"
+        lineJoin="round"
+      />
+      <Line
+        points={centres.flatMap((p) => [p.x, p.y])}
+        stroke={couleur}
+        strokeWidth={4 / echelle}
+        dash={[12 / echelle, 7 / echelle]}
+        lineCap="round"
+        lineJoin="round"
+      />
+      {centres.slice(0, -1).map((p, i) => (
+        <Circle key={i} x={p.x} y={p.y} radius={(i === 0 ? 6 : 4) / echelle} fill={couleur} stroke="#1d1b22" strokeWidth={1.5 / echelle} />
+      ))}
+      <Etiquette
+        x={centres[0].x}
+        y={centres[0].y + 8 / echelle}
+        texte={`${libelleDistance(cases)} parcourus`}
+        echelle={echelle}
+        couleur="#f3d58f"
+      />
+    </Group>
+  );
+}
+
 /** Signal animé qui s'agrandit et s'efface. */
 function Signal(props: { x: number; y: number; auteur: string; echelle: number }) {
   const cercle = useRef<Konva.Circle>(null);
@@ -606,6 +652,19 @@ export function Carte(props: {
                   {image && grille.visible && (
                     <LignesGrille grille={grille} l={image.width} h={image.height} echelle={echelle} />
                   )}
+                  {combat?.phase === "round" &&
+                    scene.pions.map((p) =>
+                      combat.traces[p.id] ? (
+                        <Trace
+                          key={`trace-${p.id}`}
+                          points={combat.traces[p.id]}
+                          taille={p.taille}
+                          grille={grille}
+                          echelle={echelle}
+                          actif={pionActif(p)}
+                        />
+                      ) : null,
+                    )}
                   {pionsOrdonnes.map((p) => (
                     <PionCarte
                       key={p.id}

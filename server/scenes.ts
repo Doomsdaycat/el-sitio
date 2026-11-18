@@ -8,7 +8,6 @@ import {
   COULEUR_PNJ,
   COULEURS_PIONS,
   COULEURS_PJ,
-  distanceMetres,
   GRILLE_PAR_DEFAUT,
   NOM_PION_MAX,
   normaliserDecalage,
@@ -166,6 +165,31 @@ export function envoyerScenes(socket: SocketBrumeland, partieId: number): void {
   } else {
     socket.emit("scene", vuePourJoueurs(active));
   }
+}
+
+/**
+ * Les PS d'un combattant changent : à 0, son pion devient « à terre » (personnage joueur, dans
+ * toutes les scènes) ou « mort » (PNJ). Si ses PS remontent, le pion redevient normal.
+ */
+export function etatSelonPs(
+  io: Io,
+  partieId: number,
+  cible: { joueurId: number } | { pionId: string },
+  avant: number,
+  apres: number,
+): void {
+  const tombe = avant > 0 && apres === 0;
+  const releve = avant === 0 && apres > 0;
+  if (!tombe && !releve) return;
+  const etat = "joueurId" in cible ? "a-terre" : "mort";
+  const [nouvel, ancien] = tombe ? [etat, "normal"] : ["normal", etat];
+  const r =
+    "joueurId" in cible
+      ? base
+          .prepare("UPDATE pion SET etat = ? WHERE partie_id = ? AND joueur_id = ? AND etat = ?")
+          .run(nouvel, partieId, cible.joueurId, ancien)
+      : base.prepare("UPDATE pion SET etat = ? WHERE partie_id = ? AND id = ? AND etat = ?").run(nouvel, partieId, cible.pionId, ancien);
+  if (r.changes > 0) diffuserScenes(io, partieId);
 }
 
 /** Appelé quand un joueur choisit son nom : son pion apparaît dans les scènes immersives. */
@@ -434,10 +458,15 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
       if (!position) return { ok: false, erreur: "Case invalide." };
       base.prepare("UPDATE pion SET col = ?, lig = ? WHERE id = ?").run(position.col, position.lig, String(d.id));
       diffuserScenes(io, partieId);
-      // En combat, les mètres parcourus par le joueur avec son pion comptent pour son round
-      // (pas les déplacements faits par le MJ : corrections, repoussements…).
-      if (!estMj() && pion.joueurId === moi().id) {
-        noterDeplacement(io, partieId, moi().id, distanceMetres(pion, position));
+      // En combat (scène montrée) : le chemin du pion est tracé ; les mètres comptent pour le
+      // round du joueur seulement s'il a bougé son propre pion (pas les corrections du MJ).
+      if (sceneActive(partieId)?.id === pion.sceneId) {
+        noterDeplacement(io, partieId, {
+          pionId: String(d.id),
+          de: { col: pion.col, lig: pion.lig },
+          a: position,
+          joueurQuiBouge: !estMj() && pion.joueurId === moi().id ? moi().id : null,
+        });
       }
       return { ok: true };
     }),

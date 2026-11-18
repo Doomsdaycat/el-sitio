@@ -76,7 +76,9 @@ lancement. Si un lien ne s'ouvre pas tout de suite, attends une minute : le tunn
   (les attaquants choisissent leur carte), **Attendre** (échanger sa carte avec une plus tardive),
   **Réaction** (carte retournée, plus de déplacement), **Course** (déplacement doublé).
   Le pion dont c'est le tour a un halo doré ; en glissant son pion, le joueur voit ce qu'il lui
-  reste à parcourir ce round (« 4 m (reste 2 m / 10 m) »).
+  reste à parcourir ce round (« 4 m (reste 2 m / 10 m) »). Le chemin de chaque pion pendant le
+  round est tracé sur la carte. Les PS (joueurs et PNJ) se règlent depuis le combat ; à 0, le pion
+  passe « mort » (PNJ) ou « à terre » (joueur). Le round suivant attend que tout le monde ait joué.
 - **Journal** : tout le monde voit les jets, conservés d'une séance à l'autre (le MJ peut le vider).
 - **Sauvegarde** : la partie, les liens, les noms et le journal sont conservés quand tu arrêtes le serveur.
 

@@ -4,6 +4,7 @@
 import { randomBytes, randomInt } from "node:crypto";
 import type { Server, Socket } from "socket.io";
 import {
+  ajouterATrace,
   attendre,
   carteCourante,
   CARTES_MAX_PAR_COMBATTANT,
@@ -19,9 +20,11 @@ import {
   type Combat,
   type Combattant,
 } from "../shared/combat.ts";
+import { distanceMetres, type Case } from "../shared/carte.ts";
 import type { MessagesClient, MessagesServeur, Reponse } from "../shared/messages.ts";
 import { base } from "./base.ts";
 import type { Participant } from "./partie.ts";
+import { etatSelonPs } from "./scenes.ts";
 
 interface DonneesSocket {
   participant: Participant;
@@ -46,7 +49,8 @@ function joueursNommes(partieId: number): number[] {
 export function lireCombat(partieId: number): Combat | null {
   const ligne = base.prepare("SELECT combat FROM partie WHERE id = ?").get(partieId) as { combat: string | null };
   if (!ligne.combat) return null;
-  const c = JSON.parse(ligne.combat) as Combat;
+  // (« traces » ajouté après coup : un combat enregistré avant n'en a pas.)
+  const c = { traces: {}, ...(JSON.parse(ligne.combat) as Partial<Combat>) } as Combat;
   // Un joueur dont l'invitation a été supprimée quitte le combat (avec ses cartes).
   const joueurs = new Set(joueursNommes(partieId));
   const partis = new Set(c.combattants.filter((x) => x.type === "pj" && !joueurs.has(x.joueurId ?? -1)).map((x) => x.id));
@@ -86,16 +90,24 @@ export function envoyerCombat(socket: SocketBrumeland, partieId: number): void {
 }
 
 /**
- * Un joueur a déplacé son pion dans la scène montrée : pendant un round, les mètres
- * s'ajoutent à ce qu'il a parcouru (pour afficher le déplacement restant).
+ * Un pion a bougé dans la scène montrée pendant un round :
+ * - son chemin du round s'allonge (tracé sur la carte) ;
+ * - si c'est un joueur qui a bougé son propre pion, les mètres comptent pour son déplacement du round.
  */
-export function noterDeplacement(io: Io, partieId: number, joueurId: number, metres: number): void {
-  const c = lireCombat(partieId);
-  if (!c || c.phase !== "round" || metres <= 0) return;
-  const x = c.combattants.find((y) => y.type === "pj" && y.joueurId === joueurId);
+export function noterDeplacement(
+  io: Io,
+  partieId: number,
+  d: { pionId: string; de: Case; a: Case; joueurQuiBouge: number | null },
+): void {
+  let c = lireCombat(partieId);
+  if (!c || c.phase !== "round") return;
+  const metres = distanceMetres(d.de, d.a);
+  if (metres === 0) return;
+  c = ajouterATrace(c, d.pionId, d.de, d.a);
+  const x = d.joueurQuiBouge === null ? undefined : c.combattants.find((y) => y.type === "pj" && y.joueurId === d.joueurQuiBouge);
   const m = x && c.mouvements[x.id];
-  if (!x || !m) return;
-  ecrireCombat(partieId, { ...c, mouvements: { ...c.mouvements, [x.id]: { ...m, parcouru: m.parcouru + metres } } });
+  if (x && m) c = { ...c, mouvements: { ...c.mouvements, [x.id]: { ...m, parcouru: m.parcouru + metres } } };
+  ecrireCombat(partieId, c);
   diffuserCombat(io, partieId);
 }
 
@@ -276,6 +288,12 @@ export function brancherCombat(io: Io, socket: SocketBrumeland, partieId: number
           maj.ps = { actuels, max };
         }
       }
+      // PS d'un PNJ à 0 : son pion passe « mort » (et redevient normal si les PS remontent).
+      if (x.pionId && x.ps && maj.ps) {
+        const pionId = x.pionId;
+        const [avant, apres] = [x.ps.actuels, maj.ps.actuels];
+        queueMicrotask(() => etatSelonPs(io, partieId, { pionId }, avant, apres));
+      }
       return { ...c, combattants: c.combattants.map((y) => (y.id === x.id ? maj : y)) };
     }, { mj: true }),
   );
@@ -292,6 +310,14 @@ export function brancherCombat(io: Io, socket: SocketBrumeland, partieId: number
       if (c.phase === "surprise") {
         const attente = surpriseEnAttente(c);
         if (attente.length > 0) throw new ErreurCombat("Des attaquants doivent encore choisir leur carte.");
+      }
+      // Round suivant : seulement quand toutes les cartes ont été jouées (ou retournées par le MJ).
+      const restante = carteCourante(c);
+      if (c.phase === "round" && restante) {
+        const qui = c.combattants.find((x) => x.id === restante.combattantId);
+        throw new ErreurCombat(
+          `Tout le monde n'a pas encore joué (carte ${restante.valeur}${qui?.type === "pnj" ? ` : ${qui.nom}` : ""}).`,
+        );
       }
       const tire = tirerInitiative(c, hasard, c.phase === "surprise" ? c.choixSurprise : {});
       // La surprise ne vaut que pour le premier round.

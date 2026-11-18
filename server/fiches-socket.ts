@@ -6,6 +6,7 @@ import { appliquerModification, ErreurFiche, type Fiche, type ModificationFiche 
 import type { MessagesClient, MessagesServeur, Reponse } from "../shared/messages.ts";
 import { enregistrerFiche, lireFiche, toutesLesFiches } from "./fiches.ts";
 import type { Participant } from "./partie.ts";
+import { etatSelonPs } from "./scenes.ts";
 
 interface DonneesSocket {
   participant: Participant;
@@ -40,6 +41,8 @@ export function brancherFiches(io: Io, socket: SocketBrumeland, partieId: number
       const nouvelle = appliquerModification(fiche, demande.modification as ModificationFiche);
       enregistrerFiche(partieId, nouvelle);
       diffuserFiche(io, nouvelle);
+      // PS à 0 : le pion du personnage passe « à terre » (et se relève si les PS remontent).
+      etatSelonPs(io, partieId, { joueurId }, fiche.psActuels, nouvelle.psActuels);
       repondre({ ok: true });
     } catch (erreur) {
       if (erreur instanceof ErreurFiche) {

@@ -11,6 +11,8 @@
 //   le déplacement du round est perdu.
 // - Déplacement : jusqu'à sa valeur de déplacement par round, doublée par l'action Course.
 
+import type { Case } from "./carte.ts";
+
 export const NB_CARTES = 10;
 export const CARTES_MAX_PAR_COMBATTANT = 5;
 export const NOM_COMBATTANT_MAX = 30;
@@ -61,12 +63,14 @@ export interface Combat {
   /** Cartes choisies par les attaquants qui surprennent (phase « surprise »). */
   choixSurprise: Record<string, number[]>;
   mouvements: Record<string, MouvementRound>;
+  /** Chemin de chaque pion pendant le round (identifiant du pion → cases successives). */
+  traces: Record<string, Case[]>;
 }
 
 export class ErreurCombat extends Error {}
 
 export function combatVide(): Combat {
-  return { phase: "preparation", round: 0, combattants: [], cartes: [], choixSurprise: {}, mouvements: {} };
+  return { phase: "preparation", round: 0, combattants: [], cartes: [], choixSurprise: {}, mouvements: {}, traces: {} };
 }
 
 export function cartesNecessaires(c: Combat): number {
@@ -132,6 +136,7 @@ export function tirerInitiative(c: Combat, hasard: (n: number) => number, choisi
     cartes: cartes.sort((a, b) => a.valeur - b.valeur),
     choixSurprise: {},
     mouvements: mouvementsVides(c),
+    traces: {},
   };
 }
 
@@ -218,15 +223,25 @@ export function deplacementDuRound(m: MouvementRound | undefined, deplacement: n
   return deplacement * (m.course ? 2 : 1);
 }
 
-/** Version pour les joueurs : sans les PS des PNJ, et les PNJ cachés deviennent « ??? ». */
+/** Ajoute un déplacement au chemin d'un pion pendant le round. */
+export function ajouterATrace(c: Combat, pionId: string, de: Case, a: Case): Combat {
+  const avant = c.traces[pionId] ?? [de];
+  return { ...c, traces: { ...c.traces, [pionId]: [...avant, a] } };
+}
+
+/**
+ * Version pour les joueurs : sans les PS des PNJ ; les PNJ cachés deviennent « ??? »,
+ * et le chemin d'un pion caché n'est pas envoyé.
+ */
 export function vueCombatJoueurs(c: Combat | null, pionsCaches: Set<string>): Combat | null {
   if (!c) return null;
   return {
     ...c,
-    combattants: c.combattants.map((x) => ({
-      ...x,
-      ps: null,
-      nom: x.pionId && pionsCaches.has(x.pionId) ? "???" : x.nom,
-    })),
+    traces: Object.fromEntries(Object.entries(c.traces).filter(([pionId]) => !pionsCaches.has(pionId))),
+    combattants: c.combattants.map((x) => {
+      const cache = !!x.pionId && pionsCaches.has(x.pionId);
+      // Un PNJ caché : ni son nom, ni le lien vers son pion.
+      return { ...x, ps: null, nom: cache ? "???" : x.nom, pionId: cache ? null : x.pionId };
+    }),
   };
 }

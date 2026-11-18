@@ -35,6 +35,45 @@ function useNoms() {
   return { nom, fiche };
 }
 
+/** PS maximum d'un PNJ, modifiable à tout moment (vide : pas de suivi des PS). */
+function ChampPsMax(props: { x: Combattant; emettre: Emettre }) {
+  const { x, emettre } = props;
+  const [brouillon, setBrouillon] = useState<string | null>(null);
+  function valider() {
+    if (brouillon === null) return;
+    const texte = brouillon.trim();
+    setBrouillon(null);
+    if (texte === "") {
+      if (x.ps) emettre("mj:combat:modifier", { id: x.id, ps: null });
+      return;
+    }
+    const max = Number(texte);
+    if (max === x.ps?.max) return;
+    // Nouveau maximum : les PS actuels restent, sans dépasser le maximum (pleins si c'est le premier).
+    const actuels = x.ps ? Math.min(x.ps.actuels, max) : max;
+    emettre("mj:combat:modifier", { id: x.id, ps: { actuels, max } });
+  }
+  return (
+    <input
+      className="champ-nombre"
+      inputMode="numeric"
+      aria-label={`PS maximum de ${x.nom}`}
+      title="PS maximum (visibles de toi seul)"
+      placeholder="PS"
+      value={brouillon ?? (x.ps ? String(x.ps.max) : "")}
+      onFocus={(e) => {
+        setBrouillon(x.ps ? String(x.ps.max) : "");
+        e.currentTarget.select();
+      }}
+      onChange={(e) => setBrouillon(e.target.value.replace(/\D/g, "").slice(0, 3))}
+      onBlur={valider}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+      }}
+    />
+  );
+}
+
 /** Réglages des participants (MJ) : avant le premier tirage, et en cours de combat. */
 function Participants(props: { combat: DonneesCombat; emettre: Emettre }) {
   const { combat, emettre } = props;
@@ -74,6 +113,7 @@ function Participants(props: { combat: DonneesCombat; emettre: Emettre }) {
                 ))}
               </select>
             )}
+            {x.type === "pnj" && <ChampPsMax x={x} emettre={emettre} />}
             {combat.phase === "preparation" && (
               <label className="case" title="Attaque surprise : choisit sa carte au premier round">
                 <input
@@ -204,10 +244,40 @@ function Ordre(props: { combat: DonneesCombat; moiId: number; estMj: boolean; em
               {rang}
               {carte.attendue && <span className="discret petit"> · a attendu</span>}
             </span>
-            {f && (
-              <span className={f.psActuels === 0 ? "ps-combat zero" : "ps-combat"} title="Points de santé">
-                {f.psActuels}/{psMax(f)} PS
+            {f && (estMj || x.joueurId === moiId) ? (
+              <span className="ps-pnj">
+                <button
+                  type="button"
+                  className="secondaire"
+                  aria-label="Moins 1 PS"
+                  disabled={f.psActuels <= 0}
+                  onClick={() =>
+                    emettre("fiche:modifier", { joueurId: f.joueurId, modification: { champ: "ps", valeur: f.psActuels - 1 } })
+                  }
+                >
+                  −
+                </button>
+                <span className={f.psActuels === 0 ? "ps-combat zero" : "ps-combat"} title="Points de santé">
+                  {f.psActuels}/{psMax(f)} PS
+                </span>
+                <button
+                  type="button"
+                  className="secondaire"
+                  aria-label="Plus 1 PS"
+                  disabled={f.psActuels >= psMax(f)}
+                  onClick={() =>
+                    emettre("fiche:modifier", { joueurId: f.joueurId, modification: { champ: "ps", valeur: f.psActuels + 1 } })
+                  }
+                >
+                  +
+                </button>
               </span>
+            ) : (
+              f && (
+                <span className={f.psActuels === 0 ? "ps-combat zero" : "ps-combat"} title="Points de santé">
+                  {f.psActuels}/{psMax(f)} PS
+                </span>
+              )
             )}
             {estMj && x.ps && (
               <span className="ps-pnj">
@@ -413,9 +483,24 @@ export function Combat({ moiId, estMj }: { moiId: number; estMj: boolean }) {
           <MesActions combat={combat} moiId={moiId} estMj={estMj} emettre={emettre} />
           {estMj && (
             <>
-              <button type="button" className="bouton-lancer" onClick={() => emettre("mj:combat:tirer")}>
+              <button
+                type="button"
+                className="bouton-lancer"
+                disabled={carteCourante(combat) !== null}
+                title={
+                  carteCourante(combat) !== null
+                    ? "Disponible quand tout le monde a joué (ou retourne les cartes restantes)"
+                    : undefined
+                }
+                onClick={() => emettre("mj:combat:tirer")}
+              >
                 Round suivant (nouveau tirage)
               </button>
+              {carteCourante(combat) !== null && (
+                <p className="discret petit">
+                  Le round suivant sera disponible quand tout le monde aura joué.
+                </p>
+              )}
               <button type="button" className="lien" onClick={() => setVoirParticipants((v) => !v)}>
                 {voirParticipants ? "Masquer les participants" : "Participants…"}
               </button>

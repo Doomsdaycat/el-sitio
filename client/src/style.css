@@ -279,7 +279,7 @@ button.lien {
 
 .table-de-jeu {
   display: grid;
-  grid-template-columns: 19rem minmax(0, 1fr) 24rem;
+  grid-template-columns: 21rem minmax(0, 1fr) 24rem;
   gap: 1.25rem;
   align-items: start;
 }
@@ -287,6 +287,17 @@ button.lien {
 .colonne-gauche {
   display: grid;
   gap: 1.25rem;
+  min-width: 0;
+}
+
+/* Rien dans la colonne de gauche ne doit dépasser sous la colonne centrale. */
+.colonne-gauche > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.colonne-gauche select {
+  max-width: 100%;
 }
 
 .zone-mj {
@@ -626,7 +637,7 @@ select {
 /* Écran plus étroit : le journal passe sous la fiche. */
 @media (max-width: 1250px) {
   .table-de-jeu {
-    grid-template-columns: 19rem minmax(0, 1fr);
+    grid-template-columns: 21rem minmax(0, 1fr);
   }
   .table-de-jeu > .journal {
     grid-column: 2;
@@ -1718,4 +1729,13 @@ button.secondaire.actif {
 
 .choix-surprise p {
   margin: 0.3rem 0;
+}
+
+/* Combat : les lignes passent à la ligne plutôt que de déborder. */
+.ligne-ordre {
+  flex-wrap: wrap;
+}
+
+.ligne-ordre .nom-participant {
+  min-width: 6rem;
 }
