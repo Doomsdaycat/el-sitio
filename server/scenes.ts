@@ -284,6 +284,11 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
   const moi = () => socket.data.participant;
   const estMj = () => moi().role === "mj";
 
+  /** Dit à cette personne (tous ses onglets) combien de déplacements elle peut annuler. */
+  const signalerAnnulables = () =>
+    io.to(`participant:${moi().id}`).emit("carte:annulables", (memoireDeplacements.get(moi().id) ?? []).length);
+  socket.emit("carte:annulables", (memoireDeplacements.get(moi().id) ?? []).length);
+
   function proteger<D>(action: (d: D) => Reponse, reserveMj = false) {
     return (d: D, reponse: (r: Reponse) => void) => {
       if (typeof reponse !== "function") return;
@@ -534,6 +539,7 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
       }
       if (pion.col !== position.col || pion.lig !== position.lig) {
         memoriser(moi().id, { pionId: String(d.id), de: { col: pion.col, lig: pion.lig }, a: position, round });
+        signalerAnnulables();
       }
       return { ok: true };
     }),
@@ -621,6 +627,7 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
       if (!dernier) return { ok: false, erreur: "Aucun déplacement à annuler." };
       // Quoi qu'il arrive, ce déplacement sort de la mémoire (pour ne pas bloquer les suivants).
       memoireDeplacements.set(moi().id, liste.slice(0, -1));
+      signalerAnnulables();
       const pion = base
         .prepare("SELECT scene_id AS sceneId, joueur_id AS joueurId, col, lig FROM pion WHERE partie_id = ? AND id = ?")
         .get(partieId, dernier.pionId) as { sceneId: string; joueurId: number | null; col: number; lig: number } | undefined;

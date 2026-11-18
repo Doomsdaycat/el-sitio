@@ -79,6 +79,8 @@ export interface MessagesServeur {
     auteur: string;
     mesure: { de: Case; a: Case } | null;
   }) => void;
+  /** Nombre de ses propres déplacements que cette personne peut encore annuler. */
+  "carte:annulables": (nombre: number) => void;
   /** Le MJ vient de révéler un pion caché : animation sur la carte. */
   "carte:revelation": (r: { sceneId: string; pionId: string }) => void;
   /** Quelqu'un montre un endroit d'une scène (en pixels de l'image). */
@@ -94,6 +96,8 @@ export interface MessagesClient {
   ping: (reponse: (heureServeur: string) => void) => void;
   "mj:creerInvitation": (demande: { etiquette: string }, reponse: (r: Reponse) => void) => void;
   "mj:supprimerInvitation": (demande: { id: number }, reponse: (r: Reponse) => void) => void;
+  /** Nouvel ordre des invitations : tous les identifiants de joueurs, du haut vers le bas. */
+  "mj:ordonnerInvitations": (demande: { ids: number[] }, reponse: (r: Reponse) => void) => void;
   "jet:competence": (
     demande: {
       libelle: string;

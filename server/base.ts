@@ -185,6 +185,11 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE scene ADD COLUMN brouillard TEXT;
   `,
+  // Ordre des invitations des joueurs, choisi par le MJ (on part de l'ordre de création).
+  `
+  ALTER TABLE participant ADD COLUMN ordre INTEGER NOT NULL DEFAULT 0;
+  UPDATE participant SET ordre = id;
+  `,
 ];
 
 function migrer(): void {

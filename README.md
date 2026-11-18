@@ -33,7 +33,7 @@ lancement. Si un lien ne s'ouvre pas tout de suite, attends une minute : le tunn
 ## Ce que fait l'outil aujourd'hui
 
 - **Invitations** : sur ton écran MJ, crée un lien par joueur (avec une note pour toi, par exemple
-  « Julien »), copie-le, ou supprime-le. Un lien supprimé ne marche plus et déconnecte le joueur aussitôt.
+  « Julien »), copie-le, ou supprime-le. Range-les à ta guise (poignée ⋮⋮ ou flèches ↑ ↓). Un lien supprimé ne marche plus et déconnecte le joueur aussitôt.
 - **Arrivée d'un joueur** : à sa première visite, il choisit son nom. Ensuite, son lien suffit.
 - **À la table** : tout le monde voit qui est là. Pastille verte : connecté. Grise : parti.
 - **Reconnexion** : après une coupure (Wi-Fi, serveur redémarré), un bandeau jaune s'affiche et la page

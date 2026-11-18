@@ -549,6 +549,7 @@ export function Carte(props: {
   const reglesDistantes = useEtat("reglesDistantes");
   const pointeurs = useEtat("pointeurs");
   const revelations = useEtat("revelations");
+  const annulables = useEtat("annulables");
 
   const cadre = useRef<HTMLDivElement>(null);
   // Zone de dessin : suivie par « état » (et non par simple référence) pour la mesurer dès qu'elle existe.
@@ -747,27 +748,17 @@ export function Carte(props: {
           <div className="barre barre-scene">
             <span className="scene-titre">{scene.nom}</span>
             <span className="actions-scene">{props.bandeau}</span>
-            <button
-              type="button"
-              className="secondaire"
-              onClick={() => {
-                if (document.fullscreenElement) void document.exitFullscreen();
-                else void cadre.current?.requestFullscreen();
-              }}
-            >
-              {pleinEcran ? "Quitter le plein écran" : "Plein écran"}
-            </button>
           </div>
-          {/* Ligne 2 : les outils, l'annulation et le zoom. */}
+          {/* Ligne 2 : les outils et l'annulation à gauche ; la navigation (zoom, plein écran) à droite. */}
           <div className="barre barre-outils">
             <span className="groupe-outils" role="group" aria-label="Outil">
               {(
                 [
-                  ["deplacer", "Déplacer", "Glisser la carte ou un pion"],
+                  ["deplacer", "✋ Déplacer", "Glisser la carte ou un pion"],
                   ["regle", "📏 Règle", "Mesurer une distance (tout le monde la voit)"],
                   ["pointeur", "👉 Pointer du doigt", "Cliquer pour montrer un endroit à tous"],
                   ...(estMj && scene.brouillard.actif
-                    ? ([["brouillard", "Brouillard", "Révéler ou recouvrir des zones de la carte"]] as const)
+                    ? ([["brouillard", "☁️ Brouillard", "Révéler ou recouvrir des zones de la carte"]] as const)
                     : []),
                 ] as const
               ).map(([id, nom, aide]) => (
@@ -782,15 +773,17 @@ export function Carte(props: {
                 </button>
               ))}
             </span>
-            <button
-              type="button"
-              className="secondaire"
-              title="Annule ton dernier déplacement de pion (raccourci : Ctrl + Z, souris sur la carte)"
-              onClick={annulerDeplacement}
-            >
-              🥾 Annuler déplacement
-            </button>
-            <span className="zoom">
+            {annulables > 0 && (
+              <button
+                type="button"
+                className="secondaire"
+                title="Annule ton dernier déplacement de pion (raccourci : Ctrl + Z, souris sur la carte)"
+                onClick={annulerDeplacement}
+              >
+                🥾 Annuler déplacement
+              </button>
+            )}
+            <span className="navigation" role="group" aria-label="Navigation">
               <button type="button" className="secondaire" aria-label="Dézoomer" onClick={() => zoomerVers(1 / 1.5, l / 2, h / 2)}>
                 −
               </button>
@@ -800,6 +793,16 @@ export function Carte(props: {
               </button>
               <button type="button" className="secondaire" onClick={ajuster}>
                 Ajuster
+              </button>
+              <button
+                type="button"
+                className="secondaire"
+                onClick={() => {
+                  if (document.fullscreenElement) void document.exitFullscreen();
+                  else void cadre.current?.requestFullscreen();
+                }}
+              >
+                {pleinEcran ? "⛶ Quitter le plein écran" : "⛶ Plein écran"}
               </button>
             </span>
           </div>
@@ -968,7 +971,7 @@ export function Carte(props: {
               </Layer>
             </Stage>
           )}
-          {!image && <p className="carte-chargement discret">Chargement de la carte…</p>}
+          {!image && <p className="chargement-scene discret">Chargement de la carte…</p>}
           {astuce && (
             <div className="astuce-zoom" aria-hidden="true">
               <kbd>Ctrl</kbd> + molette pour zoomer

@@ -1324,8 +1324,9 @@ textarea {
 
 .ligne-scene {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem 0.75rem;
   padding: 0.45rem;
   border: 1px solid var(--bordure);
   border-radius: 6px;
@@ -1377,7 +1378,9 @@ textarea {
   background: var(--accent);
 }
 
+/* Les boutons d'une scène ont leur propre ligne, sous le nom et le type : rien ne se chevauche. */
 .ligne-scene-actions {
+  flex-basis: 100%;
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
@@ -1872,4 +1875,64 @@ button.secondaire.actif {
 .curseur-pinceau.recouvrir {
   border-color: #9c94a8;
   border-style: dashed;
+}
+
+/* Réordonner les invitations : mêmes poignée et flèches que pour les scènes. */
+.ordre-invitation {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.invitation.glissee {
+  opacity: 0.45;
+}
+
+.invitation.survolee-dessus {
+  box-shadow: 0 -3px 0 var(--accent);
+}
+
+.invitation.survolee-dessous {
+  box-shadow: 0 3px 0 var(--accent);
+}
+
+/* Indicateur de chargement d'une scène (l'image reste cachée tant que le brouillard n'est pas prêt). */
+.chargement-scene {
+  position: absolute;
+  inset: 45% 0 auto;
+  margin: 0;
+  text-align: center;
+}
+
+.chargement-scene::before {
+  content: "";
+  display: inline-block;
+  width: 0.9rem;
+  height: 0.9rem;
+  margin-right: 0.5rem;
+  vertical-align: -0.1rem;
+  border: 2px solid var(--bordure);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: tourner 0.8s linear infinite;
+}
+
+@keyframes tourner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Section « navigation » (zoom, ajuster, plein écran), à droite de la ligne des outils. */
+.navigation {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: auto;
+  padding-left: 0.6rem;
+  border-left: 1px solid var(--bordure);
+}
+
+.navigation button {
+  padding: 0.25rem 0.6rem;
 }

@@ -15,11 +15,23 @@ async function copier(texte: string): Promise<boolean> {
   }
 }
 
-function LigneInvitation({ invitation }: { invitation: Invitation }) {
+/** Glisser-déposer et flèches pour réordonner les invitations. */
+interface OrdreInvitation {
+  rang: number;
+  total: number;
+  deplacer: (versRang: number) => void;
+  glissee: boolean;
+  survolee: "dessus" | "dessous" | null;
+  surDebutGlisse: () => void;
+  surSurvol: () => void;
+  surFinGlisse: () => void;
+  surDepot: () => void;
+}
+
+function LigneInvitation({ invitation, ordre }: { invitation: Invitation; ordre: OrdreInvitation }) {
   const [copie, setCopie] = useState<"non" | "ok" | "echec">("non");
   const [confirmer, setConfirmer] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
-
   const titre = invitation.nom ?? invitation.etiquette ?? `Invitation n° ${invitation.id}`;
 
   async function surCopier() {
@@ -38,9 +50,51 @@ function LigneInvitation({ invitation }: { invitation: Invitation }) {
     });
   }
 
+  const classes = ["invitation"];
+  if (ordre.glissee) classes.push("glissee");
+  if (ordre.survolee) classes.push(`survolee-${ordre.survolee}`);
+
   return (
-    <li className="invitation">
+    <li
+      className={classes.join(" ")}
+      onDragOver={(e) => {
+        e.preventDefault();
+        ordre.surSurvol();
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        ordre.surDepot();
+      }}
+    >
       <div className="invitation-entete">
+        <span className="ordre-invitation">
+          <span
+            className="poignee"
+            draggable
+            title="Glisser pour déplacer"
+            aria-hidden="true"
+            onDragStart={(e) => {
+              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData("text/plain", String(invitation.id));
+              ordre.surDebutGlisse();
+            }}
+            onDragEnd={ordre.surFinGlisse}
+          >
+            ⋮⋮
+          </span>
+          <button type="button" className="fleche" aria-label={`Monter ${titre}`} disabled={ordre.rang === 0} onClick={() => ordre.deplacer(ordre.rang - 1)}>
+            ↑
+          </button>
+          <button
+            type="button"
+            className="fleche"
+            aria-label={`Descendre ${titre}`}
+            disabled={ordre.rang === ordre.total - 1}
+            onClick={() => ordre.deplacer(ordre.rang + 1)}
+          >
+            ↓
+          </button>
+        </span>
         <strong>{titre}</strong>
         {invitation.nom && invitation.etiquette && (
           <span className="discret"> ({invitation.etiquette})</span>
@@ -73,6 +127,17 @@ export function Invitations() {
   const [etiquette, setEtiquette] = useState("");
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [glisseeId, setGlisseeId] = useState<number | null>(null);
+  const [survoleeId, setSurvoleeId] = useState<number | null>(null);
+
+  /** Déplace une invitation à un rang donné ; la liste ne change qu'une fois le serveur d'accord. */
+  function deplacer(id: number, versRang: number) {
+    if (!liste) return;
+    const ids = liste.map((x) => x.id).filter((x) => x !== id);
+    ids.splice(Math.max(0, Math.min(versRang, ids.length)), 0, id);
+    socket.emit("mj:ordonnerInvitations", { ids }, (r: Reponse) => setErreur(r.ok ? null : r.erreur));
+  }
+
 
   function surAjouter(e: FormEvent) {
     e.preventDefault();
@@ -113,8 +178,34 @@ export function Invitations() {
         <p className="discret">Aucune invitation pour l'instant.</p>
       ) : (
         <ul className="liste-invitations">
-          {liste.map((invitation) => (
-            <LigneInvitation key={invitation.id} invitation={invitation} />
+          {liste.map((invitation, rang) => (
+            <LigneInvitation
+              key={invitation.id}
+              invitation={invitation}
+              ordre={{
+                rang,
+                total: liste.length,
+                deplacer: (versRang) => deplacer(invitation.id, versRang),
+                glissee: glisseeId === invitation.id,
+                survolee:
+                  survoleeId !== invitation.id || glisseeId === null || glisseeId === invitation.id
+                    ? null
+                    : liste.findIndex((x) => x.id === glisseeId) < rang
+                      ? "dessous"
+                      : "dessus",
+                surDebutGlisse: () => setGlisseeId(invitation.id),
+                surSurvol: () => setSurvoleeId(invitation.id),
+                surFinGlisse: () => {
+                  setGlisseeId(null);
+                  setSurvoleeId(null);
+                },
+                surDepot: () => {
+                  if (glisseeId !== null && glisseeId !== invitation.id) deplacer(glisseeId, rang);
+                  setGlisseeId(null);
+                  setSurvoleeId(null);
+                },
+              }}
+            />
           ))}
         </ul>
       )}

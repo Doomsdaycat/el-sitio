@@ -115,6 +115,8 @@ function Affichage(props: {
   const [vue, setVue] = useState<Vue>(VUE_ENTIERE);
   const glisse = useRef<{ x: number; y: number } | null>(null);
   const [tailleImage, setTailleImage] = useState<{ l: number; h: number } | null>(null);
+  // L'image ne s'affiche qu'une fois chargée et, s'il y a du brouillard, une fois celui-ci dessiné.
+  const [pret, setPret] = useState(false);
   const [tailleZone, setTailleZone] = useState<{ l: number; h: number }>({ l: 0, h: 0 });
   // Outil brouillard (MJ) : peindre pour révéler ou recouvrir, avec un pinceau rond.
   const brouillardActif = !!brouillard?.actif;
@@ -141,6 +143,7 @@ function Affichage(props: {
   useEffect(() => {
     setVue(VUE_ENTIERE);
     setTailleImage(null);
+    setPret(false);
   }, [props.id]);
 
   // Brouillard désactivé : on revient à l'outil Déplacer.
@@ -217,7 +220,13 @@ function Affichage(props: {
     c.height = Math.round(tailleImage.h * echelleCalque);
     const ctx = c.getContext("2d");
     if (ctx) dessinerBrouillard(ctx, [...(brouillard?.traits ?? []), ...enCours], echelleCalque);
-  }, [brouillard?.traits, enCours, tailleImage, brouillardActif, echelleCalque]);
+    setPret(true);
+  }, [brouillard?.traits, enCours, tailleImage, brouillardActif, echelleCalque, rectImage !== null]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sans brouillard, l'image est prête dès qu'elle est chargée.
+  useEffect(() => {
+    if (tailleImage && !brouillardActif) setPret(true);
+  }, [tailleImage, brouillardActif]);
 
   /** Position de la souris en pixels de l'image. */
   function pointImage(clientX: number, clientY: number): { x: number; y: number } | null {
@@ -266,30 +275,20 @@ function Affichage(props: {
         <div className="barre barre-scene">
           <span className="scene-titre">{props.titre}</span>
           <span className="actions-scene">{props.bandeau}</span>
-          <button
-            type="button"
-            className="secondaire"
-            onClick={() => {
-              if (document.fullscreenElement) void document.exitFullscreen();
-              else void cadre.current?.requestFullscreen();
-            }}
-          >
-            {pleinEcran ? "Quitter le plein écran" : "Plein écran"}
-          </button>
         </div>
-        {/* Ligne 2 : les outils (MJ, si le brouillard est actif) et le zoom. */}
+        {/* Ligne 2 : les outils (MJ, si le brouillard est actif) ; la navigation (zoom, plein écran) à droite. */}
         <div className="barre barre-outils">
           {estMj && brouillardActif && (
             <span className="groupe-outils" role="group" aria-label="Outil">
               <button type="button" className={outil === "deplacer" ? "outil actif" : "outil secondaire"} onClick={() => setOutil("deplacer")}>
-                Déplacer
+                ✋ Déplacer
               </button>
               <button type="button" className={outil === "brouillard" ? "outil actif" : "outil secondaire"} onClick={() => setOutil("brouillard")}>
-                Brouillard
+                ☁️ Brouillard
               </button>
             </span>
           )}
-          <span className="zoom">
+          <span className="navigation" role="group" aria-label="Navigation">
             <button type="button" className="secondaire" aria-label="Dézoomer" disabled={!zoome} onClick={() => zoomerAuCentre(1 / 1.5)}>
               −
             </button>
@@ -308,6 +307,16 @@ function Affichage(props: {
             </button>
             <button type="button" className="secondaire" disabled={!zoome} onClick={() => setVue(VUE_ENTIERE)}>
               Ajuster
+            </button>
+            <button
+              type="button"
+              className="secondaire"
+              onClick={() => {
+                if (document.fullscreenElement) void document.exitFullscreen();
+                else void cadre.current?.requestFullscreen();
+              }}
+            >
+              {pleinEcran ? "⛶ Quitter le plein écran" : "⛶ Plein écran"}
             </button>
           </span>
         </div>
@@ -382,7 +391,13 @@ function Affichage(props: {
           setVue((v) => zoomerVers(v, v.zoom * 2, e.clientX - r.left, e.clientY - r.top, r.width, r.height));
         }}
       >
-        <div className="scene-contenu" style={{ transform: `translate(${vue.x}px, ${vue.y}px) scale(${vue.zoom})` }}>
+        <div
+          className="scene-contenu"
+          style={{
+            transform: `translate(${vue.x}px, ${vue.y}px) scale(${vue.zoom})`,
+            visibility: pret ? "visible" : "hidden",
+          }}
+        >
           <img
             src={urlImage(props.id)}
             alt={props.titre}
@@ -397,6 +412,7 @@ function Affichage(props: {
             />
           )}
         </div>
+        {!pret && <p className="chargement-scene discret">Chargement…</p>}
         {outilBrouillard && curseur && (
           // Aperçu du pinceau sous la souris.
           <div

@@ -82,7 +82,7 @@ export function listerInvitations(partieId: number): LigneInvitation[] {
   const lignes = base
     .prepare(
       `SELECT id, etiquette, nom, jeton, derniere_visite IS NOT NULL AS dejaVenu
-       FROM participant WHERE partie_id = ? AND role = 'joueur' ORDER BY id`,
+       FROM participant WHERE partie_id = ? AND role = 'joueur' ORDER BY ordre, id`,
     )
     .all(partieId) as unknown as (Omit<LigneInvitation, "dejaVenu"> & { dejaVenu: number })[];
   return lignes.map((l) => ({ ...l, dejaVenu: l.dejaVenu === 1 }));
@@ -91,11 +91,31 @@ export function listerInvitations(partieId: number): LigneInvitation[] {
 export function creerInvitation(partieId: number, etiquette: string | null): number {
   const { id } = base
     .prepare(
-      `INSERT INTO participant (partie_id, role, jeton, etiquette, cree_le)
-       VALUES (?, 'joueur', ?, ?, ?) RETURNING id`,
+      `INSERT INTO participant (partie_id, role, jeton, etiquette, cree_le, ordre)
+       VALUES (?, 'joueur', ?, ?, ?, (SELECT coalesce(max(ordre), 0) + 1 FROM participant WHERE partie_id = ?))
+       RETURNING id`,
     )
-    .get(partieId, nouveauJeton(), etiquette, maintenant()) as { id: number };
+    .get(partieId, nouveauJeton(), etiquette, maintenant(), partieId) as { id: number };
   return id;
+}
+
+/** Nouvel ordre des invitations (tous les identifiants de joueurs, du haut vers le bas). Renvoie false si la liste ne correspond pas. */
+export function ordonnerInvitations(partieId: number, ids: number[]): boolean {
+  const existants = (
+    base.prepare("SELECT id FROM participant WHERE partie_id = ? AND role = 'joueur'").all(partieId) as { id: number }[]
+  ).map((p) => p.id);
+  const memeListe = ids.length === existants.length && new Set(ids).size === ids.length && ids.every((id) => existants.includes(id));
+  if (!memeListe) return false;
+  base.exec("BEGIN");
+  try {
+    const maj = base.prepare("UPDATE participant SET ordre = ? WHERE id = ?");
+    ids.forEach((id, rang) => maj.run(rang + 1, id));
+    base.exec("COMMIT");
+  } catch (erreur) {
+    base.exec("ROLLBACK");
+    throw erreur;
+  }
+  return true;
 }
 
 /** Supprime une invitation de joueur. Renvoie false si elle n'existe pas. Le MJ ne peut pas être supprimé. */

@@ -34,6 +34,7 @@ import {
   listerParticipants,
   nomDejaPris,
   noterVisite,
+  ordonnerInvitations,
   partieCourante,
   participantParJeton,
   supprimerInvitation,
@@ -208,6 +209,18 @@ io.on("connection", (socket) => {
         return { ok: false, erreur: `Étiquette trop longue (${ETIQUETTE_MAX} caractères au plus).` };
       }
       creerInvitation(partie.id, brute === "" ? null : brute);
+      diffuserInvitations();
+      return { ok: true };
+    }),
+  );
+
+  socket.on(
+    "mj:ordonnerInvitations",
+    reserveMj(socket, (demande: { ids: number[] }) => {
+      const ids = Array.isArray(demande?.ids) ? demande.ids.map(Number) : [];
+      if (!ordonnerInvitations(partie.id, ids)) {
+        return { ok: false, erreur: "La liste des invitations a changé entre-temps : réessaie." };
+      }
       diffuserInvitations();
       return { ok: true };
     }),

@@ -40,6 +40,8 @@ export interface Pointeur {
 }
 
 interface Etat {
+  /** Nombre de mes déplacements de pion que je peux annuler. */
+  annulables: number;
   /** Pions révélés à l'instant (animation en cours). */
   revelations: { cle: number; sceneId: string; pionId: string }[];
   /** Combat en cours (null : pas de combat). */
@@ -66,6 +68,7 @@ interface Etat {
 }
 
 let etat: Etat = {
+  annulables: 0,
   revelations: [],
   combat: null,
   scenes: null,
@@ -96,6 +99,7 @@ socket.on("journal", (journal) => modifier({ journal }));
 socket.on("fiches", (fiches) => modifier({ fiches }));
 socket.on("scene", (scene) => modifier({ scene }));
 socket.on("combat", (combat) => modifier({ combat }));
+socket.on("carte:annulables", (annulables) => modifier({ annulables }));
 let cleRevelation = 1;
 socket.on("carte:revelation", ({ sceneId, pionId }) => {
   const cle = cleRevelation++;
