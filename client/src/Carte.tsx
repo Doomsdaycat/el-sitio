@@ -2,7 +2,7 @@
 // Dessinée avec Konva (canvas). Le serveur décide : un pion déplacé ne bouge vraiment
 // que lorsque le serveur a accepté et renvoyé la nouvelle position.
 
-import type Konva from "konva";
+import Konva from "konva";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Circle, Group, Image as ImageKonva, Layer, Line, Rect, Shape, Stage, Text } from "react-konva";
 import {
@@ -228,6 +228,52 @@ function Trace(props: {
   );
 }
 
+/** Révélation d'un pion caché : anneau doré qui s'agrandit et étincelles qui jaillissent. */
+function Eclat(props: { x: number; y: number; rayon: number }) {
+  const { x, y, rayon } = props;
+  const anneau = useRef<Konva.Circle>(null);
+  const anneau2 = useRef<Konva.Circle>(null);
+  const etincelles = useRef<(Konva.Circle | null)[]>([]);
+  const NB = 12;
+  useEffect(() => {
+    anneau.current?.to({ radius: rayon * 3, opacity: 0, strokeWidth: 1, duration: 1.2, easing: Konva.Easings.EaseOut });
+    anneau2.current?.to({ radius: rayon * 2.2, opacity: 0, duration: 0.9, easing: Konva.Easings.EaseOut });
+    etincelles.current.forEach((e, i) => {
+      if (!e) return;
+      const angle = (i / NB) * Math.PI * 2;
+      const portee = rayon * (2.2 + (i % 3) * 0.4);
+      e.to({
+        x: x + Math.cos(angle) * portee,
+        y: y + Math.sin(angle) * portee,
+        opacity: 0,
+        radius: rayon * 0.04,
+        duration: 1.1 + (i % 4) * 0.1,
+        easing: Konva.Easings.EaseOut,
+      });
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <Group listening={false}>
+      <Circle ref={anneau} x={x} y={y} radius={rayon} stroke="#f3d58f" strokeWidth={rayon * 0.18} opacity={0.95} shadowColor="#f3d58f" shadowBlur={20} />
+      <Circle ref={anneau2} x={x} y={y} radius={rayon * 0.6} fill="rgba(243,213,143,0.55)" opacity={0.9} />
+      {Array.from({ length: NB }, (_, i) => (
+        <Circle
+          key={i}
+          ref={(n) => {
+            etincelles.current[i] = n;
+          }}
+          x={x}
+          y={y}
+          radius={rayon * 0.11}
+          fill={i % 2 === 0 ? "#f3d58f" : "#ffffff"}
+          shadowColor="#f3d58f"
+          shadowBlur={8}
+        />
+      ))}
+    </Group>
+  );
+}
+
 /** Signal animé qui s'agrandit et s'efface. */
 function Signal(props: { x: number; y: number; auteur: string; echelle: number }) {
   const cercle = useRef<Konva.Circle>(null);
@@ -263,9 +309,18 @@ function PionCarte(props: {
   limiteRound: { restant: number; total: number } | null;
   /** C'est au tour de ce pion dans le combat. */
   actif: boolean;
+  /** Le MJ vient de révéler ce pion : il apparaît en grossissant. */
+  revele: boolean;
   surErreur: (e: string | null) => void;
 }) {
-  const { pion, nom, grille, echelle, deplacable, deplacementMax, limiteRound, actif, surErreur } = props;
+  const { pion, nom, grille, echelle, deplacable, deplacementMax, limiteRound, actif, revele, surErreur } = props;
+  const contenu = useRef<Konva.Group>(null);
+  useEffect(() => {
+    const g = contenu.current;
+    if (!revele || !g) return;
+    g.scale({ x: 0.15, y: 0.15 });
+    g.to({ scaleX: 1, scaleY: 1, duration: 0.7, easing: Konva.Easings.BackEaseOut });
+  }, [revele]);
   const [glisse, setGlisse] = useState<Case | null>(null);
   const cote = pion.taille * grille.taille;
   const coin = coinCase(pion, grille);
@@ -346,6 +401,8 @@ function PionCarte(props: {
           });
         }}
       >
+        {/* Contenu du pion, centré : permet l'effet d'apparition (il « grossit » depuis son centre). */}
+        <Group ref={contenu} x={cote / 2} y={cote / 2} offsetX={cote / 2} offsetY={cote / 2}>
         {actif && (
           // Tour en cours dans le combat : halo doré autour du pion.
           <Circle
@@ -398,6 +455,7 @@ function PionCarte(props: {
             listening={false}
           />
         )}
+        </Group>
       </Group>
       <Etiquette
         x={(visee ?? coin).x + cote / 2}
@@ -429,6 +487,7 @@ export function Carte(props: {
   const presents = useEtat("presents");
   const reglesDistantes = useEtat("reglesDistantes");
   const pointeurs = useEtat("pointeurs");
+  const revelations = useEtat("revelations");
 
   const cadre = useRef<HTMLDivElement>(null);
   // Zone de dessin : suivie par « état » (et non par simple référence) pour la mesurer dès qu'elle existe.
@@ -585,6 +644,7 @@ export function Carte(props: {
   // Règles et pointeurs des autres : seulement ceux de la scène affichée ici.
   const reglesIci = reglesDistantes.filter((r) => r.sceneId === scene.id);
   const pointeursIci = pointeurs.filter((p) => p.sceneId === scene.id);
+  const revelationsIci = revelations.filter((r) => r.sceneId === scene.id);
 
   /** Case au centre de la vue (pour poser un nouveau pion à un endroit visible). */
   const centreVue = (): Case => {
@@ -742,6 +802,7 @@ export function Carte(props: {
                       deplacementMax={deplacementDuPion(p)}
                       limiteRound={limiteRound(p)}
                       actif={pionActif(p)}
+                      revele={revelationsIci.some((r) => r.pionId === p.id)}
                       surErreur={setErreur}
                     />
                   ))}
@@ -749,6 +810,13 @@ export function Carte(props: {
                     <Mesure key={r.auteurId} de={r.de} a={r.a} grille={grille} echelle={echelle} auteur={r.auteur} />
                   ))}
                   {maRegle && <Mesure de={maRegle.de} a={maRegle.a} grille={grille} echelle={echelle} />}
+                  {revelationsIci.map((r) => {
+                    const p = scene.pions.find((x) => x.id === r.pionId);
+                    if (!p) return null;
+                    const coin = coinCase(p, grille);
+                    const demi = (p.taille * grille.taille) / 2;
+                    return <Eclat key={r.cle} x={coin.x + demi} y={coin.y + demi} rayon={demi * 0.85} />;
+                  })}
                   {pointeursIci.map((p) => (
                     <Signal key={p.cle} x={p.x} y={p.y} auteur={p.auteur} echelle={echelle} />
                   ))}

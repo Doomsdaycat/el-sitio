@@ -78,6 +78,8 @@ export interface MessagesServeur {
     auteur: string;
     mesure: { de: Case; a: Case } | null;
   }) => void;
+  /** Le MJ vient de révéler un pion caché : animation sur la carte. */
+  "carte:revelation": (r: { sceneId: string; pionId: string }) => void;
   /** Quelqu'un montre un endroit d'une scène (en pixels de l'image). */
   "carte:pointeur": (p: { sceneId: string; auteurId: number; auteur: string; x: number; y: number }) => void;
   /** Combat en cours (null : pas de combat). Les joueurs reçoivent une version sans secrets. */

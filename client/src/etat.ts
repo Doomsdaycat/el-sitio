@@ -40,6 +40,8 @@ export interface Pointeur {
 }
 
 interface Etat {
+  /** Pions révélés à l'instant (animation en cours). */
+  revelations: { cle: number; sceneId: string; pionId: string }[];
   /** Combat en cours (null : pas de combat). */
   combat: Combat | null;
   /** Toutes les scènes (MJ seulement). */
@@ -64,6 +66,7 @@ interface Etat {
 }
 
 let etat: Etat = {
+  revelations: [],
   combat: null,
   scenes: null,
   scenePreparee: null,
@@ -93,6 +96,12 @@ socket.on("journal", (journal) => modifier({ journal }));
 socket.on("fiches", (fiches) => modifier({ fiches }));
 socket.on("scene", (scene) => modifier({ scene }));
 socket.on("combat", (combat) => modifier({ combat }));
+let cleRevelation = 1;
+socket.on("carte:revelation", ({ sceneId, pionId }) => {
+  const cle = cleRevelation++;
+  modifier({ revelations: [...etat.revelations, { cle, sceneId, pionId }] });
+  window.setTimeout(() => modifier({ revelations: etat.revelations.filter((r) => r.cle !== cle) }), 2000);
+});
 socket.on("images", (images) => modifier({ images }));
 socket.on("scenes", (scenes) => {
   // Si la scène en préparation a été supprimée, on la ferme.

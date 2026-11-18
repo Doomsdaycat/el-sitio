@@ -423,8 +423,8 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
     "mj:modifierPion",
     proteger((d: { id: string; etat?: EtatPion; cache?: boolean }) => {
       const pion = base
-        .prepare("SELECT type FROM pion WHERE partie_id = ? AND id = ?")
-        .get(partieId, String(d?.id)) as { type: "pj" | "pnj" } | undefined;
+        .prepare("SELECT type, cache, scene_id AS sceneId FROM pion WHERE partie_id = ? AND id = ?")
+        .get(partieId, String(d?.id)) as { type: "pj" | "pnj"; cache: number; sceneId: string } | undefined;
       if (!pion) return { ok: false, erreur: "Ce pion n'existe plus." };
       if (d.etat !== undefined) {
         if (!ETATS_PION[pion.type].includes(d.etat)) {
@@ -441,6 +441,10 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
       }
       diffuserScenes(io, partieId);
       if (d.cache !== undefined) diffuserCombat(io, partieId); // nom « ??? » ou révélé dans l'ordre du combat
+      // Pion caché qui devient visible : tout le monde joue l'animation de révélation.
+      if (pion.cache === 1 && d.cache === false) {
+        io.emit("carte:revelation", { sceneId: pion.sceneId, pionId: String(d.id) });
+      }
       return { ok: true };
     }, true),
   );
