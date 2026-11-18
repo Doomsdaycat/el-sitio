@@ -4,9 +4,9 @@ Table de jeu virtuelle maison pour jouer à **Dragonbane** en ligne entre amis.
 Les joueurs cliquent sur un lien et ils sont à la table : aucun compte, rien à installer.
 La voix passe par Discord.
 
-> **Avancement :** étapes 1 à 6 terminées : connexion, dés et journal, fiches de personnage,
-> scènes (illustrations et scènes immersives avec grille et pions), combat. Prochaine étape :
-> le brouillard de guerre.
+> **Avancement :** étapes 1 à 7 terminées : connexion, dés et journal, fiches de personnage,
+> scènes (illustrations et scènes immersives avec grille et pions), combat, brouillard de guerre.
+> Prochaine étape : le confort (musique, sauvegarde et export).
 
 ## Lancer une séance (2 commandes)
 
@@ -68,6 +68,11 @@ lancement. Si un lien ne s'ouvre pas tout de suite, attends une minute : le tunn
     **à terre** (contour rouge). Il peut **cacher** un PNJ (jamais envoyé aux joueurs) et le révéler
     au bon moment, ou l'ajouter directement caché.
   - Le MJ range ses scènes à sa guise dans « Mes scènes » : poignée ⋮⋮ à glisser, ou flèches ↑ ↓.
+  - **Brouillard de guerre** (scène immersive) : le MJ l'active dans « Préparer la scène ». Les joueurs
+    ne voient que les cases révélées ; le MJ voit la carte à travers un voile. Outil **Brouillard** :
+    **Révéler** ou **Recouvrir**, par **zone** (rectangle) ou au **pinceau** ; **Tout révéler**,
+    **Tout recouvrir**. Un PNJ entièrement dans le brouillard n'est pas envoyé aux joueurs
+    (« ??? » dans le combat) ; les pions des joueurs restent visibles.
   - Zoom : `Ctrl` + molette (ou molette seule en plein écran), double-clic, boutons − et +.
   - **🥾 Annuler déplacement** (ou `Ctrl + Z`, souris sur la carte) : annule son dernier déplacement
     de pion, puis le précédent… En combat, la trace raccourcit et les mètres sont rendus. Refusé si

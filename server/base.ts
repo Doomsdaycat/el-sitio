@@ -181,6 +181,10 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE partie ADD COLUMN combat TEXT;
   `,
+  // Étape 7 : brouillard de guerre de chaque scène (activé, cases révélées), en JSON.
+  `
+  ALTER TABLE scene ADD COLUMN brouillard TEXT;
+  `,
 ];
 
 function migrer(): void {

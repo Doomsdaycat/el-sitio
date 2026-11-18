@@ -24,7 +24,7 @@ import { distanceMetres, type Case } from "../shared/carte.ts";
 import type { MessagesClient, MessagesServeur, Reponse } from "../shared/messages.ts";
 import { base } from "./base.ts";
 import type { Participant } from "./partie.ts";
-import { etatSelonPs } from "./scenes.ts";
+import { etatSelonPs, pionsInvisiblesPourJoueurs } from "./scenes.ts";
 
 interface DonneesSocket {
   participant: Participant;
@@ -66,13 +66,8 @@ function ecrireCombat(partieId: number, c: Combat | null): void {
   base.prepare("UPDATE partie SET combat = ? WHERE id = ?").run(c ? JSON.stringify(c) : null, partieId);
 }
 
-function pionsCaches(partieId: number): Set<string> {
-  return new Set(
-    (base.prepare("SELECT id FROM pion WHERE partie_id = ? AND cache = 1").all(partieId) as { id: string }[]).map(
-      (p) => p.id,
-    ),
-  );
-}
+/** Pions que les joueurs ne voient pas (cachés, ou PNJ dans le brouillard). */
+const pionsCaches = (partieId: number): Set<string> => pionsInvisiblesPourJoueurs(partieId);
 
 // ---------------------------------------------------------------------------
 // Diffusions

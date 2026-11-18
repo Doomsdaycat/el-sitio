@@ -169,6 +169,13 @@ export interface MessagesClient {
   ) => void;
   "mj:retirerPion": (demande: { id: string }, reponse: (r: Reponse) => void) => void;
   "carte:deplacerPion": (demande: { id: string; col: number; lig: number }, reponse: (r: Reponse) => void) => void;
+  // --- Brouillard de guerre (MJ)
+  "mj:brouillard:activer": (d: { sceneId: string; actif: boolean }, reponse: (r: Reponse) => void) => void;
+  "mj:brouillard:modifier": (
+    d: { sceneId: string; cases: Case[]; reveler: boolean },
+    reponse: (r: Reponse) => void,
+  ) => void;
+  "mj:brouillard:toutCacher": (d: { sceneId: string }, reponse: (r: Reponse) => void) => void;
   /** Annuler son dernier déplacement de pion (puis le précédent…). */
   "carte:annulerDeplacement": (d: Record<string, never>, reponse: (r: Reponse) => void) => void;
   /** Règle de mesure en cours dans une scène (null quand on la lâche). Pas de réponse : envoi fréquent. */

@@ -5,6 +5,7 @@
 // - Une seule scène est montrée à tous à la fois.
 // La grille est liée à l'image (alignée une fois), les pions à la scène.
 
+import { visibleDansBrouillard, type Brouillard } from "./brouillard.ts";
 import type { Grille, Pion } from "./carte.ts";
 
 /** Taille maximale d'une image déposée par le MJ. */
@@ -41,11 +42,22 @@ export interface Scene {
   grille: Grille;
   /** Pions de la scène (scène immersive). */
   pions: Pion[];
+  /** Brouillard de guerre (scène immersive). */
+  brouillard: Brouillard;
 }
 
-/** Version d'une scène pour les joueurs : sans les pions cachés. */
+/**
+ * Un pion que les joueurs ne doivent pas voir : PNJ caché, ou PNJ entièrement dans le brouillard.
+ * Les pions des personnages joueurs restent toujours visibles.
+ */
+export function invisiblePourJoueurs(p: Pion, scene: Pick<Scene, "type" | "brouillard">): boolean {
+  if (p.type === "pj") return false;
+  return p.cache || (scene.type === "immersive" && !visibleDansBrouillard(p, scene.brouillard));
+}
+
+/** Version d'une scène pour les joueurs : sans les pions invisibles pour eux. */
 export function vuePourJoueurs(scene: Scene | null): Scene | null {
-  return scene && { ...scene, pions: scene.pions.filter((p) => !p.cache) };
+  return scene && { ...scene, pions: scene.pions.filter((p) => !invisiblePourJoueurs(p, scene)) };
 }
 
 /** Adresse d'une image (servie par le serveur). */

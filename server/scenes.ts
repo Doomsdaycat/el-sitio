@@ -20,7 +20,14 @@ import {
   type Pion,
 } from "../shared/carte.ts";
 import type { MessagesClient, MessagesServeur, Reponse } from "../shared/messages.ts";
-import { SCENE_NOM_MAX, vuePourJoueurs, type Scene, type TypeScene } from "../shared/scenes.ts";
+import {
+  BROUILLARD_VIDE,
+  CASES_PAR_ENVOI_MAX,
+  CASES_REVELEES_MAX,
+  modifierBrouillard,
+  type Brouillard,
+} from "../shared/brouillard.ts";
+import { invisiblePourJoueurs, SCENE_NOM_MAX, vuePourJoueurs, type Scene, type TypeScene } from "../shared/scenes.ts";
 import { base } from "./base.ts";
 import { estSonTour } from "../shared/combat.ts";
 import { annulerDansCombat, diffuserCombat, lireCombat, noterDeplacement } from "./combat.ts";
@@ -66,10 +73,20 @@ interface LigneScene {
   imageId: string;
   imageNom: string;
   grille: string | null;
+  brouillard: string | null;
 }
 
 const SELECT_SCENE = `SELECT scene.id, scene.nom, scene.type, image.id AS imageId, image.nom AS imageNom,
-  image.grille FROM scene JOIN image ON image.id = scene.image_id`;
+  image.grille, scene.brouillard FROM scene JOIN image ON image.id = scene.image_id`;
+
+function lireBrouillard(brut: string | null): Brouillard {
+  if (!brut) return { ...BROUILLARD_VIDE };
+  try {
+    return { ...BROUILLARD_VIDE, ...(JSON.parse(brut) as Partial<Brouillard>) };
+  } catch {
+    return { ...BROUILLARD_VIDE };
+  }
+}
 
 function lireGrille(brute: string | null): Grille {
   if (!brute) return { ...GRILLE_PAR_DEFAUT };
@@ -98,7 +115,21 @@ function versScene(l: LigneScene): Scene {
     image: { id: l.imageId, nom: l.imageNom },
     grille: lireGrille(l.grille),
     pions: l.type === "immersive" ? pionsDe(l.id) : [],
+    brouillard: lireBrouillard(l.brouillard),
   };
+}
+
+/**
+ * Identifiants des pions que les joueurs ne voient pas (cachés, ou PNJ dans le brouillard de la
+ * scène montrée) : leur nom et leur trace sont aussi masqués dans le combat.
+ */
+export function pionsInvisiblesPourJoueurs(partieId: number): Set<string> {
+  const invisibles = new Set(
+    (base.prepare("SELECT id FROM pion WHERE partie_id = ? AND cache = 1").all(partieId) as { id: string }[]).map((p) => p.id),
+  );
+  const active = sceneActive(partieId);
+  if (active) for (const p of active.pions) if (invisiblePourJoueurs(p, active)) invisibles.add(p.id);
+  return invisibles;
 }
 
 function lireScene(partieId: number, id: string): Scene | undefined {
@@ -502,6 +533,52 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
       }
       return { ok: true };
     }),
+  );
+
+  // --- Brouillard de guerre (MJ)
+
+  function ecrireBrouillard(sceneId: string, b: Brouillard): void {
+    base.prepare("UPDATE scene SET brouillard = ? WHERE id = ?").run(JSON.stringify(b), sceneId);
+    diffuserScenes(io, partieId);
+    diffuserCombat(io, partieId); // un PNJ qui sort du brouillard retrouve son nom dans le combat
+  }
+
+  socket.on(
+    "mj:brouillard:activer",
+    proteger((d: { sceneId: string; actif: boolean }) => {
+      const scene = typeof d?.sceneId === "string" ? lireScene(partieId, d.sceneId) : undefined;
+      if (!scene) return { ok: false, erreur: "Cette scène n'existe plus." };
+      if (scene.type !== "immersive") return { ok: false, erreur: "Le brouillard ne concerne que les scènes immersives." };
+      ecrireBrouillard(scene.id, { ...scene.brouillard, actif: d.actif === true });
+      return { ok: true };
+    }, true),
+  );
+
+  socket.on(
+    "mj:brouillard:modifier",
+    proteger((d: { sceneId: string; cases: Case[]; reveler: boolean }) => {
+      const scene = typeof d?.sceneId === "string" ? lireScene(partieId, d.sceneId) : undefined;
+      if (!scene) return { ok: false, erreur: "Cette scène n'existe plus." };
+      if (!Array.isArray(d.cases) || d.cases.length > CASES_PAR_ENVOI_MAX) {
+        return { ok: false, erreur: "Trop de cases d'un coup." };
+      }
+      const cases = d.cases.map(lireCase).filter((c): c is Case => c !== null);
+      const reveles = modifierBrouillard(scene.brouillard.reveles, cases, d.reveler === true);
+      if (reveles.length > CASES_REVELEES_MAX) return { ok: false, erreur: "Trop de cases révélées." };
+      ecrireBrouillard(scene.id, { ...scene.brouillard, reveles });
+      return { ok: true };
+    }, true),
+  );
+
+  // Tout recouvrir : plus aucune case révélée.
+  socket.on(
+    "mj:brouillard:toutCacher",
+    proteger((d: { sceneId: string }) => {
+      const scene = typeof d?.sceneId === "string" ? lireScene(partieId, d.sceneId) : undefined;
+      if (!scene) return { ok: false, erreur: "Cette scène n'existe plus." };
+      ecrireBrouillard(scene.id, { ...scene.brouillard, reveles: [] });
+      return { ok: true };
+    }, true),
   );
 
   // Annuler son dernier déplacement (puis le précédent…) : le pion revient à sa case précédente ;

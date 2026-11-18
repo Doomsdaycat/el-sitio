@@ -1753,3 +1753,16 @@ button.secondaire.actif {
   padding: 0.1rem 0.5rem;
   font-size: 0.8rem;
 }
+
+/* --- Étape 7 : brouillard de guerre --- */
+
+.options-brouillard {
+  padding-left: 0.4rem;
+  border-left: 1px solid var(--bordure);
+}
+
+.bloc-reglages.premier {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}

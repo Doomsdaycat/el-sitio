@@ -29,12 +29,13 @@ import {
 } from "../../shared/combat.ts";
 import { deplacement } from "../../shared/fiche.ts";
 import type { Reponse } from "../../shared/messages.ts";
+import { casesDuRectangle, cleCase, CASES_PAR_ENVOI_MAX, type Brouillard } from "../../shared/brouillard.ts";
 import { urlImage, type Scene } from "../../shared/scenes.ts";
 import { socket } from "./connexion.ts";
 import { ajouterPointeur, useEtat } from "./etat.ts";
 import { nomPersonnage } from "./noms.ts";
 
-type Outil = "deplacer" | "regle" | "pointeur";
+type Outil = "deplacer" | "regle" | "pointeur" | "brouillard";
 
 const ZOOM_MAX = 8;
 const ZOOM_MIN = 0.5;
@@ -275,6 +276,65 @@ function Eclat(props: { x: number; y: number; rayon: number }) {
   );
 }
 
+/** Toutes les cases qui touchent l'image (la grille peut déborder un peu sur les bords). */
+function casesDeLImage(l: number, h: number, g: Grille): Case[] {
+  const colMin = Math.floor(-g.decalageX / g.taille);
+  const ligMin = Math.floor(-g.decalageY / g.taille);
+  const colMax = Math.floor((l - 1 - g.decalageX) / g.taille);
+  const ligMax = Math.floor((h - 1 - g.decalageY) / g.taille);
+  return casesDuRectangle({ col: colMin, lig: ligMin }, { col: colMax, lig: ligMax });
+}
+
+/**
+ * Brouillard de guerre : toutes les cases non révélées sont couvertes.
+ * Opaque pour les joueurs ; voile sombre pour le MJ, qui voit ce qu'il cache.
+ */
+function CoucheBrouillard(props: { brouillard: Brouillard; grille: Grille; l: number; h: number; estMj: boolean }) {
+  const { brouillard, grille, l, h, estMj } = props;
+  const cases = useMemo(() => {
+    const reveles = new Set(brouillard.reveles);
+    return casesDeLImage(l, h, grille).filter((c) => !reveles.has(cleCase(c)));
+  }, [brouillard.reveles, grille, l, h]);
+  return (
+    <Shape
+      listening={false}
+      sceneFunc={(ctx) => {
+        ctx.beginPath();
+        for (const c of cases) {
+          const x = Math.max(0, grille.decalageX + c.col * grille.taille);
+          const y = Math.max(0, grille.decalageY + c.lig * grille.taille);
+          const x2 = Math.min(l, grille.decalageX + (c.col + 1) * grille.taille);
+          const y2 = Math.min(h, grille.decalageY + (c.lig + 1) * grille.taille);
+          // Un léger chevauchement évite les fines lignes claires entre deux cases.
+          ctx.rect(x - 0.5, y - 0.5, x2 - x + 1, y2 - y + 1);
+        }
+        ctx.fillStyle = estMj ? "rgba(8, 6, 14, 0.55)" : "#0b0a0e";
+        ctx.fill();
+      }}
+    />
+  );
+}
+
+/** MJ : aperçu des cases qu'il est en train de révéler (doré) ou de recouvrir (sombre). */
+function ApercuBrouillard(props: { cases: Case[]; grille: Grille; reveler: boolean; echelle: number }) {
+  const { cases, grille, reveler, echelle } = props;
+  return (
+    <Shape
+      listening={false}
+      sceneFunc={(ctx, forme) => {
+        ctx.beginPath();
+        for (const c of cases) {
+          ctx.rect(grille.decalageX + c.col * grille.taille, grille.decalageY + c.lig * grille.taille, grille.taille, grille.taille);
+        }
+        ctx.fillStrokeShape(forme);
+      }}
+      fill={reveler ? "rgba(243, 213, 143, 0.28)" : "rgba(0, 0, 0, 0.45)"}
+      stroke={reveler ? "#f3d58f" : "#9c94a8"}
+      strokeWidth={2 / echelle}
+    />
+  );
+}
+
 /** Signal animé qui s'agrandit et s'efface. */
 function Signal(props: { x: number; y: number; auteur: string; echelle: number }) {
   const cercle = useRef<Konva.Circle>(null);
@@ -498,6 +558,14 @@ export function Carte(props: {
   const [outil, setOutil] = useState<Outil>("deplacer");
   const [vue, setVue] = useState<Vue>({ x: 0, y: 0, zoom: 1 });
   const [maRegle, setMaRegle] = useState<{ de: Case; a: Case } | null>(null);
+  // Outil brouillard (MJ) : révéler ou recouvrir, par rectangle ou au pinceau.
+  const [brouillardReveler, setBrouillardReveler] = useState(true);
+  const [brouillardPinceau, setBrouillardPinceau] = useState(false);
+  const [saisie, setSaisie] = useState<{ debut: Case; fin: Case; peintes: Map<string, Case> } | null>(null);
+  // Brouillard désactivé (ou autre scène sans brouillard) : on revient à l'outil Déplacer.
+  useEffect(() => {
+    if (outil === "brouillard" && (!estMj || !scene.brouillard.actif)) setOutil("deplacer");
+  }, [outil, estMj, scene.brouillard.actif]);
   const [erreur, setErreur] = useState<string | null>(null);
   const [pleinEcran, setPleinEcran] = useState(false);
   const [astuce, setAstuce] = useState(false);
@@ -653,7 +721,23 @@ export function Carte(props: {
     return { col: Math.max(0, c.col), lig: Math.max(0, c.lig) };
   };
 
-  const curseur = outil === "regle" ? "crosshair" : outil === "pointeur" ? "pointer" : "";
+  const curseur = outil === "regle" || outil === "brouillard" ? "crosshair" : outil === "pointeur" ? "pointer" : "";
+  const casesSaisies = saisie
+    ? brouillardPinceau
+      ? [...saisie.peintes.values()]
+      : casesDuRectangle(saisie.debut, saisie.fin)
+    : [];
+
+  /** Envoie au serveur les cases révélées ou recouvertes (en plusieurs fois si besoin). */
+  function envoyerBrouillard(cases: Case[], reveler: boolean) {
+    for (let i = 0; i < cases.length; i += CASES_PAR_ENVOI_MAX) {
+      socket.emit(
+        "mj:brouillard:modifier",
+        { sceneId: scene.id, cases: cases.slice(i, i + CASES_PAR_ENVOI_MAX), reveler },
+        (r: Reponse) => setErreur(r.ok ? null : r.erreur),
+      );
+    }
+  }
 
   return (
     <div className="carte-combat">
@@ -667,6 +751,9 @@ export function Carte(props: {
                 ["deplacer", "Déplacer", "Glisser la carte ou un pion"],
                 ["regle", "Règle", "Mesurer une distance (tout le monde la voit)"],
                 ["pointeur", "Montrer", "Cliquer pour montrer un endroit à tous"],
+                ...(estMj && scene.brouillard.actif
+                  ? ([["brouillard", "Brouillard", "Révéler ou recouvrir des zones de la carte"]] as const)
+                  : []),
               ] as const
             ).map(([id, nom, aide]) => (
               <button
@@ -680,6 +767,22 @@ export function Carte(props: {
               </button>
             ))}
           </span>
+          {outil === "brouillard" && (
+            <span className="groupe-outils options-brouillard" role="group" aria-label="Brouillard">
+              <button type="button" className={brouillardReveler ? "outil actif" : "outil secondaire"} onClick={() => setBrouillardReveler(true)}>
+                Révéler
+              </button>
+              <button type="button" className={!brouillardReveler ? "outil actif" : "outil secondaire"} onClick={() => setBrouillardReveler(false)}>
+                Recouvrir
+              </button>
+              <button type="button" className={!brouillardPinceau ? "outil actif" : "outil secondaire"} title="Tracer un rectangle" onClick={() => setBrouillardPinceau(false)}>
+                ▭ Zone
+              </button>
+              <button type="button" className={brouillardPinceau ? "outil actif" : "outil secondaire"} title="Peindre case par case" onClick={() => setBrouillardPinceau(true)}>
+                🖌 Pinceau
+              </button>
+            </span>
+          )}
           <button
             type="button"
             className="secondaire"
@@ -724,6 +827,13 @@ export function Carte(props: {
               width={l}
               height={h}
               onMouseDown={(e) => {
+                if (outil === "brouillard") {
+                  const p = pointImage(e.target.getStage());
+                  if (!p) return;
+                  const c = caseSous(p.x, p.y, grille);
+                  setSaisie({ debut: c, fin: c, peintes: new Map([[cleCase(c), c]]) });
+                  return;
+                }
                 if (outil !== "regle") return;
                 const p = pointImage(e.target.getStage());
                 if (!p) return;
@@ -732,6 +842,15 @@ export function Carte(props: {
                 envoyerRegle({ de: c, a: c }, true);
               }}
               onMouseMove={(e) => {
+                if (outil === "brouillard" && saisie) {
+                  const p = pointImage(e.target.getStage());
+                  if (!p) return;
+                  const c = caseSous(p.x, p.y, grille);
+                  if (c.col === saisie.fin.col && c.lig === saisie.fin.lig) return;
+                  const peintes = brouillardPinceau ? new Map(saisie.peintes).set(cleCase(c), c) : saisie.peintes;
+                  setSaisie({ ...saisie, fin: c, peintes });
+                  return;
+                }
                 if (outil !== "regle" || !maRegle) return;
                 const p = pointImage(e.target.getStage());
                 if (!p) return;
@@ -742,11 +861,17 @@ export function Carte(props: {
                 envoyerRegle(mesure);
               }}
               onMouseUp={() => {
+                if (outil === "brouillard" && saisie) {
+                  envoyerBrouillard(casesSaisies, brouillardReveler);
+                  setSaisie(null);
+                  return;
+                }
                 if (outil !== "regle" || !maRegle) return;
                 setMaRegle(null);
                 envoyerRegle(null, true);
               }}
               onMouseLeave={() => {
+                if (saisie) setSaisie(null);
                 if (maRegle) {
                   setMaRegle(null);
                   envoyerRegle(null, true);
@@ -777,6 +902,12 @@ export function Carte(props: {
                   {image && <ImageKonva image={image} width={image.width} height={image.height} />}
                   {image && grille.visible && (
                     <LignesGrille grille={grille} l={image.width} h={image.height} echelle={echelle} />
+                  )}
+                  {image && scene.brouillard.actif && (
+                    <CoucheBrouillard brouillard={scene.brouillard} grille={grille} l={image.width} h={image.height} estMj={estMj} />
+                  )}
+                  {saisie && casesSaisies.length > 0 && (
+                    <ApercuBrouillard cases={casesSaisies} grille={grille} reveler={brouillardReveler} echelle={echelle} />
                   )}
                   {combat?.phase === "round" &&
                     scene.pions.map((p) =>
@@ -834,7 +965,16 @@ export function Carte(props: {
         </div>
       </figure>
       {erreur && <p className="erreur">{erreur}</p>}
-      {estMj && <ReglagesMj scene={scene} centreVue={centreVue} nomDuPion={nomDuPion} />}
+      {estMj && (
+        <ReglagesMj
+          scene={scene}
+          centreVue={centreVue}
+          nomDuPion={nomDuPion}
+          toutesLesCases={() => (image ? casesDeLImage(image.width, image.height, grille) : [])}
+          envoyerBrouillard={envoyerBrouillard}
+          choisirOutilBrouillard={() => setOutil("brouillard")}
+        />
+      )}
     </div>
   );
 }
@@ -886,8 +1026,16 @@ function Reglage(props: {
   );
 }
 
-function ReglagesMj(props: { scene: Scene; centreVue: () => Case; nomDuPion: (p: Pion) => string }) {
-  const { scene, centreVue, nomDuPion } = props;
+function ReglagesMj(props: {
+  scene: Scene;
+  centreVue: () => Case;
+  nomDuPion: (p: Pion) => string;
+  toutesLesCases: () => Case[];
+  envoyerBrouillard: (cases: Case[], reveler: boolean) => void;
+  choisirOutilBrouillard: () => void;
+}) {
+  const { scene, centreVue, nomDuPion, toutesLesCases, envoyerBrouillard, choisirOutilBrouillard } = props;
+  const [confirmerToutCacher, setConfirmerToutCacher] = useState(false);
   const [ajouterCache, setAjouterCache] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [nom, setNom] = useState("");
@@ -905,6 +1053,50 @@ function ReglagesMj(props: { scene: Scene; centreVue: () => Case; nomDuPion: (p:
   return (
     <section className="reglages-carte">
       <h3>Préparer la scène (toi seul vois ces réglages)</h3>
+      <div className="bloc-reglages premier">
+        <h4>Brouillard de guerre</h4>
+        <label className="case">
+          <input
+            type="checkbox"
+            checked={scene.brouillard.actif}
+            onChange={(e) => {
+              socket.emit("mj:brouillard:activer", { sceneId: scene.id, actif: e.target.checked }, repondre);
+              if (e.target.checked) choisirOutilBrouillard();
+            }}
+          />
+          <span>Activer le brouillard sur cette scène</span>
+        </label>
+        {scene.brouillard.actif && (
+          <>
+            <p className="discret petit">
+              Les joueurs ne voient que les cases révélées (toi, tu vois la carte à travers un voile).
+              Avec l'outil <strong>Brouillard</strong>, en haut de la carte : <strong>Révéler</strong> ou{" "}
+              <strong>Recouvrir</strong>, par <strong>zone</strong> (trace un rectangle) ou au <strong>pinceau</strong>.
+              Un PNJ entièrement dans le brouillard n'est pas envoyé aux joueurs.
+            </p>
+            <div className="boutons-participants">
+              <button type="button" className="secondaire" onClick={() => envoyerBrouillard(toutesLesCases(), true)}>
+                Tout révéler
+              </button>
+              <button
+                type="button"
+                className={confirmerToutCacher ? "danger" : "secondaire"}
+                onClick={() => {
+                  if (!confirmerToutCacher) {
+                    setConfirmerToutCacher(true);
+                    window.setTimeout(() => setConfirmerToutCacher(false), 4000);
+                    return;
+                  }
+                  setConfirmerToutCacher(false);
+                  socket.emit("mj:brouillard:toutCacher", { sceneId: scene.id }, repondre);
+                }}
+              >
+                {confirmerToutCacher ? "Confirmer : tout recouvrir" : "Tout recouvrir"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
       {(
         <>
           <div className="bloc-reglages">
