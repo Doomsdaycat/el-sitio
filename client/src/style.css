@@ -688,13 +688,14 @@ select {
 
 .fiche-identite {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  /* Autant de colonnes que la place le permet ; les champs passent à la ligne sinon. */
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
   gap: 0.6rem;
 }
 
 .fiche-caracs {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
   gap: 0.5rem;
 }
 
@@ -742,7 +743,7 @@ select {
 
 .fiche-derivees {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
   gap: 0.5rem;
 }
 
@@ -782,7 +783,7 @@ select {
 
 .fiche-competences {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
   gap: 0 1.5rem;
 }
 
@@ -849,7 +850,7 @@ select {
 
 .fiche-textes {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
   gap: 0.75rem;
 }
 
@@ -1958,4 +1959,26 @@ button.secondaire.actif {
   background: var(--erreur);
   transform: rotate(-35deg);
   border-radius: 1px;
+}
+
+/* Fiche : aucun champ ne dépasse de sa case, et la fiche ne déborde jamais de sa colonne. */
+.fiches,
+.fiche,
+.fiche > section,
+.fiche label,
+.fiche-caracs > *,
+.fiche-derivees > * {
+  min-width: 0;
+}
+
+.fiche input:not([type="checkbox"]):not(.champ-nombre),
+.fiche select,
+.fiche textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.fiches .onglets {
+  overflow-x: auto;
 }
