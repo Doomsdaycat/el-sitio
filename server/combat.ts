@@ -103,7 +103,7 @@ export function noterDeplacement(
   if (!c || c.phase !== "round") return;
   const metres = distanceMetres(d.de, d.a);
   if (metres === 0) return;
-  c = ajouterATrace(c, d.pionId, d.de, d.a);
+  c = ajouterATrace(c, d.pionId, d.de, d.a, d.joueurQuiBouge !== null);
   const x = d.joueurQuiBouge === null ? undefined : c.combattants.find((y) => y.type === "pj" && y.joueurId === d.joueurQuiBouge);
   const m = x && c.mouvements[x.id];
   if (x && m) c = { ...c, mouvements: { ...c.mouvements, [x.id]: { ...m, parcouru: m.parcouru + metres } } };

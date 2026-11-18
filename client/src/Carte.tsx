@@ -19,7 +19,13 @@ import {
   type Grille,
   type Pion,
 } from "../../shared/carte.ts";
-import { carteCourante, deplacementDuRound, deplacementRestant } from "../../shared/combat.ts";
+import {
+  carteCourante,
+  decouperTrace,
+  deplacementDuRound,
+  deplacementRestant,
+  type EtapeTrace,
+} from "../../shared/combat.ts";
 import { deplacement } from "../../shared/fiche.ts";
 import type { Reponse } from "../../shared/messages.ts";
 import { urlImage, type Scene } from "../../shared/scenes.ts";
@@ -163,46 +169,59 @@ function Mesure(props: { de: Case; a: Case; grille: Grille; echelle: number; aut
 }
 
 /**
- * Chemin d'un pion pendant le round de combat : pointillés dorés de case en case,
- * un point à chaque étape, et la distance totale près du départ.
+ * Chemin d'un pion pendant le round de combat : pointillés dorés de case en case, un point à
+ * chaque étape, et la distance totale près du départ. Pour un personnage joueur, la partie qui
+ * dépasse son déplacement autorisé du round est en rouge.
  */
-function Trace(props: { points: Case[]; taille: number; grille: Grille; echelle: number; actif: boolean }) {
-  const { points, taille, grille, echelle, actif } = props;
+function Trace(props: {
+  points: EtapeTrace[];
+  taille: number;
+  grille: Grille;
+  echelle: number;
+  actif: boolean;
+  /** Déplacement autorisé du round, en mètres (null : pas de limite). */
+  limite: number | null;
+}) {
+  const { points, taille, grille, echelle, actif, limite } = props;
   if (points.length < 2) return null;
   const demi = (taille * grille.taille) / 2;
-  const centres = points.map((c) => {
-    const coin = coinCase(c, grille);
-    return { x: coin.x + demi, y: coin.y + demi };
+  // Centre d'une case (les coordonnées peuvent tomber entre deux cases, à la limite).
+  const centre = (c: { col: number; lig: number }) => ({
+    x: grille.decalageX + c.col * grille.taille + demi,
+    y: grille.decalageY + c.lig * grille.taille + demi,
   });
-  let cases = 0;
-  for (let i = 1; i < points.length; i++) cases += distanceCases(points[i - 1], points[i]);
-  const couleur = actif ? "#f3d58f" : "#c9a25b";
+  const { morceaux, metres, depassement } = decouperTrace(points, limite);
+  const dore = actif ? "#f3d58f" : "#c9a25b";
+  const rouge = "#ff6b5e";
+  const etapes = points.slice(0, -1).map(centre);
+  const depart = centre(points[0]);
   return (
-    <Group listening={false} opacity={actif ? 1 : 0.75}>
-      <Line
-        points={centres.flatMap((p) => [p.x, p.y])}
-        stroke="rgba(0,0,0,0.55)"
-        strokeWidth={7 / echelle}
-        lineCap="round"
-        lineJoin="round"
-      />
-      <Line
-        points={centres.flatMap((p) => [p.x, p.y])}
-        stroke={couleur}
-        strokeWidth={4 / echelle}
-        dash={[12 / echelle, 7 / echelle]}
-        lineCap="round"
-        lineJoin="round"
-      />
-      {centres.slice(0, -1).map((p, i) => (
-        <Circle key={i} x={p.x} y={p.y} radius={(i === 0 ? 6 : 4) / echelle} fill={couleur} stroke="#1d1b22" strokeWidth={1.5 / echelle} />
+    <Group listening={false} opacity={actif ? 1 : 0.8}>
+      {morceaux.map((m, i) => {
+        const a = centre(m.de);
+        const b = centre(m.a);
+        return (
+          <Group key={i}>
+            <Line points={[a.x, a.y, b.x, b.y]} stroke="rgba(0,0,0,0.55)" strokeWidth={7 / echelle} lineCap="round" />
+            <Line
+              points={[a.x, a.y, b.x, b.y]}
+              stroke={m.depasse ? rouge : dore}
+              strokeWidth={(m.depasse ? 5 : 4) / echelle}
+              dash={m.depasse ? undefined : [12 / echelle, 7 / echelle]}
+              lineCap="round"
+            />
+          </Group>
+        );
+      })}
+      {etapes.map((p, i) => (
+        <Circle key={i} x={p.x} y={p.y} radius={(i === 0 ? 6 : 4) / echelle} fill={dore} stroke="#1d1b22" strokeWidth={1.5 / echelle} />
       ))}
       <Etiquette
-        x={centres[0].x}
-        y={centres[0].y + 8 / echelle}
-        texte={`${libelleDistance(cases)} parcourus`}
+        x={depart.x}
+        y={depart.y + 8 / echelle}
+        texte={depassement > 0 ? `${metres} m parcourus (${depassement} m de trop)` : `${metres} m parcourus`}
         echelle={echelle}
-        couleur="#f3d58f"
+        couleur={depassement > 0 ? rouge : "#f3d58f"}
       />
     </Group>
   );
@@ -507,6 +526,12 @@ export function Carte(props: {
   const pionActif = (p: Pion) =>
     !!combattantActif &&
     (combattantActif.type === "pj" ? p.joueurId === combattantActif.joueurId : p.id === combattantActif.pionId);
+  /** Déplacement autorisé du round pour le pion d'un personnage joueur (tout le monde voit le dépassement). */
+  const limiteTrace = (p: Pion): number | null => {
+    if (!combat || p.joueurId === null) return null;
+    const x = combat.combattants.find((y) => y.type === "pj" && y.joueurId === p.joueurId);
+    return deplacementDuRound(x ? combat.mouvements[x.id] : undefined, deplacementDuPion(p));
+  };
   /** Seul le joueur qui déplace son propre pion voit (et consomme) son déplacement du round. */
   const limiteRound = (p: Pion) => {
     if (estMj || !combat || combat.phase !== "round" || p.joueurId !== moiId) return null;
@@ -662,6 +687,7 @@ export function Carte(props: {
                           grille={grille}
                           echelle={echelle}
                           actif={pionActif(p)}
+                          limite={limiteTrace(p)}
                         />
                       ) : null,
                     )}

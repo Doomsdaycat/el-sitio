@@ -9,6 +9,7 @@ import {
   cartesPourAttendre,
   choisirCarteSurprise,
   combatVide,
+  decouperTrace,
   deplacementRestant,
   ErreurCombat,
   reagir,
@@ -136,5 +137,42 @@ describe("Ce que voient les joueurs", () => {
     assert.equal(vue.combattants[0].ps, null);
     assert.equal(vue.combattants[0].nom, "Gobelin");
     assert.equal(vue.combattants[1].nom, "???");
+  });
+});
+
+describe("Trace au-delà du déplacement autorisé", () => {
+  const p = (col: number, lig: number, parJoueur = true) => ({ col, lig, parJoueur });
+
+  it("dans la limite : tout est normal", () => {
+    const r = decouperTrace([{ col: 0, lig: 0 }, p(3, 0), p(5, 0)], 10);
+    assert.equal(r.morceaux.every((m) => !m.depasse), true);
+    assert.equal(r.metres, 10);
+    assert.equal(r.depassement, 0);
+  });
+
+  it("le déplacement qui franchit la limite est coupé pile à la limite", () => {
+    // 10 m = 5 cases ; on va à 3, puis à 7 : la limite tombe à la case 5.
+    const r = decouperTrace([{ col: 0, lig: 0 }, p(3, 0), p(7, 0)], 10);
+    assert.deepEqual(
+      r.morceaux.map((m) => [m.de.col, m.a.col, m.depasse]),
+      [[0, 3, false], [3, 5, false], [5, 7, true]],
+    );
+    assert.equal(r.depassement, 4);
+  });
+
+  it("au-delà : tout le déplacement suivant dépasse", () => {
+    const r = decouperTrace([{ col: 0, lig: 0 }, p(5, 0), p(5, 2)], 10);
+    assert.equal(r.morceaux[1].depasse, true);
+    assert.equal(r.depassement, 4);
+  });
+
+  it("un déplacement fait par le MJ ne consomme rien et ne dépasse jamais", () => {
+    const r = decouperTrace([{ col: 0, lig: 0 }, p(8, 0, false), p(12, 0)], 10);
+    assert.equal(r.morceaux.every((m) => !m.depasse), true);
+    assert.equal(r.metres, 24);
+  });
+
+  it("sans limite connue : rien ne dépasse", () => {
+    assert.equal(decouperTrace([{ col: 0, lig: 0 }, p(20, 0)], null).morceaux[0].depasse, false);
   });
 });

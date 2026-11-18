@@ -11,7 +11,12 @@
 //   le déplacement du round est perdu.
 // - Déplacement : jusqu'à sa valeur de déplacement par round, doublée par l'action Course.
 
-import type { Case } from "./carte.ts";
+import { distanceCases, METRES_PAR_CASE, type Case } from "./carte.ts";
+
+/** Étape du chemin d'un pion ; `parJoueur` : ce déplacement a été fait par le joueur lui-même. */
+export interface EtapeTrace extends Case {
+  parJoueur?: boolean;
+}
 
 export const NB_CARTES = 10;
 export const CARTES_MAX_PAR_COMBATTANT = 5;
@@ -64,7 +69,7 @@ export interface Combat {
   choixSurprise: Record<string, number[]>;
   mouvements: Record<string, MouvementRound>;
   /** Chemin de chaque pion pendant le round (identifiant du pion → cases successives). */
-  traces: Record<string, Case[]>;
+  traces: Record<string, EtapeTrace[]>;
 }
 
 export class ErreurCombat extends Error {}
@@ -224,9 +229,60 @@ export function deplacementDuRound(m: MouvementRound | undefined, deplacement: n
 }
 
 /** Ajoute un déplacement au chemin d'un pion pendant le round. */
-export function ajouterATrace(c: Combat, pionId: string, de: Case, a: Case): Combat {
-  const avant = c.traces[pionId] ?? [de];
-  return { ...c, traces: { ...c.traces, [pionId]: [...avant, a] } };
+export function ajouterATrace(c: Combat, pionId: string, de: Case, a: Case, parJoueur = false): Combat {
+  const avant = c.traces[pionId] ?? [{ col: de.col, lig: de.lig }];
+  return { ...c, traces: { ...c.traces, [pionId]: [...avant, { col: a.col, lig: a.lig, parJoueur }] } };
+}
+
+/** Morceau de chemin à dessiner, en cases (les extrémités peuvent tomber entre deux cases). */
+export interface MorceauTrace {
+  de: { col: number; lig: number };
+  a: { col: number; lig: number };
+  /** Au-delà du déplacement autorisé du round. */
+  depasse: boolean;
+}
+
+/**
+ * Découpe le chemin d'un pion en morceaux « dans la limite » et « au-delà ».
+ * Seuls les déplacements faits par le joueur consomment son déplacement du round ;
+ * un déplacement qui franchit la limite est coupé pile à la limite.
+ * `limiteMetres` null : pas de limite (PNJ, ou déplacement inconnu).
+ */
+export function decouperTrace(points: EtapeTrace[], limiteMetres: number | null): {
+  morceaux: MorceauTrace[];
+  metres: number;
+  depassement: number;
+} {
+  const morceaux: MorceauTrace[] = [];
+  const limite = limiteMetres === null ? Infinity : limiteMetres / METRES_PAR_CASE;
+  let utilise = 0;
+  let total = 0;
+  for (let i = 1; i < points.length; i++) {
+    const de = points[i - 1];
+    const a = points[i];
+    const cases = distanceCases(de, a);
+    total += cases;
+    if (!a.parJoueur || cases === 0) {
+      morceaux.push({ de, a, depasse: false });
+      continue;
+    }
+    const reste = limite - utilise;
+    utilise += cases;
+    if (reste >= cases) {
+      morceaux.push({ de, a, depasse: false });
+    } else if (reste <= 0) {
+      morceaux.push({ de, a, depasse: true });
+    } else {
+      const t = reste / cases;
+      const milieu = { col: de.col + (a.col - de.col) * t, lig: de.lig + (a.lig - de.lig) * t };
+      morceaux.push({ de, a: milieu, depasse: false }, { de: milieu, a, depasse: true });
+    }
+  }
+  return {
+    morceaux,
+    metres: total * METRES_PAR_CASE,
+    depassement: Math.max(0, utilise - limite) * METRES_PAR_CASE,
+  };
 }
 
 /**
