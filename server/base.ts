@@ -177,6 +177,10 @@ const MIGRATIONS: string[] = [
   ALTER TABLE pion ADD COLUMN etat TEXT NOT NULL DEFAULT 'normal';
   ALTER TABLE pion ADD COLUMN cache INTEGER NOT NULL DEFAULT 0;
   `,
+  // Étape 6 : combat en cours (participants, cartes d'initiative, déplacements du round), en JSON.
+  `
+  ALTER TABLE partie ADD COLUMN combat TEXT;
+  `,
 ];
 
 function migrer(): void {

@@ -1509,3 +1509,213 @@ button.secondaire.actif {
   background: none;
   border: 1px dashed var(--discret);
 }
+
+/* --- Étape 6 : combat --- */
+
+.combat {
+  border-color: var(--accent);
+}
+
+.combat h2 {
+  margin-bottom: 0.6rem;
+}
+
+.combat > button {
+  margin-top: 0.5rem;
+}
+
+.combat > button.lien,
+.combat > button.danger {
+  display: block;
+}
+
+.carte-initiative {
+  display: inline-grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 2.5rem;
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid var(--accent);
+  color: var(--accent-texte);
+  background: var(--accent);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Le numéro de carte n'est cliquable que pour le MJ : pour les joueurs, il reste lisible. */
+.carte-initiative:disabled {
+  opacity: 1;
+}
+
+.ordre-combat {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.ligne-ordre {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.2rem 0.3rem;
+  border-radius: 6px;
+}
+
+.ligne-ordre .nom-participant {
+  flex: 1;
+  min-width: 0;
+}
+
+.ligne-ordre.courante {
+  background: rgba(201, 162, 91, 0.18);
+  outline: 1px solid var(--accent);
+}
+
+.ligne-ordre.moi .nom-participant {
+  font-weight: 700;
+}
+
+/* Carte retournée : le tour est joué. */
+.ligne-ordre.jouee .carte-initiative {
+  color: var(--discret);
+  background: var(--fond);
+  border-color: var(--bordure);
+}
+
+.ligne-ordre.jouee .nom-participant {
+  color: var(--discret);
+}
+
+.ps-combat {
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ps-combat.zero {
+  color: var(--erreur);
+  font-weight: 700;
+}
+
+.ps-pnj {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.ps-pnj button {
+  width: 1.5rem;
+  padding: 0;
+  font-size: 0.85rem;
+}
+
+.mes-actions {
+  margin-top: 0.75rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--bordure);
+  display: grid;
+  gap: 0.4rem;
+}
+
+.mes-actions p {
+  margin: 0;
+}
+
+.a-toi {
+  color: var(--accent);
+  font-size: 1.1rem;
+}
+
+.boutons-tour {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.attendre {
+  display: inline-flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.attendre select {
+  max-width: 100%;
+  font-size: 0.85rem;
+}
+
+.mon-deplacement {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.participants {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.liste-participants {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.liste-participants li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.liste-participants .nom-participant {
+  flex: 1;
+  min-width: 6rem;
+}
+
+.liste-participants select {
+  padding: 0.15rem 0.3rem;
+  font-size: 0.85rem;
+}
+
+.boutons-participants {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.boutons-participants button,
+.ajout-participant button {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+.ajout-participant {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.ajout-participant input:first-child {
+  flex: 1;
+  min-width: 8rem;
+}
+
+.cartes-a-choisir {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.cartes-a-choisir .carte-initiative:disabled {
+  opacity: 0.25;
+}
+
+.choix-surprise p {
+  margin: 0.3rem 0;
+}

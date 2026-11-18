@@ -4,6 +4,7 @@
 
 import { useSyncExternalStore } from "react";
 import type { Case } from "../../shared/carte.ts";
+import type { Combat } from "../../shared/combat.ts";
 import type { Fiche } from "../../shared/fiche.ts";
 import type { EntreeJournal } from "../../shared/jets.ts";
 import type { Invitation, Present } from "../../shared/messages.ts";
@@ -39,6 +40,8 @@ export interface Pointeur {
 }
 
 interface Etat {
+  /** Combat en cours (null : pas de combat). */
+  combat: Combat | null;
   /** Toutes les scènes (MJ seulement). */
   scenes: Scene[] | null;
   /** MJ : scène ouverte pour la préparer sans la montrer (sinon null). */
@@ -61,6 +64,7 @@ interface Etat {
 }
 
 let etat: Etat = {
+  combat: null,
   scenes: null,
   scenePreparee: null,
   reglesDistantes: [],
@@ -88,6 +92,7 @@ socket.on("invitations", (invitations) => modifier({ invitations }));
 socket.on("journal", (journal) => modifier({ journal }));
 socket.on("fiches", (fiches) => modifier({ fiches }));
 socket.on("scene", (scene) => modifier({ scene }));
+socket.on("combat", (combat) => modifier({ combat }));
 socket.on("images", (images) => modifier({ images }));
 socket.on("scenes", (scenes) => {
   // Si la scène en préparation a été supprimée, on la ferme.

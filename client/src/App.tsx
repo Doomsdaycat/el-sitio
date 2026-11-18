@@ -3,6 +3,7 @@ import { ERREUR_LIEN_INCONNU, type Identite } from "../../shared/messages.ts";
 import { jeton, oublierJeton, socket } from "./connexion.ts";
 import { ChoixNom } from "./ChoixNom.tsx";
 import { Centre } from "./Centre.tsx";
+import { Combat } from "./Combat.tsx";
 import { Invitations } from "./Invitations.tsx";
 import { Journal } from "./Journal.tsx";
 import { PanneauJet } from "./PanneauJet.tsx";
@@ -126,6 +127,7 @@ export function App() {
 
           <div className="table-de-jeu">
             <div className="colonne-gauche">
+              <Combat moiId={identite.moi.id} estMj={identite.moi.role === "mj"} />
               <Presents moiId={identite.moi.id} />
               <PanneauJet estMj={identite.moi.role === "mj"} />
             </div>

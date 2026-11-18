@@ -8,6 +8,7 @@ import {
   COULEUR_PNJ,
   COULEURS_PIONS,
   COULEURS_PJ,
+  distanceMetres,
   GRILLE_PAR_DEFAUT,
   NOM_PION_MAX,
   normaliserDecalage,
@@ -22,6 +23,7 @@ import {
 import type { MessagesClient, MessagesServeur, Reponse } from "../shared/messages.ts";
 import { SCENE_NOM_MAX, vuePourJoueurs, type Scene, type TypeScene } from "../shared/scenes.ts";
 import { base } from "./base.ts";
+import { diffuserCombat, noterDeplacement } from "./combat.ts";
 import { diffuserImages } from "./images.ts";
 import type { Participant } from "./partie.ts";
 
@@ -393,6 +395,7 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
         base.prepare("UPDATE pion SET cache = ? WHERE id = ?").run(d.cache === true ? 1 : 0, String(d.id));
       }
       diffuserScenes(io, partieId);
+      if (d.cache !== undefined) diffuserCombat(io, partieId); // nom « ??? » ou révélé dans l'ordre du combat
       return { ok: true };
     }, true),
   );
@@ -415,8 +418,8 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
     "carte:deplacerPion",
     proteger((d: { id: string; col: number; lig: number }) => {
       const pion = base
-        .prepare("SELECT scene_id AS sceneId, joueur_id AS joueurId FROM pion WHERE partie_id = ? AND id = ?")
-        .get(partieId, String(d?.id)) as { sceneId: string; joueurId: number | null } | undefined;
+        .prepare("SELECT scene_id AS sceneId, joueur_id AS joueurId, col, lig FROM pion WHERE partie_id = ? AND id = ?")
+        .get(partieId, String(d?.id)) as { sceneId: string; joueurId: number | null; col: number; lig: number } | undefined;
       if (!pion) return { ok: false, erreur: "Ce pion n'existe plus." };
       if (!estMj()) {
         // Un joueur ne déplace que son propre pion, et seulement dans la scène montrée.
@@ -431,6 +434,11 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
       if (!position) return { ok: false, erreur: "Case invalide." };
       base.prepare("UPDATE pion SET col = ?, lig = ? WHERE id = ?").run(position.col, position.lig, String(d.id));
       diffuserScenes(io, partieId);
+      // En combat, les mètres parcourus par le joueur avec son pion comptent pour son round
+      // (pas les déplacements faits par le MJ : corrections, repoussements…).
+      if (!estMj() && pion.joueurId === moi().id) {
+        noterDeplacement(io, partieId, moi().id, distanceMetres(pion, position));
+      }
       return { ok: true };
     }),
   );

@@ -19,6 +19,7 @@ import {
   type Grille,
   type Pion,
 } from "../../shared/carte.ts";
+import { carteCourante, deplacementDuRound, deplacementRestant } from "../../shared/combat.ts";
 import { deplacement } from "../../shared/fiche.ts";
 import type { Reponse } from "../../shared/messages.ts";
 import { urlImage, type Scene } from "../../shared/scenes.ts";
@@ -192,9 +193,13 @@ function PionCarte(props: {
   deplacable: boolean;
   /** Déplacement maximal du personnage (en mètres), si connu. */
   deplacementMax: number | null;
+  /** En combat, pour son propre pion : déplacement restant et total du round (en mètres). */
+  limiteRound: { restant: number; total: number } | null;
+  /** C'est au tour de ce pion dans le combat. */
+  actif: boolean;
   surErreur: (e: string | null) => void;
 }) {
-  const { pion, nom, grille, echelle, deplacable, deplacementMax, surErreur } = props;
+  const { pion, nom, grille, echelle, deplacable, deplacementMax, limiteRound, actif, surErreur } = props;
   const [glisse, setGlisse] = useState<Case | null>(null);
   const cote = pion.taille * grille.taille;
   const coin = coinCase(pion, grille);
@@ -208,7 +213,11 @@ function PionCarte(props: {
 
   const distance = glisse ? distanceCases(depart, glisse) : 0;
   const metres = distance * METRES_PAR_CASE;
-  const trop = deplacementMax !== null && metres > deplacementMax;
+  // En combat, la limite est ce qui reste du round ; sinon, le déplacement de la fiche.
+  const trop = limiteRound ? metres > limiteRound.restant : deplacementMax !== null && metres > deplacementMax;
+  const texteGlisse = limiteRound
+    ? `${nom} · ${metres} m (reste ${Math.max(0, limiteRound.restant - metres)} m / ${limiteRound.total} m)`
+    : `${nom} · ${metres} m${deplacementMax !== null ? ` / ${deplacementMax} m` : ""}`;
   const visee = glisse ? coinCase(glisse, grille) : null;
   const mort = pion.etat === "mort";
   const aTerre = pion.etat === "a-terre";
@@ -271,6 +280,20 @@ function PionCarte(props: {
           });
         }}
       >
+        {actif && (
+          // Tour en cours dans le combat : halo doré autour du pion.
+          <Circle
+            x={cote / 2}
+            y={cote / 2}
+            radius={r * 1.22}
+            stroke="#f3d58f"
+            strokeWidth={Math.max(3, cote * 0.07)}
+            shadowColor="#f3d58f"
+            shadowBlur={18}
+            shadowOpacity={0.9}
+            listening={false}
+          />
+        )}
         <Circle
           x={cote / 2}
           y={cote / 2}
@@ -313,7 +336,7 @@ function PionCarte(props: {
       <Etiquette
         x={(visee ?? coin).x + cote / 2}
         y={(visee ?? coin).y + cote + 2 / echelle}
-        texte={glisse ? `${nom} · ${metres} m${deplacementMax !== null ? ` / ${deplacementMax} m` : ""}` : nomAffiche}
+        texte={glisse ? texteGlisse : nomAffiche}
         echelle={echelle}
         couleur={(glisse && trop) || aTerre ? "#ff9a8f" : mort ? "#b0b0b0" : undefined}
       />
@@ -429,6 +452,24 @@ export function Carte(props: {
   const deplacementDuPion = (p: Pion) => {
     const fiche = p.joueurId !== null ? fiches?.find((f) => f.joueurId === p.joueurId) : undefined;
     return fiche ? deplacement(fiche) : null;
+  };
+
+  // Combat en cours dans cette scène : pion dont c'est le tour, et déplacement restant du round.
+  const combat = useEtat("combat");
+  const courante = combat ? carteCourante(combat) : null;
+  const combattantActif = courante ? combat?.combattants.find((x) => x.id === courante.combattantId) : undefined;
+  const pionActif = (p: Pion) =>
+    !!combattantActif &&
+    (combattantActif.type === "pj" ? p.joueurId === combattantActif.joueurId : p.id === combattantActif.pionId);
+  /** Seul le joueur qui déplace son propre pion voit (et consomme) son déplacement du round. */
+  const limiteRound = (p: Pion) => {
+    if (estMj || !combat || combat.phase !== "round" || p.joueurId !== moiId) return null;
+    const x = combat.combattants.find((y) => y.type === "pj" && y.joueurId === moiId);
+    const m = x ? combat.mouvements[x.id] : undefined;
+    const dep = deplacementDuPion(p);
+    const restant = deplacementRestant(m, dep);
+    const total = deplacementDuRound(m, dep);
+    return restant === null || total === null ? null : { restant, total };
   };
 
   // Les pions des personnages joueurs passent au-dessus des PNJ, le sien tout en haut.
@@ -574,6 +615,8 @@ export function Carte(props: {
                       echelle={echelle}
                       deplacable={outil === "deplacer" && (estMj || p.joueurId === moiId)}
                       deplacementMax={deplacementDuPion(p)}
+                      limiteRound={limiteRound(p)}
+                      actif={pionActif(p)}
                       surErreur={setErreur}
                     />
                   ))}

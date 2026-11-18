@@ -21,6 +21,7 @@ import {
 import { base, CHEMIN_BASE } from "./base.ts";
 import { brancherFiches, diffuserFiche, envoyerFiches } from "./fiches-socket.ts";
 import { ficheDuJoueur } from "./fiches.ts";
+import { brancherCombat, diffuserCombat, envoyerCombat } from "./combat.ts";
 import { brancherImages, brancherRoutesImages, envoyerImages } from "./images.ts";
 import { apresNouveauJoueur, brancherScenes, diffuserScenes, envoyerScenes } from "./scenes.ts";
 import { brancherJets, envoyerJournal, SALLE_JOUEURS, SALLE_MJ } from "./jets-socket.ts";
@@ -188,10 +189,12 @@ io.on("connection", (socket) => {
   envoyerFiches(socket, partie.id);
   envoyerImages(socket, partie.id);
   envoyerScenes(socket, partie.id);
+  envoyerCombat(socket, partie.id);
   brancherJets(io, socket, partie.id);
   brancherFiches(io, socket, partie.id);
   brancherImages(io, socket, partie.id);
   brancherScenes(io, socket, partie.id);
+  brancherCombat(io, socket, partie.id);
 
   socket.on("ping", (reponse) => {
     if (typeof reponse === "function") reponse(new Date().toISOString());
@@ -225,6 +228,7 @@ io.on("connection", (socket) => {
       diffuserPresents();
       io.emit("fiche:supprimee", id);
       diffuserScenes(io, partie.id);
+      diffuserCombat(io, partie.id);
       return { ok: true };
     }),
   );

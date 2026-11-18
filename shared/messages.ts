@@ -2,6 +2,7 @@
 // Ce fichier est partagé : le serveur et l'interface utilisent les mêmes définitions.
 
 import type { Case, EtatPion, Grille } from "./carte.ts";
+import type { Combat } from "./combat.ts";
 import type { CibleJetFiche, Fiche, ModificationFiche } from "./fiche.ts";
 import type { EntreeJournal, IdEtat } from "./jets.ts";
 import type { ImageBibliotheque, Scene, TypeScene } from "./scenes.ts";
@@ -79,6 +80,8 @@ export interface MessagesServeur {
   }) => void;
   /** Quelqu'un montre un endroit d'une scène (en pixels de l'image). */
   "carte:pointeur": (p: { sceneId: string; auteurId: number; auteur: string; x: number; y: number }) => void;
+  /** Combat en cours (null : pas de combat). Les joueurs reçoivent une version sans secrets. */
+  combat: (combat: Combat | null) => void;
   /** Le lien de ce navigateur vient d'être supprimé par le MJ. */
   exclu: () => void;
 }
@@ -167,6 +170,29 @@ export interface MessagesClient {
   /** Règle de mesure en cours dans une scène (null quand on la lâche). Pas de réponse : envoi fréquent. */
   "carte:regle": (d: { sceneId: string; mesure: { de: Case; a: Case } | null }) => void;
   "carte:pointeur": (point: { sceneId: string; x: number; y: number }) => void;
+  // --- Combat (MJ)
+  "mj:combat:commencer": (d: Record<string, never>, reponse: (r: Reponse) => void) => void;
+  "mj:combat:finir": (d: Record<string, never>, reponse: (r: Reponse) => void) => void;
+  "mj:combat:ajouterJoueurs": (d: Record<string, never>, reponse: (r: Reponse) => void) => void;
+  "mj:combat:ajouterPnj": (
+    d: { nom: string; nbCartes: number; psMax: number | null },
+    reponse: (r: Reponse) => void,
+  ) => void;
+  "mj:combat:ajouterPionsScene": (d: Record<string, never>, reponse: (r: Reponse) => void) => void;
+  "mj:combat:retirer": (d: { id: string }, reponse: (r: Reponse) => void) => void;
+  "mj:combat:modifier": (
+    d: { id: string; nbCartes?: number; surprise?: boolean; ps?: { actuels: number; max: number } | null },
+    reponse: (r: Reponse) => void,
+  ) => void;
+  /** Tirer l'initiative (premier round, ou round suivant). */
+  "mj:combat:tirer": (d: Record<string, never>, reponse: (r: Reponse) => void) => void;
+  "mj:combat:retourner": (d: { valeur: number; jouee: boolean }, reponse: (r: Reponse) => void) => void;
+  // --- Combat (joueur pour son personnage, ou MJ)
+  "combat:choisirCarte": (d: { combattantId: string; valeur: number }, reponse: (r: Reponse) => void) => void;
+  "combat:terminerTour": (d: Record<string, never>, reponse: (r: Reponse) => void) => void;
+  "combat:attendre": (d: { valeur: number }, reponse: (r: Reponse) => void) => void;
+  "combat:reaction": (d: { combattantId: string }, reponse: (r: Reponse) => void) => void;
+  "combat:course": (d: { combattantId: string; course: boolean }, reponse: (r: Reponse) => void) => void;
   "mj:revelerJet": (demande: { id: number }, reponse: (r: Reponse) => void) => void;
   "mj:viderJournal": (demande: Record<string, never>, reponse: (r: Reponse) => void) => void;
   /** Le joueur choisit (ou change) son nom. */
