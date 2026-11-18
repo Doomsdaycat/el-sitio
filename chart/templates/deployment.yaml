@@ -5,10 +5,15 @@ metadata:
   labels:
     {{- include "el-sitio.labels" . | nindent 4 }}
 spec:
-  # Un seul exemplaire (base SQLite), et l'ancien s'arrête avant que le nouveau démarre.
+  # Un seul exemplaire (base SQLite), et l'ancien s'arrête avant que le nouveau démarre :
+  # maxSurge 0 / maxUnavailable 1 revient à « Recreate » pour un seul exemplaire, sans entrer
+  # en conflit avec le réglage RollingUpdate du Deployment déjà installé chez l'hébergeur.
   replicas: 1
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
   selector:
     matchLabels:
       {{- include "el-sitio.selectorLabels" . | nindent 6 }}
