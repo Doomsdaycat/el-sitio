@@ -308,6 +308,24 @@ button.lien {
   margin-top: 1.25rem;
 }
 
+.actions-export,
+.actions-installation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.actions-export .erreur,
+.actions-installation .erreur {
+  flex-basis: 100%;
+}
+
+.installation {
+  margin-top: 1.25rem;
+  max-width: 44rem;
+}
+
 .avertissement-export {
   font-size: 0.9rem;
   margin-bottom: 0;

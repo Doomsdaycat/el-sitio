@@ -4,11 +4,15 @@
 import { mkdirSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { CHEMIN_BASE, DOSSIER_DONNEES } from "./chemins.ts";
+import { appliquerImportEnAttente } from "./restauration.ts";
 import { sauvegarder } from "./sauvegardes.ts";
 
 export { CHEMIN_BASE };
 
 mkdirSync(DOSSIER_DONNEES, { recursive: true });
+
+// Partie importée depuis le navigateur : mise en place avant d'ouvrir la base.
+appliquerImportEnAttente();
 
 export const base = new DatabaseSync(CHEMIN_BASE);
 base.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");

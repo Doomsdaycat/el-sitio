@@ -15,3 +15,5 @@ export const FICHIER_PID = join(DOSSIER_DONNEES, "serveur.pid");
 
 /** Nom de fichier d'image tel que le serveur les crée (identifiant aléatoire + extension). */
 export const NOM_FICHIER_IMAGE = /^[0-9a-f]{32}\.(jpg|png|webp|gif)$/;
+/** Export .zip déposé depuis le navigateur, appliqué au prochain démarrage du serveur. */
+export const FICHIER_IMPORT = join(DOSSIER_DONNEES, "import-en-attente.zip");

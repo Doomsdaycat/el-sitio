@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { jeton } from "./connexion.ts";
+import { BoutonImport } from "./Import.tsx";
 
 export function Export() {
   const [enCours, setEnCours] = useState(false);
@@ -39,11 +40,14 @@ export function Export() {
       <p className="discret">
         Le serveur sauvegarde la partie tout seul (au démarrage, puis toutes les 30 minutes). Pour en
         garder une copie ailleurs ou la déplacer sur un autre ordinateur, exporte-la : un seul fichier
-        .zip avec toute la partie et ses images.
+        .zip avec toute la partie et ses images. « Importer » remplace la partie par celle d'un export.
       </p>
-      <button type="button" onClick={exporter} disabled={enCours}>
-        {enCours ? "Préparation de l'export…" : "📦 Exporter la partie"}
-      </button>
+      <div className="actions-export">
+        <button type="button" onClick={exporter} disabled={enCours}>
+          {enCours ? "Préparation de l'export…" : "📦 Exporter la partie"}
+        </button>
+        <BoutonImport confirmer />
+      </div>
       <p className="discret avertissement-export">
         ⚠️ Ce fichier contient les liens d'invitation (le tien et ceux des joueurs) : garde-le pour toi.
       </p>

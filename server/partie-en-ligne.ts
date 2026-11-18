@@ -93,8 +93,9 @@ tunnel.on("exit", (code) => {
 });
 
 // 3. Le serveur démarre une fois l'adresse publique connue : ses liens l'utilisent.
+let premierLancement = true;
 function lancerServeur(adressePublique: string): void {
-  console.log(`Tunnel ouvert : ${adressePublique}`);
+  if (premierLancement) console.log(`Tunnel ouvert : ${adressePublique}`);
   serveur = spawn(
     process.execPath,
     ["--import", "tsx", "--disable-warning=ExperimentalWarning", "server/index.ts"],
@@ -103,11 +104,18 @@ function lancerServeur(adressePublique: string): void {
       env: { ...process.env, NODE_ENV: "production", BRUMELAND_ADRESSE: adressePublique },
     },
   );
+  const lancement = premierLancement;
+  premierLancement = false;
   serveur.on("exit", (code) => {
     if (arretEnCours) return;
+    // Après l'import d'une partie, le serveur demande à être relancé (code 75).
+    if (code === 75) {
+      lancerServeur(adressePublique);
+      return;
+    }
     toutArreter(code ?? 1);
   });
-  setTimeout(() => {
+  if (lancement) setTimeout(() => {
     if (arretEnCours) return;
     console.log(
       "Attention : l'adresse du tunnel change à chaque lancement.\n" +

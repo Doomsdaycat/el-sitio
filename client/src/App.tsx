@@ -5,6 +5,7 @@ import { ChoixNom } from "./ChoixNom.tsx";
 import { Centre } from "./Centre.tsx";
 import { Combat } from "./Combat.tsx";
 import { Export } from "./Export.tsx";
+import { Installation } from "./Import.tsx";
 import { Invitations } from "./Invitations.tsx";
 import { Journal } from "./Journal.tsx";
 import { PanneauJet } from "./PanneauJet.tsx";
@@ -95,6 +96,7 @@ export function App() {
           Pour rejoindre une partie, ouvre le lien d'invitation que t'a envoyé le Meneur de jeu.
         </p>
       )}
+      {etat === "sans-lien" && <Installation />}
 
       {identite && !sansAcces && identite.moi.role === "joueur" && identite.moi.nom === null && (
         <ChoixNom nomActuel={null} />

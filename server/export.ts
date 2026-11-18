@@ -1,16 +1,43 @@
-// Export de la partie (MJ seulement) : un seul fichier .zip avec une copie de la base
-// et toutes les images. Il se restaure avec « npm run restaurer -- fichier.zip ».
-// Il contient les liens d'invitation : le MJ doit le garder pour lui.
+// Export et import de la partie.
+// - Export (MJ seulement) : un seul fichier .zip avec une copie de la base et toutes les images.
+//   Il contient les liens d'invitation : le MJ doit le garder pour lui.
+// - Import : le MJ (ou, sur un serveur tout neuf, la première personne qui l'ouvre) dépose un
+//   export. Il est vérifié, mis en attente, et le serveur redémarre pour l'appliquer base fermée.
 
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Express } from "express";
+import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import { zipSync, type Zippable } from "fflate";
 import { base } from "./base.ts";
-import { DOSSIER_MEDIAS, NOM_FICHIER_IMAGE } from "./chemins.ts";
-import { participantParJeton } from "./partie.ts";
+import { DOSSIER_MEDIAS, FICHIER_IMPORT, NOM_FICHIER_IMAGE } from "./chemins.ts";
+import { lienInvitation } from "./liens.ts";
+import { jetonMj, noterVisite, participantParJeton } from "./partie.ts";
+import { ErreurRestauration, lireExport } from "./restauration.ts";
 import { copierBase, fichiersImages } from "./sauvegardes.ts";
+
+/** Taille maximale d'un export déposé (images comprises). */
+const IMPORT_TAILLE_MAX = 500 * 1024 * 1024;
+
+/**
+ * Serveur tout neuf : personne n'est encore venu (ni MJ ni joueur) et la bibliothèque est vide.
+ * La première personne qui ouvre l'adresse peut alors installer la partie. Sur un serveur en
+ * ligne, à faire avant d'ouvrir l'adresse au public.
+ */
+function installationOuverte(partieId: number): boolean {
+  const { n } = base.prepare("SELECT count(*) AS n FROM participant WHERE partie_id = ?").get(partieId) as { n: number };
+  const { v } = base
+    .prepare("SELECT count(*) AS v FROM participant WHERE partie_id = ? AND derniere_visite IS NOT NULL")
+    .get(partieId) as { v: number };
+  const { i } = base.prepare("SELECT count(*) AS i FROM image").get() as { i: number };
+  return n === 1 && v === 0 && i === 0;
+}
+
+function estMj(req: Request, partieId: number): boolean {
+  const jeton = req.get("x-brumeland-jeton");
+  const participant = jeton ? participantParJeton(jeton) : undefined;
+  return !!participant && participant.partieId === partieId && participant.role === "mj";
+}
 
 const LISEZMOI = `Export d'une partie Brumeland VTT.
 
@@ -27,9 +54,7 @@ const deux = (n: number) => String(n).padStart(2, "0");
 
 export function brancherRoutesExport(app: Express, partieId: number): void {
   app.get("/api/export", (req, res) => {
-    const jeton = req.get("x-brumeland-jeton");
-    const participant = jeton ? participantParJeton(jeton) : undefined;
-    if (!participant || participant.partieId !== partieId || participant.role !== "mj") {
+    if (!estMj(req, partieId)) {
       res.status(403).json({ ok: false, erreur: "Seul le Meneur de jeu peut exporter la partie." });
       return;
     }
@@ -61,5 +86,80 @@ export function brancherRoutesExport(app: Express, partieId: number): void {
     } finally {
       rmSync(dossier, { recursive: true, force: true });
     }
+  });
+}
+
+/**
+ * @param redemarrer arrête proprement le serveur pour qu'il redémarre et applique l'import
+ *   (relancé par « npm run partie », « npm start » ou l'hébergeur).
+ */
+export function brancherRoutesImport(app: Express, partieId: number, redemarrer: () => void): void {
+  let importEnCours = false;
+
+  app.get("/api/installation", (_req, res) => {
+    res.set("Cache-Control", "no-store");
+    res.json({ ouverte: installationOuverte(partieId) });
+  });
+
+  // Serveur neuf, sans import : on garde la partie vide et on donne le lien MJ.
+  app.post("/api/installation/nouvelle", (_req, res) => {
+    if (!installationOuverte(partieId)) {
+      res.status(403).json({ ok: false, erreur: "Cette partie est déjà installée." });
+      return;
+    }
+    const jeton = jetonMj(partieId);
+    const mj = participantParJeton(jeton);
+    if (mj) noterVisite(mj.id); // l'installation se ferme
+    res.json({ ok: true, lien: lienInvitation(jeton) });
+  });
+
+  app.post(
+    "/api/import",
+    (req: Request, res: Response, suite: NextFunction) => {
+      if (!estMj(req, partieId) && !installationOuverte(partieId)) {
+        res.status(403).json({ ok: false, erreur: "Seul le Meneur de jeu peut importer une partie." });
+        return;
+      }
+      if (importEnCours) {
+        res.status(409).json({ ok: false, erreur: "Un import est déjà en cours." });
+        return;
+      }
+      suite();
+    },
+    express.raw({ type: () => true, limit: IMPORT_TAILLE_MAX }),
+    (req, res) => {
+      const octets = req.body;
+      if (!Buffer.isBuffer(octets) || octets.length === 0) {
+        res.status(400).json({ ok: false, erreur: "Fichier vide." });
+        return;
+      }
+      try {
+        const contenu = lireExport(octets);
+        writeFileSync(FICHIER_IMPORT, octets);
+        importEnCours = true;
+        res.json({ ok: true, nomPartie: contenu.nomPartie, lien: lienInvitation(contenu.jetonMj) });
+        // Le temps que la réponse parte, puis redémarrage (la partie importée remplace l'actuelle).
+        setTimeout(redemarrer, 500);
+      } catch (erreur) {
+        if (erreur instanceof ErreurRestauration) {
+          res.status(400).json({ ok: false, erreur: erreur.message });
+        } else {
+          console.error(erreur);
+          res.status(500).json({ ok: false, erreur: "L'import a échoué." });
+        }
+      }
+    },
+  );
+
+  app.use("/api/import", (erreur: { type?: string; status?: number }, _req: Request, res: Response, suite: NextFunction) => {
+    if (erreur?.type === "entity.too.large") {
+      res.status(413).json({ ok: false, erreur: `Fichier trop lourd : ${IMPORT_TAILLE_MAX / 1024 / 1024} Mo au plus.` });
+      return;
+    }
+    if (erreur) {
+      res.status(erreur.status ?? 400).json({ ok: false, erreur: "L'envoi du fichier a échoué." });
+      return;
+    }
+    suite();
   });
 }

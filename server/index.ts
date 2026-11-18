@@ -20,7 +20,7 @@ import {
 } from "../shared/messages.ts";
 import { base, CHEMIN_BASE } from "./base.ts";
 import { FICHIER_PID } from "./chemins.ts";
-import { brancherRoutesExport } from "./export.ts";
+import { brancherRoutesExport, brancherRoutesImport } from "./export.ts";
 import { demarrerSauvegardesAuto } from "./sauvegardes.ts";
 import { brancherFiches, diffuserFiche, envoyerFiches } from "./fiches-socket.ts";
 import { ficheDuJoueur } from "./fiches.ts";
@@ -45,7 +45,7 @@ import {
 } from "./partie.ts";
 
 const PORT = Number(process.env.PORT ?? 3000);
-const VERSION = "0.1.0";
+const VERSION = (JSON.parse(readFileSync(resolve(import.meta.dirname, "../package.json"), "utf8")) as { version: string }).version;
 
 /** Salle Socket.IO propre à un participant (il peut avoir plusieurs onglets ouverts). */
 const salleParticipant = (id: number) => `participant:${id}`;
@@ -72,6 +72,8 @@ app.get("/api/sante", (_req, res) => {
 brancherRoutesImages(app, io, partie.id);
 // Export de la partie en .zip (MJ seulement).
 brancherRoutesExport(app, partie.id);
+// Import d'un export .zip : le serveur redémarre pour l'appliquer (code de sortie 75).
+brancherRoutesImport(app, partie.id, () => arreter(CODE_REDEMARRAGE));
 
 // En mode partie, le serveur sert aussi l'interface compilée (un seul port à ouvrir).
 const DOSSIER_INTERFACE = resolve(import.meta.dirname, "../dist/client");
@@ -301,8 +303,11 @@ const sauvegardeFinale = demarrerSauvegardesAuto(base);
 
 // Arrêt propre (Ctrl + C) : dernière sauvegarde, puis la base est refermée, ce qui range
 // toutes les dernières écritures dans data/brumeland.db.
+/** Code de sortie qui demande à être relancé (après un import de partie). */
+const CODE_REDEMARRAGE = 75;
+
 let arretEnCours = false;
-function arreter(): void {
+function arreter(code = 0): void {
   if (arretEnCours) return;
   arretEnCours = true;
   io.close();
@@ -317,10 +322,11 @@ function arreter(): void {
   } catch (erreur) {
     console.error(erreur);
   }
-  process.exit(0);
+  if (code === CODE_REDEMARRAGE) console.log("\nPartie importée : redémarrage du serveur…\n");
+  process.exit(code);
 }
-process.on("SIGINT", arreter);
-process.on("SIGTERM", arreter);
+process.on("SIGINT", () => arreter());
+process.on("SIGTERM", () => arreter());
 
 serveurHttp.on("error", (erreur: NodeJS.ErrnoException) => {
   if (erreur.code === "EADDRINUSE") {
