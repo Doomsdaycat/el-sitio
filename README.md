@@ -69,6 +69,9 @@ lancement. Si un lien ne s'ouvre pas tout de suite, attends une minute : le tunn
     au bon moment, ou l'ajouter directement caché.
   - Le MJ range ses scènes à sa guise dans « Mes scènes » : poignée ⋮⋮ à glisser, ou flèches ↑ ↓.
   - Zoom : `Ctrl` + molette (ou molette seule en plein écran), double-clic, boutons − et +.
+  - **🥾 Annuler déplacement** (ou `Ctrl + Z`, souris sur la carte) : annule son dernier déplacement
+    de pion, puis le précédent… En combat, la trace raccourcit et les mètres sont rendus. Refusé si
+    le pion a été déplacé depuis par quelqu'un d'autre, ou si le déplacement date d'un round passé.
 - **Combat** : panneau en haut à gauche. Le MJ commence un combat (tous les personnages joueurs
   y sont), ajoute les PNJ de la scène, des groupes de PNJ (une carte pour le groupe) ou des
   monstres à plusieurs cartes, et peut noter leurs PS (visibles de lui seul). Le serveur tire les

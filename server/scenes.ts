@@ -23,7 +23,7 @@ import type { MessagesClient, MessagesServeur, Reponse } from "../shared/message
 import { SCENE_NOM_MAX, vuePourJoueurs, type Scene, type TypeScene } from "../shared/scenes.ts";
 import { base } from "./base.ts";
 import { estSonTour } from "../shared/combat.ts";
-import { diffuserCombat, lireCombat, noterDeplacement } from "./combat.ts";
+import { annulerDansCombat, diffuserCombat, lireCombat, noterDeplacement } from "./combat.ts";
 import { diffuserImages } from "./images.ts";
 import type { Participant } from "./partie.ts";
 
@@ -35,6 +35,26 @@ type SocketBrumeland = Socket<MessagesClient, MessagesServeur, Record<string, ne
 
 const SALLE_MJ = "mj";
 const SALLE_JOUEURS = "joueurs";
+
+// ---------------------------------------------------------------------------
+// Mémoire des déplacements, pour pouvoir les annuler (le temps de la séance)
+
+interface DeplacementMemorise {
+  pionId: string;
+  de: Case;
+  a: Case;
+  /** Round de combat pendant lequel il a eu lieu (null : hors combat). */
+  round: number | null;
+}
+
+const MEMOIRE_MAX = 20;
+/** Par participant : ses derniers déplacements, du plus ancien au plus récent. */
+const memoireDeplacements = new Map<number, DeplacementMemorise[]>();
+
+function memoriser(participantId: number, d: DeplacementMemorise): void {
+  const liste = [...(memoireDeplacements.get(participantId) ?? []), d].slice(-MEMOIRE_MAX);
+  memoireDeplacements.set(participantId, liste);
+}
 
 // ---------------------------------------------------------------------------
 // Lecture
@@ -462,16 +482,55 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
       // En combat (scène montrée) : le chemin du pion est tracé. Les mètres comptent pour le
       // round du joueur s'il a bougé son propre pion, ou si le MJ le bouge pendant son tour (il
       // joue à sa place) ; pas les corrections du MJ pendant le tour d'un autre (repoussement…).
+      let round: number | null = null;
       if (sceneActive(partieId)?.id === pion.sceneId) {
         const parLeJoueur = !estMj() && pion.joueurId === moi().id;
         const mjPourLeJoueur = estMj() && pion.joueurId !== null && estSonTour(lireCombat(partieId), pion.joueurId);
-        noterDeplacement(io, partieId, {
+        round = noterDeplacement(io, partieId, {
           pionId: String(d.id),
           de: { col: pion.col, lig: pion.lig },
           a: position,
           joueurQuiBouge: parLeJoueur || mjPourLeJoueur ? pion.joueurId : null,
         });
       }
+      if (pion.col !== position.col || pion.lig !== position.lig) {
+        memoriser(moi().id, { pionId: String(d.id), de: { col: pion.col, lig: pion.lig }, a: position, round });
+      }
+      return { ok: true };
+    }),
+  );
+
+  // Annuler son dernier déplacement (puis le précédent…) : le pion revient à sa case précédente ;
+  // en combat, la trace raccourcit et les mètres sont rendus.
+  socket.on(
+    "carte:annulerDeplacement",
+    proteger(() => {
+      const liste = memoireDeplacements.get(moi().id) ?? [];
+      const dernier = liste.at(-1);
+      if (!dernier) return { ok: false, erreur: "Aucun déplacement à annuler." };
+      // Quoi qu'il arrive, ce déplacement sort de la mémoire (pour ne pas bloquer les suivants).
+      memoireDeplacements.set(moi().id, liste.slice(0, -1));
+      const pion = base
+        .prepare("SELECT scene_id AS sceneId, joueur_id AS joueurId, col, lig FROM pion WHERE partie_id = ? AND id = ?")
+        .get(partieId, dernier.pionId) as { sceneId: string; joueurId: number | null; col: number; lig: number } | undefined;
+      if (!pion) return { ok: false, erreur: "Ce pion n'existe plus." };
+      if (pion.col !== dernier.a.col || pion.lig !== dernier.a.lig) {
+        return { ok: false, erreur: "Ce pion a été déplacé depuis : annulation impossible." };
+      }
+      if (!estMj() && sceneActive(partieId)?.id !== pion.sceneId) {
+        return { ok: false, erreur: "Cette scène n'est plus montrée." };
+      }
+      if (dernier.round !== null) {
+        const refus = annulerDansCombat(io, partieId, {
+          pionId: dernier.pionId,
+          a: dernier.a,
+          round: dernier.round,
+          joueurId: pion.joueurId,
+        });
+        if (refus) return { ok: false, erreur: refus };
+      }
+      base.prepare("UPDATE pion SET col = ?, lig = ? WHERE id = ?").run(dernier.de.col, dernier.de.lig, dernier.pionId);
+      diffuserScenes(io, partieId);
       return { ok: true };
     }),
   );

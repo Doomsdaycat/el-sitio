@@ -167,6 +167,8 @@ export interface MessagesClient {
   ) => void;
   "mj:retirerPion": (demande: { id: string }, reponse: (r: Reponse) => void) => void;
   "carte:deplacerPion": (demande: { id: string; col: number; lig: number }, reponse: (r: Reponse) => void) => void;
+  /** Annuler son dernier déplacement de pion (puis le précédent…). */
+  "carte:annulerDeplacement": (d: Record<string, never>, reponse: (r: Reponse) => void) => void;
   /** Règle de mesure en cours dans une scène (null quand on la lâche). Pas de réponse : envoi fréquent. */
   "carte:regle": (d: { sceneId: string; mesure: { de: Case; a: Case } | null }) => void;
   "carte:pointeur": (point: { sceneId: string; x: number; y: number }) => void;

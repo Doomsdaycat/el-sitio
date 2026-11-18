@@ -98,17 +98,52 @@ export function noterDeplacement(
   io: Io,
   partieId: number,
   d: { pionId: string; de: Case; a: Case; joueurQuiBouge: number | null },
-): void {
+): number | null {
   let c = lireCombat(partieId);
-  if (!c || c.phase !== "round") return;
+  if (!c || c.phase !== "round") return null;
   const metres = distanceMetres(d.de, d.a);
-  if (metres === 0) return;
+  if (metres === 0) return null;
   c = ajouterATrace(c, d.pionId, d.de, d.a, d.joueurQuiBouge !== null);
   const x = d.joueurQuiBouge === null ? undefined : c.combattants.find((y) => y.type === "pj" && y.joueurId === d.joueurQuiBouge);
   const m = x && c.mouvements[x.id];
   if (x && m) c = { ...c, mouvements: { ...c.mouvements, [x.id]: { ...m, parcouru: m.parcouru + metres } } };
   ecrireCombat(partieId, c);
   diffuserCombat(io, partieId);
+  return c.round;
+}
+
+/**
+ * Annulation d'un déplacement fait pendant un round : la dernière étape du chemin est retirée,
+ * et les mètres sont rendus au joueur s'ils avaient compté. Renvoie un message d'erreur, ou null.
+ */
+export function annulerDansCombat(
+  io: Io,
+  partieId: number,
+  d: { pionId: string; a: Case; round: number; joueurId: number | null },
+): string | null {
+  const c = lireCombat(partieId);
+  const trace = c?.traces[d.pionId];
+  const derniere = trace?.at(-1);
+  if (!c || c.phase !== "round" || c.round !== d.round || !trace || !derniere) {
+    return "Ce déplacement date d'un round précédent : il ne peut plus être annulé.";
+  }
+  if (derniere.col !== d.a.col || derniere.lig !== d.a.lig) return "Ce pion a été déplacé depuis.";
+  const raccourcie = trace.slice(0, -1);
+  const traces = { ...c.traces };
+  if (raccourcie.length > 1) traces[d.pionId] = raccourcie;
+  else delete traces[d.pionId];
+  let mouvements = c.mouvements;
+  if (derniere.parJoueur && d.joueurId !== null) {
+    const x = c.combattants.find((y) => y.type === "pj" && y.joueurId === d.joueurId);
+    const m = x && c.mouvements[x.id];
+    if (x && m) {
+      const rendu = distanceMetres(raccourcie.at(-1)!, derniere);
+      mouvements = { ...mouvements, [x.id]: { ...m, parcouru: Math.max(0, m.parcouru - rendu) } };
+    }
+  }
+  ecrireCombat(partieId, { ...c, traces, mouvements });
+  diffuserCombat(io, partieId);
+  return null;
 }
 
 // ---------------------------------------------------------------------------

@@ -441,6 +441,26 @@ export function Carte(props: {
   const [erreur, setErreur] = useState<string | null>(null);
   const [pleinEcran, setPleinEcran] = useState(false);
   const [astuce, setAstuce] = useState(false);
+  const survolCarte = useRef(false);
+
+  /** Annule mon dernier déplacement de pion (le serveur sait lequel). */
+  function annulerDeplacement() {
+    socket.emit("carte:annulerDeplacement", {}, (r: Reponse) => setErreur(r.ok ? null : r.erreur));
+  }
+
+  // Ctrl + Z quand la souris est sur la carte (et pas dans un champ de saisie) : annuler.
+  useEffect(() => {
+    const surTouche = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "z" || e.shiftKey) return;
+      const cible = e.target as HTMLElement | null;
+      if (cible && (cible.tagName === "INPUT" || cible.tagName === "TEXTAREA" || cible.isContentEditable)) return;
+      if (!survolCarte.current) return;
+      e.preventDefault();
+      annulerDeplacement();
+    };
+    window.addEventListener("keydown", surTouche);
+    return () => window.removeEventListener("keydown", surTouche);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const minuterieAstuce = useRef<number | undefined>(undefined);
   const dernierEnvoiRegle = useRef(0);
 
@@ -599,6 +619,14 @@ export function Carte(props: {
               </button>
             ))}
           </span>
+          <button
+            type="button"
+            className="secondaire"
+            title="Annule ton dernier déplacement de pion (raccourci : Ctrl + Z, souris sur la carte)"
+            onClick={annulerDeplacement}
+          >
+            🥾 Annuler déplacement
+          </button>
           <span className="zoom">
             <button type="button" className="secondaire" aria-label="Dézoomer" onClick={() => zoomerVers(1 / 1.5, l / 2, h / 2)}>
               −
@@ -623,7 +651,13 @@ export function Carte(props: {
           </button>
         </figcaption>
 
-        <div className="carte-zone" ref={setZone} style={{ cursor: curseur }}>
+        <div
+          className="carte-zone"
+          ref={setZone}
+          style={{ cursor: curseur }}
+          onMouseEnter={() => (survolCarte.current = true)}
+          onMouseLeave={() => (survolCarte.current = false)}
+        >
           {l > 0 && h > 0 && (
             <Stage
               width={l}
