@@ -236,8 +236,9 @@ function Eclat(props: { x: number; y: number; rayon: number }) {
   const etincelles = useRef<(Konva.Circle | null)[]>([]);
   const NB = 12;
   useEffect(() => {
-    anneau.current?.to({ radius: rayon * 3, opacity: 0, strokeWidth: 1, duration: 1.2, easing: Konva.Easings.EaseOut });
-    anneau2.current?.to({ radius: rayon * 2.2, opacity: 0, duration: 0.9, easing: Konva.Easings.EaseOut });
+    // Toute l'animation tient en 1 seconde.
+    anneau.current?.to({ radius: rayon * 3, opacity: 0, strokeWidth: 1, duration: 1, easing: Konva.Easings.EaseOut });
+    anneau2.current?.to({ radius: rayon * 2.2, opacity: 0, duration: 0.75, easing: Konva.Easings.EaseOut });
     etincelles.current.forEach((e, i) => {
       if (!e) return;
       const angle = (i / NB) * Math.PI * 2;
@@ -247,7 +248,7 @@ function Eclat(props: { x: number; y: number; rayon: number }) {
         y: y + Math.sin(angle) * portee,
         opacity: 0,
         radius: rayon * 0.04,
-        duration: 1.1 + (i % 4) * 0.1,
+        duration: 0.8 + (i % 4) * 0.06,
         easing: Konva.Easings.EaseOut,
       });
     });
@@ -319,7 +320,7 @@ function PionCarte(props: {
     const g = contenu.current;
     if (!revele || !g) return;
     g.scale({ x: 0.15, y: 0.15 });
-    g.to({ scaleX: 1, scaleY: 1, duration: 0.7, easing: Konva.Easings.BackEaseOut });
+    g.to({ scaleX: 1, scaleY: 1, duration: 0.6, easing: Konva.Easings.BackEaseOut });
   }, [revele]);
   const [glisse, setGlisse] = useState<Case | null>(null);
   const cote = pion.taille * grille.taille;

@@ -100,7 +100,7 @@ let cleRevelation = 1;
 socket.on("carte:revelation", ({ sceneId, pionId }) => {
   const cle = cleRevelation++;
   modifier({ revelations: [...etat.revelations, { cle, sceneId, pionId }] });
-  window.setTimeout(() => modifier({ revelations: etat.revelations.filter((r) => r.cle !== cle) }), 2000);
+  window.setTimeout(() => modifier({ revelations: etat.revelations.filter((r) => r.cle !== cle) }), 1200);
 });
 socket.on("images", (images) => modifier({ images }));
 socket.on("scenes", (scenes) => {
