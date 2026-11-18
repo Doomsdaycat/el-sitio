@@ -1113,11 +1113,12 @@ textarea {
   font-size: 0.85rem;
 }
 
-/* Rappel « Ctrl + molette pour zoomer », au centre de l'image, une seconde. */
+/* Rappel « Ctrl + molette pour zoomer », en haut de l'image (centré en largeur), une seconde. */
 .astuce-zoom {
   position: absolute;
-  inset: 50% auto auto 50%;
-  transform: translate(-50%, -50%);
+  top: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
   padding: 0.6rem 1rem;
   border-radius: 8px;
   color: rgba(255, 255, 255, 0.9);
