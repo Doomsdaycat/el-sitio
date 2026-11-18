@@ -1,6 +1,7 @@
 // Messages échangés entre le serveur et l'interface.
 // Ce fichier est partagé : le serveur et l'interface utilisent les mêmes définitions.
 
+import type { TraitBrouillard } from "./brouillard.ts";
 import type { Case, EtatPion, Grille } from "./carte.ts";
 import type { Combat } from "./combat.ts";
 import type { CibleJetFiche, Fiche, ModificationFiche } from "./fiche.ts";
@@ -176,6 +177,8 @@ export interface MessagesClient {
     reponse: (r: Reponse) => void,
   ) => void;
   "mj:brouillard:toutCacher": (d: { sceneId: string }, reponse: (r: Reponse) => void) => void;
+  /** Illustration : coups de pinceau rond (en pixels de l'image). */
+  "mj:brouillard:peindre": (d: { sceneId: string; traits: TraitBrouillard[] }, reponse: (r: Reponse) => void) => void;
   /** Annuler son dernier déplacement de pion (puis le précédent…). */
   "carte:annulerDeplacement": (d: Record<string, never>, reponse: (r: Reponse) => void) => void;
   /** Règle de mesure en cours dans une scène (null quand on la lâche). Pas de réponse : envoi fréquent. */

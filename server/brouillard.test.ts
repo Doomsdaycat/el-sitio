@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { casesDuPion, casesDuRectangle, modifierBrouillard, visibleDansBrouillard } from "../shared/brouillard.ts";
+import { ajouterTraits, casesDuPion, casesDuRectangle, modifierBrouillard, visibleDansBrouillard } from "../shared/brouillard.ts";
 
 describe("Brouillard de guerre", () => {
   it("rectangle tracé dans n'importe quel sens", () => {
@@ -19,6 +19,13 @@ describe("Brouillard de guerre", () => {
 
   it("un grand pion occupe toutes ses cases", () => {
     assert.equal(casesDuPion({ col: 2, lig: 2, taille: 3 }).length, 9);
+  });
+
+  it("illustration : les coups de pinceau s'ajoutent ; « tout » repart de zéro", () => {
+    const a = { x: 10, y: 10, r: 5, reveler: true };
+    const b = { x: 20, y: 20, r: 5, reveler: false };
+    assert.deepEqual(ajouterTraits([a], [b]), [a, b]);
+    assert.deepEqual(ajouterTraits([a, b], [{ tout: true, reveler: true }, a]), [{ tout: true, reveler: true }, a]);
   });
 
   it("pion visible s'il n'y a pas de brouillard, ou si une de ses cases est révélée", () => {

@@ -1,16 +1,41 @@
-// Brouillard de guerre : zones d'une scène immersive que le MJ révèle à la main, case par case.
+// Brouillard de guerre : zones d'une scène que le MJ révèle à la main.
+// - Scène immersive : case par case, sur la grille.
+// - Illustration (carte de ville, de région…) : au pinceau rond, façon jeu de stratégie.
 // Partagé entre le serveur (qui enregistre et filtre ce que voient les joueurs) et l'interface.
 
 import type { Case, Pion } from "./carte.ts";
 
+/**
+ * Coup de pinceau sur une illustration, en pixels de l'image : un disque révélé ou recouvert.
+ * `tout` : tout révéler (ou tout recouvrir) d'un coup.
+ */
+export type TraitBrouillard = { x: number; y: number; r: number; reveler: boolean } | { tout: true; reveler: boolean };
+
 export interface Brouillard {
   /** Brouillard activé sur cette scène. */
   actif: boolean;
-  /** Cases révélées, sous la forme « colonne,ligne ». */
+  /** Scène immersive : cases révélées, sous la forme « colonne,ligne ». */
   reveles: string[];
+  /** Illustration : coups de pinceau, dans l'ordre (le dernier l'emporte). */
+  traits: TraitBrouillard[];
 }
 
-export const BROUILLARD_VIDE: Brouillard = { actif: false, reveles: [] };
+export const BROUILLARD_VIDE: Brouillard = { actif: false, reveles: [], traits: [] };
+
+/** Nombre maximal de coups de pinceau envoyés en une fois, et gardés par illustration. */
+export const TRAITS_PAR_ENVOI_MAX = 2_000;
+export const TRAITS_MAX = 30_000;
+
+/** Taille du pinceau rond : en proportion du plus grand côté de l'image. */
+export const PINCEAU_MIN = 0.01;
+export const PINCEAU_MAX = 0.2;
+
+/** Ajoute des coups de pinceau ; « tout » efface l'historique (plus rien d'avant ne compte). */
+export function ajouterTraits(traits: TraitBrouillard[], nouveaux: TraitBrouillard[]): TraitBrouillard[] {
+  let resultat = [...traits];
+  for (const t of nouveaux) resultat = "tout" in t ? [t] : [...resultat, t];
+  return resultat;
+}
 
 /** Nombre maximal de cases modifiées en une fois, et de cases révélées par scène. */
 export const CASES_PAR_ENVOI_MAX = 10_000;
@@ -46,7 +71,10 @@ export function modifierBrouillard(reveles: string[], cases: Case[], reveler: bo
  * Un pion est visible des joueurs s'il n'y a pas de brouillard, ou si au moins une de ses cases
  * est révélée. (Les pions des personnages joueurs restent toujours visibles : voir le serveur.)
  */
-export function visibleDansBrouillard(p: Pick<Pion, "col" | "lig" | "taille">, b: Brouillard | undefined): boolean {
+export function visibleDansBrouillard(
+  p: Pick<Pion, "col" | "lig" | "taille">,
+  b: Pick<Brouillard, "actif" | "reveles"> | undefined,
+): boolean {
   if (!b?.actif) return true;
   const reveles = new Set(b.reveles);
   return casesDuPion(p).some((c) => reveles.has(cleCase(c)));

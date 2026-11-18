@@ -23,10 +23,10 @@ const LIBELLES: Record<EtatConnexion, string> = {
   deconnecte: "serveur injoignable, nouvelle tentative…",
   "lien-inconnu": "ce lien n'est pas reconnu",
   "sans-lien": "aucun lien d'invitation",
-  exclu: "ce lien vient d'être supprimé par le meneur de jeu",
+  exclu: "ce lien vient d'être supprimé par le Meneur de jeu",
 };
 
-const ROLES = { mj: "meneur de jeu", joueur: "joueur" } as const;
+const ROLES = { mj: "Meneur de jeu", joueur: "joueur" } as const;
 
 export function App() {
   const [etat, setEtat] = useState<EtatConnexion>(() => {
@@ -91,7 +91,7 @@ export function App() {
 
       {sansAcces && (
         <p className="explication">
-          Pour rejoindre une partie, ouvre le lien d'invitation que t'a envoyé le meneur de jeu.
+          Pour rejoindre une partie, ouvre le lien d'invitation que t'a envoyé le Meneur de jeu.
         </p>
       )}
 

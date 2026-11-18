@@ -68,6 +68,8 @@ lancement. Si un lien ne s'ouvre pas tout de suite, attends une minute : le tunn
     **à terre** (contour rouge). Il peut **cacher** un PNJ (jamais envoyé aux joueurs) et le révéler
     au bon moment, ou l'ajouter directement caché.
   - Le MJ range ses scènes à sa guise dans « Mes scènes » : poignée ⋮⋮ à glisser, ou flèches ↑ ↓.
+  - **Brouillard sur une illustration** (carte de ville, de région) : le MJ dévoile la carte au
+    **pinceau rond** aux bords doux (taille réglable), en mode Révéler ou Recouvrir, pour l'exploration.
   - **Brouillard de guerre** (scène immersive) : le MJ l'active dans « Préparer la scène ». Les joueurs
     ne voient que les cases révélées ; le MJ voit la carte à travers un voile. Outil **Brouillard** :
     **Révéler** ou **Recouvrir**, par **zone** (rectangle) ou au **pinceau** ; **Tout révéler**,

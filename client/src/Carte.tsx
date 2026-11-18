@@ -742,78 +742,90 @@ export function Carte(props: {
   return (
     <div className="carte-combat">
       <figure className={pleinEcran ? "carte-cadre plein" : "carte-cadre"} ref={cadre}>
-        <figcaption className="carte-outils">
-          <span className="scene-titre">{scene.nom}</span>
-          {props.bandeau}
-          <span className="groupe-outils" role="group" aria-label="Outil">
-            {(
-              [
-                ["deplacer", "Déplacer", "Glisser la carte ou un pion"],
-                ["regle", "Règle", "Mesurer une distance (tout le monde la voit)"],
-                ["pointeur", "Montrer", "Cliquer pour montrer un endroit à tous"],
-                ...(estMj && scene.brouillard.actif
-                  ? ([["brouillard", "Brouillard", "Révéler ou recouvrir des zones de la carte"]] as const)
-                  : []),
-              ] as const
-            ).map(([id, nom, aide]) => (
-              <button
-                key={id}
-                type="button"
-                title={aide}
-                className={outil === id ? "outil actif" : "outil secondaire"}
-                onClick={() => setOutil(id)}
-              >
-                {nom}
+        <div className="barres-scene">
+          {/* Ligne 1 : la scène (nom, la montrer ou non) et le plein écran. */}
+          <div className="barre barre-scene">
+            <span className="scene-titre">{scene.nom}</span>
+            <span className="actions-scene">{props.bandeau}</span>
+            <button
+              type="button"
+              className="secondaire"
+              onClick={() => {
+                if (document.fullscreenElement) void document.exitFullscreen();
+                else void cadre.current?.requestFullscreen();
+              }}
+            >
+              {pleinEcran ? "Quitter le plein écran" : "Plein écran"}
+            </button>
+          </div>
+          {/* Ligne 2 : les outils, l'annulation et le zoom. */}
+          <div className="barre barre-outils">
+            <span className="groupe-outils" role="group" aria-label="Outil">
+              {(
+                [
+                  ["deplacer", "Déplacer", "Glisser la carte ou un pion"],
+                  ["regle", "📏 Règle", "Mesurer une distance (tout le monde la voit)"],
+                  ["pointeur", "👉 Pointer du doigt", "Cliquer pour montrer un endroit à tous"],
+                  ...(estMj && scene.brouillard.actif
+                    ? ([["brouillard", "Brouillard", "Révéler ou recouvrir des zones de la carte"]] as const)
+                    : []),
+                ] as const
+              ).map(([id, nom, aide]) => (
+                <button
+                  key={id}
+                  type="button"
+                  title={aide}
+                  className={outil === id ? "outil actif" : "outil secondaire"}
+                  onClick={() => setOutil(id)}
+                >
+                  {nom}
+                </button>
+              ))}
+            </span>
+            <button
+              type="button"
+              className="secondaire"
+              title="Annule ton dernier déplacement de pion (raccourci : Ctrl + Z, souris sur la carte)"
+              onClick={annulerDeplacement}
+            >
+              🥾 Annuler déplacement
+            </button>
+            <span className="zoom">
+              <button type="button" className="secondaire" aria-label="Dézoomer" onClick={() => zoomerVers(1 / 1.5, l / 2, h / 2)}>
+                −
               </button>
-            ))}
-          </span>
-          {outil === "brouillard" && (
-            <span className="groupe-outils options-brouillard" role="group" aria-label="Brouillard">
-              <button type="button" className={brouillardReveler ? "outil actif" : "outil secondaire"} onClick={() => setBrouillardReveler(true)}>
-                Révéler
+              <span className="zoom-valeur">{Math.round(vue.zoom * 100)} %</span>
+              <button type="button" className="secondaire" aria-label="Zoomer" onClick={() => zoomerVers(1.5, l / 2, h / 2)}>
+                +
               </button>
-              <button type="button" className={!brouillardReveler ? "outil actif" : "outil secondaire"} onClick={() => setBrouillardReveler(false)}>
-                Recouvrir
-              </button>
-              <button type="button" className={!brouillardPinceau ? "outil actif" : "outil secondaire"} title="Tracer un rectangle" onClick={() => setBrouillardPinceau(false)}>
-                ▭ Zone
-              </button>
-              <button type="button" className={brouillardPinceau ? "outil actif" : "outil secondaire"} title="Peindre case par case" onClick={() => setBrouillardPinceau(true)}>
-                🖌 Pinceau
+              <button type="button" className="secondaire" onClick={ajuster}>
+                Ajuster
               </button>
             </span>
+          </div>
+          {/* Ligne 3 : réglages de l'outil Brouillard. */}
+          {outil === "brouillard" && (
+            <div className="barre barre-options">
+              <span className="nom-options">Brouillard :</span>
+              <span className="groupe-outils" role="group" aria-label="Révéler ou recouvrir">
+                <button type="button" className={brouillardReveler ? "outil actif" : "outil secondaire"} onClick={() => setBrouillardReveler(true)}>
+                  Révéler
+                </button>
+                <button type="button" className={!brouillardReveler ? "outil actif" : "outil secondaire"} onClick={() => setBrouillardReveler(false)}>
+                  Recouvrir
+                </button>
+              </span>
+              <span className="groupe-outils" role="group" aria-label="Forme">
+                <button type="button" className={!brouillardPinceau ? "outil actif" : "outil secondaire"} title="Tracer un rectangle" onClick={() => setBrouillardPinceau(false)}>
+                  ▭ Zone
+                </button>
+                <button type="button" className={brouillardPinceau ? "outil actif" : "outil secondaire"} title="Peindre case par case" onClick={() => setBrouillardPinceau(true)}>
+                  🖌 Case par case
+                </button>
+              </span>
+            </div>
           )}
-          <button
-            type="button"
-            className="secondaire"
-            title="Annule ton dernier déplacement de pion (raccourci : Ctrl + Z, souris sur la carte)"
-            onClick={annulerDeplacement}
-          >
-            🥾 Annuler déplacement
-          </button>
-          <span className="zoom">
-            <button type="button" className="secondaire" aria-label="Dézoomer" onClick={() => zoomerVers(1 / 1.5, l / 2, h / 2)}>
-              −
-            </button>
-            <span className="zoom-valeur">{Math.round(vue.zoom * 100)} %</span>
-            <button type="button" className="secondaire" aria-label="Zoomer" onClick={() => zoomerVers(1.5, l / 2, h / 2)}>
-              +
-            </button>
-            <button type="button" className="secondaire" onClick={ajuster}>
-              Ajuster
-            </button>
-          </span>
-          <button
-            type="button"
-            className="secondaire"
-            onClick={() => {
-              if (document.fullscreenElement) void document.exitFullscreen();
-              else void cadre.current?.requestFullscreen();
-            }}
-          >
-            {pleinEcran ? "Quitter le plein écran" : "Plein écran"}
-          </button>
-        </figcaption>
+        </div>
 
         <div
           className="carte-zone"

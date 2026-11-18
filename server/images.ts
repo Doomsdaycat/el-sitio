@@ -71,7 +71,7 @@ function exigerMj(partieId: number) {
     const jeton = req.get("x-brumeland-jeton");
     const participant = jeton ? participantParJeton(jeton) : undefined;
     if (!participant || participant.partieId !== partieId || participant.role !== "mj") {
-      res.status(403).json({ ok: false, erreur: "Seul le meneur de jeu peut déposer des images." });
+      res.status(403).json({ ok: false, erreur: "Seul le Meneur de jeu peut déposer des images." });
       return;
     }
     suite();
@@ -152,7 +152,7 @@ export function brancherImages(io: Io, socket: SocketBrumeland, partieId: number
     return (d: D, reponse: (r: Reponse) => void) => {
       if (typeof reponse !== "function") return;
       if (socket.data.participant.role !== "mj") {
-        reponse({ ok: false, erreur: "Action réservée au meneur de jeu." });
+        reponse({ ok: false, erreur: "Action réservée au Meneur de jeu." });
         return;
       }
       try {

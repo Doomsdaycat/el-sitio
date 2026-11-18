@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import type { Reponse } from "../../shared/messages.ts";
+import { PINCEAU_MAX, PINCEAU_MIN, TRAITS_PAR_ENVOI_MAX, type Brouillard, type TraitBrouillard } from "../../shared/brouillard.ts";
 import {
   FORMATS_IMAGE,
   IMAGE_NOM_MAX,
@@ -58,12 +59,73 @@ function borner(vue: Vue, l: number, h: number): Vue {
  * Grande image, avec zoom et déplacement personnels (chacun regarde où il veut)
  * et un bouton plein écran.
  */
-function Affichage(props: { id: string; titre: string; bandeau?: React.ReactNode }) {
+/** Dessin du brouillard d'une illustration : limite de résolution du calque (plus léger). */
+const BROUILLARD_RESOLUTION_MAX = 1600;
+const COULEUR_BROUILLARD = "#0b0a0e";
+
+/** Dessine les coups de pinceau sur le calque du brouillard (en pixels de l'image × échelle). */
+function dessinerBrouillard(ctx: CanvasRenderingContext2D, traits: TraitBrouillard[], echelle: number) {
+  const { width, height } = ctx.canvas;
+  ctx.globalCompositeOperation = "source-over";
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = COULEUR_BROUILLARD;
+  ctx.fillRect(0, 0, width, height);
+  for (const t of traits) {
+    if ("tout" in t) {
+      ctx.globalCompositeOperation = "source-over";
+      if (t.reveler) ctx.clearRect(0, 0, width, height);
+      else ctx.fillRect(0, 0, width, height);
+      continue;
+    }
+    const x = t.x * echelle;
+    const y = t.y * echelle;
+    const r = t.r * echelle;
+    // Pinceau rond aux bords doux, façon jeu de stratégie.
+    const degrade = ctx.createRadialGradient(x, y, r * 0.55, x, y, r);
+    degrade.addColorStop(0, "rgba(11, 10, 14, 1)");
+    degrade.addColorStop(1, "rgba(11, 10, 14, 0)");
+    ctx.globalCompositeOperation = t.reveler ? "destination-out" : "source-over";
+    ctx.fillStyle = degrade;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalCompositeOperation = "source-over";
+  ctx.fillStyle = COULEUR_BROUILLARD;
+}
+
+/**
+ * Grande image, avec zoom et déplacement personnels (chacun regarde où il veut), plein écran,
+ * et brouillard de guerre au pinceau rond si le MJ l'a activé.
+ */
+function Affichage(props: {
+  id: string;
+  titre: string;
+  bandeau?: React.ReactNode;
+  /** Brouillard de l'illustration (avec la scène, pour que le MJ puisse peindre). */
+  brouillard?: Brouillard;
+  sceneId?: string;
+  estMj?: boolean;
+}) {
+  const { brouillard, sceneId, estMj = false } = props;
   const cadre = useRef<HTMLElement>(null);
   const zone = useRef<HTMLDivElement>(null);
+  const calque = useRef<HTMLCanvasElement>(null);
   const [pleinEcran, setPleinEcran] = useState(false);
   const [vue, setVue] = useState<Vue>(VUE_ENTIERE);
   const glisse = useRef<{ x: number; y: number } | null>(null);
+  const [tailleImage, setTailleImage] = useState<{ l: number; h: number } | null>(null);
+  const [tailleZone, setTailleZone] = useState<{ l: number; h: number }>({ l: 0, h: 0 });
+  // Outil brouillard (MJ) : peindre pour révéler ou recouvrir, avec un pinceau rond.
+  const brouillardActif = !!brouillard?.actif;
+  const [outil, setOutil] = useState<"deplacer" | "brouillard">("deplacer");
+  const [reveler, setReveler] = useState(true);
+  const [taillePinceau, setTaillePinceau] = useState(0.05);
+  const [enCours, setEnCours] = useState<TraitBrouillard[]>([]);
+  const peint = useRef(false);
+  const [curseur, setCurseur] = useState<{ x: number; y: number } | null>(null);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const outilBrouillard = estMj && brouillardActif && outil === "brouillard";
 
   // Suit l'entrée et la sortie du plein écran (bouton, ou touche Échap).
   useEffect(() => {
@@ -76,7 +138,26 @@ function Affichage(props: { id: string; titre: string; bandeau?: React.ReactNode
   }, []);
 
   // Nouvelle image : on revient à l'image entière.
-  useEffect(() => setVue(VUE_ENTIERE), [props.id]);
+  useEffect(() => {
+    setVue(VUE_ENTIERE);
+    setTailleImage(null);
+  }, [props.id]);
+
+  // Brouillard désactivé : on revient à l'outil Déplacer.
+  useEffect(() => {
+    if (!brouillardActif) setOutil("deplacer");
+  }, [brouillardActif]);
+
+  // Taille du cadre, pour placer le calque du brouillard exactement sur l'image.
+  useEffect(() => {
+    const el = zone.current;
+    if (!el) return;
+    const mesurer = () => setTailleZone({ l: el.clientWidth, h: el.clientHeight });
+    mesurer();
+    const obs = new ResizeObserver(mesurer);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   // Molette : en plein écran, elle zoome ; en affichage normal, il faut Ctrl + molette,
   // pour que la molette seule continue de faire défiler la page (comme les cartes des sites web).
@@ -115,63 +196,169 @@ function Affichage(props: { id: string; titre: string; bandeau?: React.ReactNode
     setVue((v) => zoomerVers(v, v.zoom * facteur, r.width / 2, r.height / 2, r.width, r.height));
   }
 
+  // Rectangle où l'image est affichée dans le cadre (elle y tient entière, centrée).
+  const ajuste = tailleImage && tailleZone.l > 0 ? Math.min(tailleZone.l / tailleImage.l, tailleZone.h / tailleImage.h) : 0;
+  const rectImage = tailleImage
+    ? {
+        left: (tailleZone.l - tailleImage.l * ajuste) / 2,
+        top: (tailleZone.h - tailleImage.h * ajuste) / 2,
+        width: tailleImage.l * ajuste,
+        height: tailleImage.h * ajuste,
+      }
+    : null;
+  const echelleCalque = tailleImage ? Math.min(1, BROUILLARD_RESOLUTION_MAX / Math.max(tailleImage.l, tailleImage.h)) : 1;
+  const rayonPinceau = tailleImage ? taillePinceau * Math.max(tailleImage.l, tailleImage.h) : 0;
+
+  // Dessin du brouillard : coups enregistrés + coups en cours (aperçu immédiat pour le MJ).
+  useEffect(() => {
+    const c = calque.current;
+    if (!c || !tailleImage || !brouillardActif) return;
+    c.width = Math.round(tailleImage.l * echelleCalque);
+    c.height = Math.round(tailleImage.h * echelleCalque);
+    const ctx = c.getContext("2d");
+    if (ctx) dessinerBrouillard(ctx, [...(brouillard?.traits ?? []), ...enCours], echelleCalque);
+  }, [brouillard?.traits, enCours, tailleImage, brouillardActif, echelleCalque]);
+
+  /** Position de la souris en pixels de l'image. */
+  function pointImage(clientX: number, clientY: number): { x: number; y: number } | null {
+    const r = zone.current?.getBoundingClientRect();
+    if (!r || !rectImage || !ajuste) return null;
+    const px = (clientX - r.left - vue.x) / vue.zoom;
+    const py = (clientY - r.top - vue.y) / vue.zoom;
+    return { x: (px - rectImage.left) / ajuste, y: (py - rectImage.top) / ajuste };
+  }
+
+  function ajouterCoup(clientX: number, clientY: number) {
+    const p = pointImage(clientX, clientY);
+    if (!p) return;
+    setEnCours((l) => {
+      const dernier = l.at(-1);
+      // On ne garde qu'un coup tous les tiers de rayon : trait continu, sans surcharge.
+      if (dernier && !("tout" in dernier) && Math.hypot(dernier.x - p.x, dernier.y - p.y) < rayonPinceau / 3) return l;
+      return [...l, { x: p.x, y: p.y, r: rayonPinceau, reveler }];
+    });
+  }
+
+  function terminerCoup() {
+    if (!peint.current) return;
+    peint.current = false;
+    const coups = enCours;
+    if (coups.length === 0 || !sceneId) return;
+    for (let i = 0; i < coups.length; i += TRAITS_PAR_ENVOI_MAX) {
+      const dernierLot = i + TRAITS_PAR_ENVOI_MAX >= coups.length;
+      socket.emit("mj:brouillard:peindre", { sceneId, traits: coups.slice(i, i + TRAITS_PAR_ENVOI_MAX) }, (r: Reponse) => {
+        setErreur(r.ok ? null : r.erreur);
+        // La scène mise à jour arrive avant la réponse : on peut retirer l'aperçu.
+        if (dernierLot) setEnCours([]);
+      });
+    }
+  }
+
   const zoome = vue.zoom > 1.001;
+  const classesZone = ["scene-zone"];
+  if (zoome && !outilBrouillard) classesZone.push("zoomee");
+  if (outilBrouillard) classesZone.push("pinceau");
 
   return (
     <figure className={pleinEcran ? "scene-affichage plein" : "scene-affichage"} ref={cadre}>
-      <figcaption>
-        <span className="scene-titre">{props.titre}</span>
-        {props.bandeau}
-        <span className="zoom">
+      <div className="barres-scene">
+        {/* Ligne 1 : la scène (nom, la montrer ou non) et le plein écran. */}
+        <div className="barre barre-scene">
+          <span className="scene-titre">{props.titre}</span>
+          <span className="actions-scene">{props.bandeau}</span>
           <button
             type="button"
             className="secondaire"
-            aria-label="Dézoomer"
-            disabled={!zoome}
-            onClick={() => zoomerAuCentre(1 / 1.5)}
+            onClick={() => {
+              if (document.fullscreenElement) void document.exitFullscreen();
+              else void cadre.current?.requestFullscreen();
+            }}
           >
-            −
+            {pleinEcran ? "Quitter le plein écran" : "Plein écran"}
           </button>
-          <span className="zoom-valeur" title={
-              pleinEcran
-                ? "Molette : zoomer · glisser : se déplacer · double-clic : zoomer ici"
-                : "Ctrl + molette : zoomer · glisser : se déplacer · double-clic : zoomer ici"
-            }>
-            {Math.round(vue.zoom * 100)} %
+        </div>
+        {/* Ligne 2 : les outils (MJ, si le brouillard est actif) et le zoom. */}
+        <div className="barre barre-outils">
+          {estMj && brouillardActif && (
+            <span className="groupe-outils" role="group" aria-label="Outil">
+              <button type="button" className={outil === "deplacer" ? "outil actif" : "outil secondaire"} onClick={() => setOutil("deplacer")}>
+                Déplacer
+              </button>
+              <button type="button" className={outil === "brouillard" ? "outil actif" : "outil secondaire"} onClick={() => setOutil("brouillard")}>
+                Brouillard
+              </button>
+            </span>
+          )}
+          <span className="zoom">
+            <button type="button" className="secondaire" aria-label="Dézoomer" disabled={!zoome} onClick={() => zoomerAuCentre(1 / 1.5)}>
+              −
+            </button>
+            <span
+              className="zoom-valeur"
+              title={
+                pleinEcran
+                  ? "Molette : zoomer · glisser : se déplacer · double-clic : zoomer ici"
+                  : "Ctrl + molette : zoomer · glisser : se déplacer · double-clic : zoomer ici"
+              }
+            >
+              {Math.round(vue.zoom * 100)} %
+            </span>
+            <button type="button" className="secondaire" aria-label="Zoomer" disabled={vue.zoom >= ZOOM_MAX} onClick={() => zoomerAuCentre(1.5)}>
+              +
+            </button>
+            <button type="button" className="secondaire" disabled={!zoome} onClick={() => setVue(VUE_ENTIERE)}>
+              Ajuster
+            </button>
           </span>
-          <button
-            type="button"
-            className="secondaire"
-            aria-label="Zoomer"
-            disabled={vue.zoom >= ZOOM_MAX}
-            onClick={() => zoomerAuCentre(1.5)}
-          >
-            +
-          </button>
-          <button type="button" className="secondaire" disabled={!zoome} onClick={() => setVue(VUE_ENTIERE)}>
-            Ajuster
-          </button>
-        </span>
-        <button
-          type="button"
-          className="secondaire"
-          onClick={() => {
-            if (document.fullscreenElement) void document.exitFullscreen();
-            else void cadre.current?.requestFullscreen();
-          }}
-        >
-          {pleinEcran ? "Quitter le plein écran" : "Plein écran"}
-        </button>
-      </figcaption>
+        </div>
+        {/* Ligne 3 : réglages de l'outil Brouillard. */}
+        {outilBrouillard && (
+          <div className="barre barre-options">
+            <span className="nom-options">Brouillard :</span>
+            <span className="groupe-outils" role="group" aria-label="Révéler ou recouvrir">
+              <button type="button" className={reveler ? "outil actif" : "outil secondaire"} onClick={() => setReveler(true)}>
+                Révéler
+              </button>
+              <button type="button" className={!reveler ? "outil actif" : "outil secondaire"} onClick={() => setReveler(false)}>
+                Recouvrir
+              </button>
+            </span>
+            <label className="taille-pinceau">
+              <span>🖌 Taille</span>
+              <input
+                type="range"
+                min={PINCEAU_MIN}
+                max={PINCEAU_MAX}
+                step={0.005}
+                value={taillePinceau}
+                onChange={(e) => setTaillePinceau(Number(e.target.value))}
+              />
+            </label>
+          </div>
+        )}
+      </div>
       <div
         ref={zone}
-        className={zoome ? "scene-zone zoomee" : "scene-zone"}
+        className={classesZone.join(" ")}
         onPointerDown={(e) => {
-          if (!zoome || e.button !== 0) return;
+          if (e.button !== 0) return;
+          if (outilBrouillard) {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            peint.current = true;
+            ajouterCoup(e.clientX, e.clientY);
+            return;
+          }
+          if (!zoome) return;
           e.currentTarget.setPointerCapture(e.pointerId);
           glisse.current = { x: e.clientX, y: e.clientY };
         }}
         onPointerMove={(e) => {
+          if (outilBrouillard) {
+            const r = e.currentTarget.getBoundingClientRect();
+            setCurseur({ x: e.clientX - r.left, y: e.clientY - r.top });
+            if (peint.current) ajouterCoup(e.clientX, e.clientY);
+            return;
+          }
           const depart = glisse.current;
           if (!depart) return;
           const r = e.currentTarget.getBoundingClientRect();
@@ -180,26 +367,114 @@ function Affichage(props: { id: string; titre: string; bandeau?: React.ReactNode
           glisse.current = { x: e.clientX, y: e.clientY };
           setVue((v) => borner({ zoom: v.zoom, x: v.x + dx, y: v.y + dy }, r.width, r.height));
         }}
-        onPointerUp={() => (glisse.current = null)}
-        onPointerCancel={() => (glisse.current = null)}
+        onPointerUp={() => {
+          glisse.current = null;
+          terminerCoup();
+        }}
+        onPointerCancel={() => {
+          glisse.current = null;
+          terminerCoup();
+        }}
+        onPointerLeave={() => setCurseur(null)}
         onDoubleClick={(e) => {
+          if (outilBrouillard) return;
           const r = e.currentTarget.getBoundingClientRect();
           setVue((v) => zoomerVers(v, v.zoom * 2, e.clientX - r.left, e.clientY - r.top, r.width, r.height));
         }}
       >
-        <img
-          src={urlImage(props.id)}
-          alt={props.titre}
-          draggable={false}
-          style={{ transform: `translate(${vue.x}px, ${vue.y}px) scale(${vue.zoom})` }}
-        />
+        <div className="scene-contenu" style={{ transform: `translate(${vue.x}px, ${vue.y}px) scale(${vue.zoom})` }}>
+          <img
+            src={urlImage(props.id)}
+            alt={props.titre}
+            draggable={false}
+            onLoad={(e) => setTailleImage({ l: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
+          />
+          {brouillardActif && rectImage && (
+            <canvas
+              ref={calque}
+              className={estMj ? "calque-brouillard voile" : "calque-brouillard"}
+              style={{ left: rectImage.left, top: rectImage.top, width: rectImage.width, height: rectImage.height }}
+            />
+          )}
+        </div>
+        {outilBrouillard && curseur && (
+          // Aperçu du pinceau sous la souris.
+          <div
+            className={reveler ? "curseur-pinceau" : "curseur-pinceau recouvrir"}
+            style={{
+              left: curseur.x,
+              top: curseur.y,
+              width: rayonPinceau * ajuste * vue.zoom * 2,
+              height: rayonPinceau * ajuste * vue.zoom * 2,
+            }}
+          />
+        )}
         {astuce && (
           <div className="astuce-zoom" aria-hidden="true">
             <kbd>Ctrl</kbd> + molette pour zoomer
           </div>
         )}
       </div>
+      {erreur && <p className="erreur">{erreur}</p>}
     </figure>
+  );
+}
+
+/** MJ : préparer une illustration (brouillard de guerre au pinceau). */
+function PreparerIllustration(props: { scene: SceneDonnees }) {
+  const { scene } = props;
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [confirmer, setConfirmer] = useState(false);
+  const repondre = (r: Reponse) => setErreur(r.ok ? null : r.erreur);
+  return (
+    <section className="reglages-carte">
+      <h3>Préparer la scène (toi seul vois ces réglages)</h3>
+      <div className="bloc-reglages premier">
+        <h4>Brouillard de guerre</h4>
+        <label className="case">
+          <input
+            type="checkbox"
+            checked={scene.brouillard.actif}
+            onChange={(e) => socket.emit("mj:brouillard:activer", { sceneId: scene.id, actif: e.target.checked }, repondre)}
+          />
+          <span>Activer le brouillard sur cette illustration</span>
+        </label>
+        {scene.brouillard.actif && (
+          <>
+            <p className="discret petit">
+              Les joueurs ne voient que ce que tu dévoiles (toi, tu vois l'image à travers un voile). Choisis
+              l'outil <strong>Brouillard</strong> au-dessus de l'image, puis peins pour <strong>Révéler</strong> ou{" "}
+              <strong>Recouvrir</strong> ; règle la taille du pinceau avec le curseur.
+            </p>
+            <div className="boutons-participants">
+              <button
+                type="button"
+                className="secondaire"
+                onClick={() => socket.emit("mj:brouillard:peindre", { sceneId: scene.id, traits: [{ tout: true, reveler: true }] }, repondre)}
+              >
+                Tout révéler
+              </button>
+              <button
+                type="button"
+                className={confirmer ? "danger" : "secondaire"}
+                onClick={() => {
+                  if (!confirmer) {
+                    setConfirmer(true);
+                    window.setTimeout(() => setConfirmer(false), 4000);
+                    return;
+                  }
+                  setConfirmer(false);
+                  socket.emit("mj:brouillard:toutCacher", { sceneId: scene.id }, repondre);
+                }}
+              >
+                {confirmer ? "Confirmer : tout recouvrir" : "Tout recouvrir"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+      {erreur && <p className="erreur">{erreur}</p>}
+    </section>
   );
 }
 
@@ -527,7 +802,7 @@ function LigneScene(props: {
       <div className="ligne-scene-actions">
         {montree ? (
           <button type="button" className="secondaire" onClick={() => socket.emit("mj:montrerScene", { id: null }, repondre)}>
-            Ne plus montrer
+            Ne plus montrer la scène
           </button>
         ) : (
           <button
@@ -539,7 +814,7 @@ function LigneScene(props: {
               })
             }
           >
-            Montrer
+            Montrer la scène
           </button>
         )}
         {!montree && (
@@ -713,7 +988,7 @@ export function Scene({ estMj, moiId }: { estMj: boolean; moiId: number }) {
           })
         }
       >
-        Montrer à tous
+        Montrer la scène à tous
       </button>
       <button type="button" className="lien" onClick={() => preparerScene(null)}>
         Fermer
@@ -726,7 +1001,7 @@ export function Scene({ estMj, moiId }: { estMj: boolean; moiId: number }) {
         className="secondaire"
         onClick={() => socket.emit("mj:montrerScene", { id: null }, () => undefined)}
       >
-        Ne plus montrer
+        Ne plus montrer la scène
       </button>
     )
   );
@@ -736,13 +1011,23 @@ export function Scene({ estMj, moiId }: { estMj: boolean; moiId: number }) {
       {affichee === null ? (
         <p className="discret scene-vide">
           {estMj
-            ? "Aucune scène montrée. Crée une scène ci-dessous, puis clique sur « Montrer »."
+            ? "Aucune scène montrée. Crée une scène ci-dessous, puis clique sur « Montrer la scène »."
             : "Le MJ n'a pas encore montré de scène."}
         </p>
       ) : affichee.type === "immersive" ? (
         <Carte key={affichee.id} scene={affichee} moiId={moiId} estMj={estMj} bandeau={bandeau} />
       ) : (
-        <Affichage id={affichee.image.id} titre={affichee.nom} bandeau={bandeau} />
+        <>
+          <Affichage
+            id={affichee.image.id}
+            titre={affichee.nom}
+            bandeau={bandeau}
+            brouillard={affichee.brouillard}
+            sceneId={affichee.id}
+            estMj={estMj}
+          />
+          {estMj && <PreparerIllustration scene={affichee} />}
+        </>
       )}
       {estMj && <MesScenes brouillon={brouillon} surBrouillonUtilise={() => setBrouillon(null)} />}
       {estMj && <Bibliotheque surNouvelleScene={setBrouillon} />}

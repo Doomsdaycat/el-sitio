@@ -1766,3 +1766,110 @@ button.secondaire.actif {
   padding-top: 0;
   border-top: none;
 }
+
+/* --- Barres au-dessus d'une scène : trois lignes rangées --- */
+
+.barres-scene {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.barre {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Ligne 1 : nom de la scène à gauche, actions sur la scène puis plein écran à droite. */
+.barre-scene .scene-titre {
+  margin-right: auto;
+}
+
+.actions-scene {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.actions-scene:empty {
+  display: none;
+}
+
+/* Ligne 2 : outils à gauche, zoom à droite. */
+.barre-outils .zoom {
+  margin-left: auto;
+}
+
+/* Ligne 3 : réglages de l'outil choisi, dans un encadré distinct. */
+.barre-options {
+  padding: 0.35rem 0.6rem;
+  border: 1px dashed var(--accent);
+  border-radius: 6px;
+  background: rgba(201, 162, 91, 0.06);
+}
+
+.nom-options {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.taille-pinceau {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.taille-pinceau input[type="range"] {
+  width: 9rem;
+  accent-color: var(--accent);
+}
+
+.scene-affichage.plein .barres-scene,
+.carte-cadre.plein .barres-scene {
+  color: var(--texte);
+}
+
+/* --- Brouillard des illustrations --- */
+
+.scene-contenu {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+}
+
+.scene-contenu img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.calque-brouillard {
+  position: absolute;
+  pointer-events: none;
+}
+
+/* Le MJ voit l'image à travers un voile ; les joueurs, rien. */
+.calque-brouillard.voile {
+  opacity: 0.55;
+}
+
+.scene-zone.pinceau {
+  cursor: none;
+}
+
+.curseur-pinceau {
+  position: absolute;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid #f3d58f;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+}
+
+.curseur-pinceau.recouvrir {
+  border-color: #9c94a8;
+  border-style: dashed;
+}

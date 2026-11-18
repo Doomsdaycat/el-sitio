@@ -81,7 +81,7 @@ export function brancherJets(io: Io, socket: SocketBrumeland, partieId: number):
   /** Vérifications communes à tous les jets. Renvoie un message d'erreur, ou null. */
   function refusJet(secret: unknown): string | null {
     if (moi().role === "joueur" && moi().nom === null) return "Choisis d'abord ton nom.";
-    if (secret === true && !estMj()) return "Seul le meneur de jeu peut lancer en secret.";
+    if (secret === true && !estMj()) return "Seul le Meneur de jeu peut lancer en secret.";
     return null;
   }
 
@@ -91,7 +91,7 @@ export function brancherJets(io: Io, socket: SocketBrumeland, partieId: number):
    */
   function lirePour(pourId: unknown): { id: number; nom: string } | null | string {
     if (pourId === null || pourId === undefined) return null;
-    if (!estMj()) return "Seul le meneur de jeu peut lancer pour quelqu'un d'autre.";
+    if (!estMj()) return "Seul le Meneur de jeu peut lancer pour quelqu'un d'autre.";
     const joueur = listerParticipants(partieId).find(
       (p) => p.id === Number(pourId) && p.role === "joueur" && p.nom !== null,
     );
@@ -121,7 +121,7 @@ export function brancherJets(io: Io, socket: SocketBrumeland, partieId: number):
     if (!estMj() && joueurConcerne(cible) === moi().id) {
       return "Tu ne peux pas t'opposer à ton propre jet.";
     }
-    if (ouverte === true && !estMj()) return "Seul le meneur de jeu décide d'une opposition ouverte.";
+    if (ouverte === true && !estMj()) return "Seul le Meneur de jeu décide d'une opposition ouverte.";
     return { id: cible.id, ouverte: ouverte === true };
   }
 
@@ -300,7 +300,7 @@ export function brancherJets(io: Io, socket: SocketBrumeland, partieId: number):
   socket.on(
     "mj:revelerJet",
     proteger((d: { id: number }) => {
-      if (!estMj()) return { ok: false, erreur: "Action réservée au meneur de jeu." };
+      if (!estMj()) return { ok: false, erreur: "Action réservée au Meneur de jeu." };
       const id = Number(d?.id);
       if (!Number.isInteger(id) || !revelerJet(partieId, id)) {
         return { ok: false, erreur: "Ce jet n'est plus à révéler." };
@@ -314,7 +314,7 @@ export function brancherJets(io: Io, socket: SocketBrumeland, partieId: number):
   socket.on(
     "mj:viderJournal",
     proteger(() => {
-      if (!estMj()) return { ok: false, erreur: "Action réservée au meneur de jeu." };
+      if (!estMj()) return { ok: false, erreur: "Action réservée au Meneur de jeu." };
       viderJournal(partieId);
       io.emit("journal:vide");
       return { ok: true };

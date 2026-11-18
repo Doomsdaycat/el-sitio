@@ -24,7 +24,11 @@ import {
   BROUILLARD_VIDE,
   CASES_PAR_ENVOI_MAX,
   CASES_REVELEES_MAX,
+  ajouterTraits,
   modifierBrouillard,
+  TRAITS_MAX,
+  TRAITS_PAR_ENVOI_MAX,
+  type TraitBrouillard,
   type Brouillard,
 } from "../shared/brouillard.ts";
 import { invisiblePourJoueurs, SCENE_NOM_MAX, vuePourJoueurs, type Scene, type TypeScene } from "../shared/scenes.ts";
@@ -284,7 +288,7 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
     return (d: D, reponse: (r: Reponse) => void) => {
       if (typeof reponse !== "function") return;
       if (reserveMj && !estMj()) {
-        reponse({ ok: false, erreur: "Action réservée au meneur de jeu." });
+        reponse({ ok: false, erreur: "Action réservée au Meneur de jeu." });
         return;
       }
       try {
@@ -548,7 +552,6 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
     proteger((d: { sceneId: string; actif: boolean }) => {
       const scene = typeof d?.sceneId === "string" ? lireScene(partieId, d.sceneId) : undefined;
       if (!scene) return { ok: false, erreur: "Cette scène n'existe plus." };
-      if (scene.type !== "immersive") return { ok: false, erreur: "Le brouillard ne concerne que les scènes immersives." };
       ecrireBrouillard(scene.id, { ...scene.brouillard, actif: d.actif === true });
       return { ok: true };
     }, true),
@@ -570,13 +573,40 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
     }, true),
   );
 
-  // Tout recouvrir : plus aucune case révélée.
+  // Tout recouvrir : plus aucune case révélée, plus aucun coup de pinceau.
   socket.on(
     "mj:brouillard:toutCacher",
     proteger((d: { sceneId: string }) => {
       const scene = typeof d?.sceneId === "string" ? lireScene(partieId, d.sceneId) : undefined;
       if (!scene) return { ok: false, erreur: "Cette scène n'existe plus." };
-      ecrireBrouillard(scene.id, { ...scene.brouillard, reveles: [] });
+      ecrireBrouillard(scene.id, { ...scene.brouillard, reveles: [], traits: [] });
+      return { ok: true };
+    }, true),
+  );
+
+  // Illustration : coups de pinceau rond (révéler ou recouvrir), en pixels de l'image.
+  socket.on(
+    "mj:brouillard:peindre",
+    proteger((d: { sceneId: string; traits: TraitBrouillard[] }) => {
+      const scene = typeof d?.sceneId === "string" ? lireScene(partieId, d.sceneId) : undefined;
+      if (!scene) return { ok: false, erreur: "Cette scène n'existe plus." };
+      if (!Array.isArray(d.traits) || d.traits.length > TRAITS_PAR_ENVOI_MAX) {
+        return { ok: false, erreur: "Trop de coups de pinceau d'un coup." };
+      }
+      const valides: TraitBrouillard[] = [];
+      for (const t of d.traits as unknown[]) {
+        const x = t as Record<string, unknown>;
+        if (x?.tout === true) valides.push({ tout: true, reveler: x.reveler === true });
+        else if (fini(x?.x) && fini(x?.y) && fini(x?.r) && (x.r as number) > 0 && (x.r as number) < 100_000) {
+          const arrondi = (n: number) => Math.round(n * 10) / 10;
+          valides.push({ x: arrondi(x.x as number), y: arrondi(x.y as number), r: arrondi(x.r as number), reveler: x.reveler === true });
+        }
+      }
+      const traits = ajouterTraits(scene.brouillard.traits, valides);
+      if (traits.length > TRAITS_MAX) {
+        return { ok: false, erreur: "Brouillard trop détaillé : utilise « Tout révéler » ou « Tout recouvrir » pour repartir." };
+      }
+      ecrireBrouillard(scene.id, { ...scene.brouillard, traits });
       return { ok: true };
     }, true),
   );

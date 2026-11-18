@@ -167,7 +167,7 @@ export function brancherCombat(io: Io, socket: SocketBrumeland, partieId: number
     return (d: D, reponse: (r: Reponse) => void) => {
       if (typeof reponse !== "function") return;
       if (options.mj && !estMj()) {
-        reponse({ ok: false, erreur: "Action réservée au meneur de jeu." });
+        reponse({ ok: false, erreur: "Action réservée au Meneur de jeu." });
         return;
       }
       try {

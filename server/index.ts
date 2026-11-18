@@ -153,7 +153,7 @@ function reserveMj<D>(
   return async (demande: D, reponse: (r: Reponse) => void) => {
     if (typeof reponse !== "function") return;
     if (socket.data.participant.role !== "mj") {
-      reponse({ ok: false, erreur: "Action réservée au meneur de jeu." });
+      reponse({ ok: false, erreur: "Action réservée au Meneur de jeu." });
       return;
     }
     try {
