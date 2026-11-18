@@ -120,9 +120,18 @@ function LignesGrille(props: { grille: Grille; l: number; h: number; echelle: nu
 }
 
 /** Étiquette lisible (fond sombre) posée sur la carte, à taille constante à l'écran. */
-function Etiquette(props: { x: number; y: number; texte: string; echelle: number; couleur?: string }) {
+function Etiquette(props: {
+  x: number;
+  y: number;
+  texte: string;
+  echelle: number;
+  couleur?: string;
+  /** Largeur maximale (en pixels de l'image) : au-delà, le texte est raccourci avec « … ». */
+  largeurMax?: number;
+}) {
   const taillePolice = 13 / props.echelle;
-  const largeur = (props.texte.length * 7.2 + 12) / props.echelle;
+  const largeurTexte = (props.texte.length * 7.2 + 12) / props.echelle;
+  const largeur = props.largeurMax !== undefined ? Math.min(largeurTexte, props.largeurMax) : largeurTexte;
   const hauteur = 20 / props.echelle;
   return (
     <Group x={props.x - largeur / 2} y={props.y} listening={false}>
@@ -135,6 +144,9 @@ function Etiquette(props: { x: number; y: number; texte: string; echelle: number
         fill={props.couleur ?? "#ffffff"}
         align="center"
         verticalAlign="middle"
+        padding={3 / props.echelle}
+        wrap="none"
+        ellipsis
       />
     </Group>
   );
@@ -372,6 +384,9 @@ function PionCarte(props: {
   actif: boolean;
   /** Le MJ vient de révéler ce pion : il apparaît en grossissant. */
   revele: boolean;
+  /** La souris est sur ce pion : son nom complet s'affiche (et il passe au premier plan). */
+  survole: boolean;
+  surSurvol: (survole: boolean) => void;
   surErreur: (e: string | null) => void;
 }) {
   const { pion, nom, grille, echelle, deplacable, deplacementMax, limiteRound, actif, revele, surErreur } = props;
@@ -431,10 +446,12 @@ function PionCarte(props: {
         onMouseEnter={(e) => {
           const stage = e.target.getStage();
           if (stage && deplacable) stage.container().style.cursor = "grab";
+          props.surSurvol(true);
         }}
         onMouseLeave={(e) => {
           const stage = e.target.getStage();
           if (stage) stage.container().style.cursor = "";
+          props.surSurvol(false);
         }}
         onDragStart={(e) => {
           e.cancelBubble = true;
@@ -518,13 +535,18 @@ function PionCarte(props: {
         )}
         </Group>
       </Group>
-      <Etiquette
-        x={(visee ?? coin).x + cote / 2}
-        y={(visee ?? coin).y + cote + 2 / echelle}
-        texte={glisse ? texteGlisse : nomAffiche}
-        echelle={echelle}
-        couleur={(glisse && trop) || aTerre ? "#ff9a8f" : mort ? "#b0b0b0" : undefined}
-      />
+      {/* Nom limité à la largeur du pion (pas de chevauchement entre voisins) ; complet au survol
+          ou en glissant. Pion trop petit à l'écran : seulement les initiales, sauf au survol. */}
+      {(glisse || props.survole || cote * echelle >= 36) && (
+        <Etiquette
+          x={(visee ?? coin).x + cote / 2}
+          y={(visee ?? coin).y + cote + 2 / echelle}
+          texte={glisse ? texteGlisse : nomAffiche}
+          echelle={echelle}
+          couleur={(glisse && trop) || aTerre ? "#ff9a8f" : mort ? "#b0b0b0" : undefined}
+          largeurMax={glisse || props.survole ? undefined : cote}
+        />
+      )}
     </>
   );
 }
@@ -699,15 +721,17 @@ export function Carte(props: {
   };
 
   // Les pions des personnages joueurs passent au-dessus des PNJ, le sien tout en haut.
+  const [pionSurvole, setPionSurvole] = useState<string | null>(null);
   const pionsOrdonnes = useMemo(
     () =>
       [...scene.pions].sort(
         (a, b) =>
+          Number(a.id === pionSurvole) - Number(b.id === pionSurvole) ||
           Number(b.etat === "mort") - Number(a.etat === "mort") ||
           Number(a.type === "pj") - Number(b.type === "pj") ||
           Number(a.joueurId === moiId) - Number(b.joueurId === moiId),
       ),
-    [scene.pions, moiId],
+    [scene.pions, moiId, pionSurvole],
   );
 
   const grille = scene.grille;
@@ -953,6 +977,8 @@ export function Carte(props: {
                       limiteRound={limiteRound(p)}
                       actif={pionActif(p)}
                       revele={revelationsIci.some((r) => r.pionId === p.id)}
+                      survole={pionSurvole === p.id}
+                      surSurvol={(oui) => setPionSurvole((avant) => (oui ? p.id : avant === p.id ? null : avant))}
                       surErreur={setErreur}
                     />
                   ))}
