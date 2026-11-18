@@ -3,8 +3,8 @@
 // Les fichiers sont rangés dans data/medias/, à côté de la base (jamais dans le dépôt git).
 
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import type { Server, Socket } from "socket.io";
 import type { MessagesClient, MessagesServeur, Reponse } from "../shared/messages.ts";
@@ -14,12 +14,13 @@ import {
   IMAGE_TAILLE_MAX,
   type ImageBibliotheque,
 } from "../shared/scenes.ts";
-import { base, CHEMIN_BASE } from "./base.ts";
+import { base } from "./base.ts";
+import { DOSSIER_MEDIAS } from "./chemins.ts";
 import { nomDepuisFichier, reconnaitreImage } from "./images-format.ts";
 import { participantParJeton, type Participant } from "./partie.ts";
+import { mettreALaCorbeille } from "./sauvegardes.ts";
 import { diffuserScenes, scenesUtilisant } from "./scenes.ts";
 
-export const DOSSIER_MEDIAS = join(dirname(CHEMIN_BASE), "medias");
 
 interface DonneesSocket {
   participant: Participant;
@@ -193,11 +194,8 @@ export function brancherImages(io: Io, socket: SocketBrumeland, partieId: number
         };
       }
       base.prepare("DELETE FROM image WHERE id = ?").run(image.id);
-      try {
-        unlinkSync(join(DOSSIER_MEDIAS, image.fichier));
-      } catch {
-        // Fichier déjà absent : rien à faire.
-      }
+      // Le fichier n'est pas effacé : les sauvegardes précédentes peuvent en avoir besoin.
+      mettreALaCorbeille(image.fichier);
       diffuserImages(io, partieId);
       return { ok: true };
     }),

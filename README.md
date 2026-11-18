@@ -6,7 +6,7 @@ La voix passe par Discord.
 
 > **Avancement :** étapes 1 à 7 terminées : connexion, dés et journal, fiches de personnage,
 > scènes (illustrations et scènes immersives avec grille et pions), combat, brouillard de guerre.
-> Prochaine étape : le confort (musique, sauvegarde et export).
+> Étape 8 en cours : sauvegardes automatiques et export de la partie (musique reportée).
 
 ## Lancer une séance (2 commandes)
 
@@ -91,6 +91,9 @@ lancement. Si un lien ne s'ouvre pas tout de suite, attends une minute : le tunn
   passe « mort » (PNJ) ou « à terre » (joueur). Le round suivant attend que tout le monde ait joué.
 - **Journal** : tout le monde voit les jets, conservés d'une séance à l'autre (le MJ peut le vider).
 - **Sauvegarde** : la partie, les liens, les noms et le journal sont conservés quand tu arrêtes le serveur.
+  Le serveur en prend aussi des copies tout seul (voir « Sauvegardes et export » plus bas).
+- **📦 Exporter la partie** (en bas de l'écran MJ) : télécharge un seul fichier `.zip` avec toute la
+  partie et ses images, pour la garder ailleurs ou la déplacer sur un autre ordinateur.
 
 ## Installation (une seule fois)
 
@@ -138,6 +141,8 @@ cloudflared --version
 |---|---|
 | `npm run partie` | Séance en ligne : tunnel + serveur, liens publics en `https://…` |
 | `npm start` | Partie sur ton PC seulement, sans tunnel (liens en `localhost:3000`), pour tester seul |
+| `npm run sauvegardes` | Liste les sauvegardes automatiques, numérotées (la plus récente en n° 1) |
+| `npm run restaurer -- 3` | Revient à la sauvegarde n° 3 (serveur arrêté) ; ou `npm run restaurer -- fichier.zip` pour un export |
 | `npm run lien-mj` | Réaffiche ton lien MJ, adresse `localhost` (marche sur ton PC même pendant une séance en ligne) |
 | `npm run dev` | Mode développement (port 5173), utilisé pendant la construction de l'outil |
 | `npm run verifier` | Vérifie le code |
@@ -148,10 +153,44 @@ Le lien MJ donne tous les droits sur la partie : ne le partage pas.
 ## Données de la partie
 
 La partie est enregistrée dans le dossier `data/` : la base `data/brumeland.db` et les images
-déposées par le MJ dans `data/medias/`. Pour tout sauvegarder, copie le dossier `data/` entier
-pendant que le serveur est arrêté.
+déposées par le MJ dans `data/medias/`.
 Le dossier `data/` n'est jamais envoyé sur GitHub. Le journal du tunnel s'y trouve aussi
 (`data/tunnel.log`), utile en cas de problème.
+
+## Sauvegardes et export
+
+**Sauvegardes automatiques.** Le serveur copie la partie dans `data/sauvegardes/` au démarrage,
+toutes les 30 minutes si quelque chose a changé, et à l'arrêt. Il garde les 20 plus récentes.
+Il en prend aussi une avant chaque mise à jour de l'outil qui modifie la base.
+Les images ne sont pas recopiées à chaque fois : une image supprimée de la bibliothèque est mise de
+côté dans `data/corbeille/`, et revient toute seule si tu restaures une sauvegarde qui l'utilise.
+
+**Revenir en arrière** (par exemple après une fausse manipulation). Arrête d'abord le serveur
+(`Ctrl + C`). Affiche la liste des sauvegardes :
+
+```bash
+npm run sauvegardes
+```
+
+Puis restaure celle que tu veux, par son numéro dans la liste (ici la n° 3) :
+
+```bash
+npm run restaurer -- 3
+```
+
+Avant de restaurer, l'outil met de côté l'état actuel : il apparaît en tête de liste
+(« avant restauration »), pour pouvoir annuler la restauration de la même façon.
+
+**Export.** Sur ton écran MJ, **📦 Exporter la partie** télécharge un fichier `.zip` avec toute la
+partie et ses images. Garde-le hors du PC (clé USB, cloud), ou sers-t'en pour installer la partie
+ailleurs : copie le fichier dans le dossier du projet, serveur arrêté, puis :
+
+```bash
+npm run restaurer -- brumeland-2026-11-18_21h30.zip
+```
+
+(remplace par le nom de ton fichier). ⚠️ L'export contient les liens d'invitation, le tien compris :
+ne le partage pas.
 
 ## En cas de problème
 

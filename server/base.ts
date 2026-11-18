@@ -1,13 +1,14 @@
 // Base de données SQLite : un seul fichier, data/brumeland.db.
-// Pour sauvegarder la partie, il suffit de copier ce fichier (serveur arrêté).
+// Les sauvegardes sont prises par le serveur lui-même (voir sauvegardes.ts).
 
 import { mkdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { CHEMIN_BASE, DOSSIER_DONNEES } from "./chemins.ts";
+import { sauvegarder } from "./sauvegardes.ts";
 
-export const CHEMIN_BASE = resolve(process.env.BRUMELAND_BASE ?? "data/brumeland.db");
+export { CHEMIN_BASE };
 
-mkdirSync(dirname(CHEMIN_BASE), { recursive: true });
+mkdirSync(DOSSIER_DONNEES, { recursive: true });
 
 export const base = new DatabaseSync(CHEMIN_BASE);
 base.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
@@ -196,6 +197,8 @@ function migrer(): void {
   const { user_version: versionActuelle } = base.prepare("PRAGMA user_version").get() as {
     user_version: number;
   };
+  // Mise à jour de l'outil sur une partie existante : copie de la base avant d'y toucher.
+  if (versionActuelle > 0 && versionActuelle < MIGRATIONS.length) sauvegarder(base, "avant-mise-a-jour");
   for (let i = versionActuelle; i < MIGRATIONS.length; i++) {
     base.exec("BEGIN");
     try {

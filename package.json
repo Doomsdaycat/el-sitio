@@ -13,6 +13,8 @@
     "compiler": "vite build --logLevel warn",
     "serveur": "NODE_ENV=production tsx --disable-warning=ExperimentalWarning server/index.ts",
     "lien-mj": "NODE_ENV=production tsx --disable-warning=ExperimentalWarning server/lien-mj.ts",
+    "sauvegardes": "tsx --disable-warning=ExperimentalWarning server/sauvegardes-commande.ts liste",
+    "restaurer": "tsx --disable-warning=ExperimentalWarning server/sauvegardes-commande.ts restaurer",
     "dev": "concurrently --names serveur,interface --prefix-colors yellow,cyan \"npm:dev:serveur\" \"npm:dev:interface\"",
     "dev:serveur": "tsx watch --disable-warning=ExperimentalWarning server/index.ts",
     "dev:interface": "vite",
@@ -21,6 +23,7 @@
   },
   "dependencies": {
     "express": "^5.3.0",
+    "fflate": "^0.8.3",
     "konva": "^10.9.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

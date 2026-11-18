@@ -1,7 +1,7 @@
 // Point d'entrée du serveur Brumeland VTT.
 // Il reçoit les connexions temps réel (Socket.IO) des navigateurs.
 
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { resolve } from "node:path";
 import express from "express";
@@ -19,6 +19,9 @@ import {
   type Reponse,
 } from "../shared/messages.ts";
 import { base, CHEMIN_BASE } from "./base.ts";
+import { FICHIER_PID } from "./chemins.ts";
+import { brancherRoutesExport } from "./export.ts";
+import { demarrerSauvegardesAuto } from "./sauvegardes.ts";
 import { brancherFiches, diffuserFiche, envoyerFiches } from "./fiches-socket.ts";
 import { ficheDuJoueur } from "./fiches.ts";
 import { brancherCombat, diffuserCombat, envoyerCombat } from "./combat.ts";
@@ -67,6 +70,8 @@ app.get("/api/sante", (_req, res) => {
 
 // Images : dépôt par le MJ et lecture (avant l'interface, qui prend toutes les autres adresses).
 brancherRoutesImages(app, io, partie.id);
+// Export de la partie en .zip (MJ seulement).
+brancherRoutesExport(app, partie.id);
 
 // En mode partie, le serveur sert aussi l'interface compilée (un seul port à ouvrir).
 const DOSSIER_INTERFACE = resolve(import.meta.dirname, "../dist/client");
@@ -290,13 +295,23 @@ io.on("connection", (socket) => {
 // ---------------------------------------------------------------------------
 // Démarrage
 
-// Arrêt propre (Ctrl + C) : la base est refermée, ce qui range toutes les dernières écritures
-// dans data/brumeland.db. Une simple copie de ce fichier suffit alors comme sauvegarde.
+// Sauvegardes automatiques : au démarrage, toutes les 30 minutes si la partie a changé,
+// et à l'arrêt. Elles sont rangées dans data/sauvegardes/.
+const sauvegardeFinale = demarrerSauvegardesAuto(base);
+
+// Arrêt propre (Ctrl + C) : dernière sauvegarde, puis la base est refermée, ce qui range
+// toutes les dernières écritures dans data/brumeland.db.
 let arretEnCours = false;
 function arreter(): void {
   if (arretEnCours) return;
   arretEnCours = true;
   io.close();
+  try {
+    sauvegardeFinale();
+    if (readFileSync(FICHIER_PID, "utf8").trim() === String(process.pid)) rmSync(FICHIER_PID);
+  } catch {
+    // Fichier déjà absent : rien à faire.
+  }
   try {
     base.close();
   } catch (erreur) {
@@ -319,6 +334,8 @@ serveurHttp.on("error", (erreur: NodeJS.ErrnoException) => {
 });
 
 serveurHttp.listen(PORT, () => {
+  // Signale que le serveur tourne : la commande de restauration refuse alors d'agir.
+  writeFileSync(FICHIER_PID, String(process.pid));
   console.log(`Serveur Brumeland VTT démarré sur le port ${PORT}`);
   console.log(`Base de données : ${CHEMIN_BASE}`);
   console.log(`\nLien MJ de la partie « ${partie.nom} » :\n\n  ${lienInvitation(jetonMj(partie.id))}\n`);

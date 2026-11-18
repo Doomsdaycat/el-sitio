@@ -4,6 +4,7 @@ import { jeton, oublierJeton, socket } from "./connexion.ts";
 import { ChoixNom } from "./ChoixNom.tsx";
 import { Centre } from "./Centre.tsx";
 import { Combat } from "./Combat.tsx";
+import { Export } from "./Export.tsx";
 import { Invitations } from "./Invitations.tsx";
 import { Journal } from "./Journal.tsx";
 import { PanneauJet } from "./PanneauJet.tsx";
@@ -138,6 +139,7 @@ export function App() {
           {identite.moi.role === "mj" && (
             <div className="zone-mj">
               <Invitations />
+              <Export />
             </div>
           )}
 

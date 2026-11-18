@@ -304,6 +304,15 @@ button.lien {
   margin-top: 1.25rem;
 }
 
+.export {
+  margin-top: 1.25rem;
+}
+
+.avertissement-export {
+  font-size: 0.9rem;
+  margin-bottom: 0;
+}
+
 .onglets {
   display: flex;
   gap: 0.25rem;
