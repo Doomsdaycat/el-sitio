@@ -411,9 +411,14 @@ function FicheVue(props: {
         </div>
         <div className="jauge">
           <span className="jauge-nom">Bonus aux dégâts</span>
-          <span>
-            FOR : <strong>{signe(bonusDegats(fiche.caracs.FOR))}</strong> · AGI :{" "}
-            <strong>{signe(bonusDegats(fiche.caracs.AGI))}</strong>
+          {/* Deux blocs insécables : s'il faut deux lignes, la coupure tombe avant AGI. */}
+          <span className="bonus-degats">
+            <span>
+              FOR : <strong>{signe(bonusDegats(fiche.caracs.FOR))}</strong>
+            </span>
+            <span>
+              AGI : <strong>{signe(bonusDegats(fiche.caracs.AGI))}</strong>
+            </span>
           </span>
         </div>
       </section>

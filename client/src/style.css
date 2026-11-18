@@ -743,7 +743,7 @@ select {
 
 .fiche-derivees {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
   gap: 0.5rem;
 }
 
@@ -758,6 +758,18 @@ select {
 .jauge-nom {
   font-size: 0.8rem;
   color: var(--discret);
+  /* « Points de volonté (PV) » reste sur une seule ligne. */
+  white-space: nowrap;
+}
+
+.bonus-degats {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 0.9rem;
+}
+
+.bonus-degats > span {
+  white-space: nowrap;
 }
 
 .jauge-valeurs {
