@@ -1938,15 +1938,14 @@ button.secondaire.actif {
 }
 
 /* Annuler un déplacement : petite botte barrée d'un trait rouge. */
+/* Même hauteur que les autres boutons d'outils (même marge verticale), juste plus étroit. */
 .bouton-annuler {
-  padding: 0.15rem 0.45rem;
-  line-height: 1;
+  padding: 0.3rem 0.55rem;
 }
 
 .botte-barree {
   position: relative;
   display: inline-block;
-  font-size: 1.05rem;
 }
 
 .botte-barree::after {
