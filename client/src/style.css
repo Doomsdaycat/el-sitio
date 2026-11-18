@@ -1936,3 +1936,27 @@ button.secondaire.actif {
 .navigation button {
   padding: 0.25rem 0.6rem;
 }
+
+/* Annuler un déplacement : petite botte barrée d'un trait rouge. */
+.bouton-annuler {
+  padding: 0.15rem 0.45rem;
+  line-height: 1;
+}
+
+.botte-barree {
+  position: relative;
+  display: inline-block;
+  font-size: 1.05rem;
+}
+
+.botte-barree::after {
+  content: "";
+  position: absolute;
+  left: -0.1rem;
+  right: -0.1rem;
+  top: 50%;
+  height: 2px;
+  background: var(--erreur);
+  transform: rotate(-35deg);
+  border-radius: 1px;
+}

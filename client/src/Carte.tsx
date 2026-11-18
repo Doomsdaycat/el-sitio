@@ -773,16 +773,19 @@ export function Carte(props: {
                 </button>
               ))}
             </span>
-            {annulables > 0 && (
-              <button
-                type="button"
-                className="secondaire"
-                title="Annule ton dernier déplacement de pion (raccourci : Ctrl + Z, souris sur la carte)"
-                onClick={annulerDeplacement}
-              >
-                🥾 Annuler déplacement
-              </button>
-            )}
+            {/* Icône compacte, place toujours réservée (invisible s'il n'y a rien à annuler) : la carte ne bouge pas. */}
+            <button
+              type="button"
+              className="secondaire bouton-annuler"
+              title="Annuler mon dernier déplacement (Ctrl + Z, souris sur la carte)"
+              aria-label="Annuler mon dernier déplacement"
+              aria-hidden={annulables === 0}
+              tabIndex={annulables === 0 ? -1 : 0}
+              style={{ visibility: annulables > 0 ? "visible" : "hidden" }}
+              onClick={annulerDeplacement}
+            >
+              <span className="botte-barree">🥾</span>
+            </button>
             <span className="navigation" role="group" aria-label="Navigation">
               <button type="button" className="secondaire" aria-label="Dézoomer" onClick={() => zoomerVers(1 / 1.5, l / 2, h / 2)}>
                 −
