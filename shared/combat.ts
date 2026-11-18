@@ -89,6 +89,14 @@ export function carteCourante(c: Combat): CarteTiree | null {
   return restantes[0] ?? null;
 }
 
+/** Vrai si c'est le tour du personnage de ce joueur. */
+export function estSonTour(c: Combat | null, joueurId: number): boolean {
+  if (!c) return false;
+  const courante = carteCourante(c);
+  const x = courante ? c.combattants.find((y) => y.id === courante.combattantId) : undefined;
+  return x?.type === "pj" && x.joueurId === joueurId;
+}
+
 export function cartesDe(c: Combat, combattantId: string): CarteTiree[] {
   return c.cartes.filter((x) => x.combattantId === combattantId).sort((a, b) => a.valeur - b.valeur);
 }

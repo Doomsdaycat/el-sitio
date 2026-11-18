@@ -22,7 +22,8 @@ import {
 import type { MessagesClient, MessagesServeur, Reponse } from "../shared/messages.ts";
 import { SCENE_NOM_MAX, vuePourJoueurs, type Scene, type TypeScene } from "../shared/scenes.ts";
 import { base } from "./base.ts";
-import { diffuserCombat, noterDeplacement } from "./combat.ts";
+import { estSonTour } from "../shared/combat.ts";
+import { diffuserCombat, lireCombat, noterDeplacement } from "./combat.ts";
 import { diffuserImages } from "./images.ts";
 import type { Participant } from "./partie.ts";
 
@@ -458,14 +459,17 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
       if (!position) return { ok: false, erreur: "Case invalide." };
       base.prepare("UPDATE pion SET col = ?, lig = ? WHERE id = ?").run(position.col, position.lig, String(d.id));
       diffuserScenes(io, partieId);
-      // En combat (scène montrée) : le chemin du pion est tracé ; les mètres comptent pour le
-      // round du joueur seulement s'il a bougé son propre pion (pas les corrections du MJ).
+      // En combat (scène montrée) : le chemin du pion est tracé. Les mètres comptent pour le
+      // round du joueur s'il a bougé son propre pion, ou si le MJ le bouge pendant son tour (il
+      // joue à sa place) ; pas les corrections du MJ pendant le tour d'un autre (repoussement…).
       if (sceneActive(partieId)?.id === pion.sceneId) {
+        const parLeJoueur = !estMj() && pion.joueurId === moi().id;
+        const mjPourLeJoueur = estMj() && pion.joueurId !== null && estSonTour(lireCombat(partieId), pion.joueurId);
         noterDeplacement(io, partieId, {
           pionId: String(d.id),
           de: { col: pion.col, lig: pion.lig },
           a: position,
-          joueurQuiBouge: !estMj() && pion.joueurId === moi().id ? moi().id : null,
+          joueurQuiBouge: parLeJoueur || mjPourLeJoueur ? pion.joueurId : null,
         });
       }
       return { ok: true };

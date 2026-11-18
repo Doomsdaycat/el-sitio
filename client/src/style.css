@@ -1739,3 +1739,17 @@ button.secondaire.actif {
 .ligne-ordre .nom-participant {
   min-width: 6rem;
 }
+
+/* MJ : déplacement restant et réaction sur la ligne d'un personnage joueur. */
+.ligne-mj-joueur {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-basis: 100%;
+  justify-content: flex-end;
+}
+
+.ligne-mj-joueur button {
+  padding: 0.1rem 0.5rem;
+  font-size: 0.8rem;
+}

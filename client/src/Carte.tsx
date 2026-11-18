@@ -24,6 +24,7 @@ import {
   decouperTrace,
   deplacementDuRound,
   deplacementRestant,
+  estSonTour,
   type EtapeTrace,
 } from "../../shared/combat.ts";
 import { deplacement } from "../../shared/fiche.ts";
@@ -532,10 +533,15 @@ export function Carte(props: {
     const x = combat.combattants.find((y) => y.type === "pj" && y.joueurId === p.joueurId);
     return deplacementDuRound(x ? combat.mouvements[x.id] : undefined, deplacementDuPion(p));
   };
-  /** Seul le joueur qui déplace son propre pion voit (et consomme) son déplacement du round. */
+  /**
+   * Déplacement restant affiché en glissant : pour le joueur qui bouge son propre pion, ou pour
+   * le MJ qui bouge le pion d'un joueur pendant son tour (il joue à sa place ; ça compte aussi).
+   */
   const limiteRound = (p: Pion) => {
-    if (estMj || !combat || combat.phase !== "round" || p.joueurId !== moiId) return null;
-    const x = combat.combattants.find((y) => y.type === "pj" && y.joueurId === moiId);
+    if (!combat || combat.phase !== "round" || p.joueurId === null) return null;
+    const concerne = estMj ? estSonTour(combat, p.joueurId) : p.joueurId === moiId;
+    if (!concerne) return null;
+    const x = combat.combattants.find((y) => y.type === "pj" && y.joueurId === p.joueurId);
     const m = x ? combat.mouvements[x.id] : undefined;
     const dep = deplacementDuPion(p);
     const restant = deplacementRestant(m, dep);

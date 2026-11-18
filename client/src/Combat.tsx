@@ -305,10 +305,46 @@ function Ordre(props: { combat: DonneesCombat; moiId: number; estMj: boolean; em
               </span>
             )}
             {carte.jouee && <span className="discret petit">a joué</span>}
+            {estMj && x.type === "pj" && (
+              <LigneMjJoueur combat={combat} combattant={x} deplacementFiche={f ? deplacement(f) : null} emettre={emettre} />
+            )}
           </li>
         );
       })}
     </ol>
+  );
+}
+
+/** MJ, sur la ligne d'un personnage joueur : déplacement restant et réaction (souvent hors de son tour). */
+function LigneMjJoueur(props: {
+  combat: DonneesCombat;
+  combattant: Combattant;
+  deplacementFiche: number | null;
+  emettre: Emettre;
+}) {
+  const { combat, combattant, deplacementFiche, emettre } = props;
+  const m = combat.mouvements[combattant.id];
+  const reste = deplacementRestant(m, deplacementFiche);
+  const total = deplacementDuRound(m, deplacementFiche);
+  const peutReagir = cartesDe(combat, combattant.id).some((x) => !x.jouee);
+  return (
+    <span className="ligne-mj-joueur">
+      {reste !== null && total !== null && (
+        <span className="discret petit" title="Déplacement restant ce round">
+          {reste}/{total} m{m?.course ? " (course)" : ""}
+        </span>
+      )}
+      {peutReagir && (
+        <button
+          type="button"
+          className="secondaire"
+          title="Réaction (parer, esquiver) : sa carte est retournée et il ne se déplace plus ce round"
+          onClick={() => emettre("combat:reaction", { combattantId: combattant.id })}
+        >
+          Réaction
+        </button>
+      )}
+    </span>
   );
 }
 
@@ -374,6 +410,10 @@ function MesActions(props: { combat: DonneesCombat; moiId: number; estMj: boolea
       )}
 
       {moi && combat.phase === "round" && <MonDeplacement combat={combat} combattant={moi} emettre={emettre} fiche={fiche(moi)} />}
+      {/* MJ : pendant le tour d'un joueur, il peut jouer à sa place (course, réaction, déplacement). */}
+      {estMj && duTour?.type === "pj" && combat.phase === "round" && (
+        <MonDeplacement combat={combat} combattant={duTour} emettre={emettre} fiche={fiche(duTour)} pour={nom(duTour)} />
+      )}
     </div>
   );
 }
@@ -383,8 +423,10 @@ function MonDeplacement(props: {
   combattant: Combattant;
   emettre: Emettre;
   fiche: ReturnType<ReturnType<typeof useNoms>["fiche"]>;
+  /** MJ qui joue à la place du joueur : nom du personnage dans le titre. */
+  pour?: string;
 }) {
-  const { combat, combattant, emettre, fiche } = props;
+  const { combat, combattant, emettre, fiche, pour } = props;
   const m = combat.mouvements[combattant.id];
   const dep = fiche ? deplacement(fiche) : null;
   const total = deplacementDuRound(m, dep);
@@ -394,9 +436,11 @@ function MonDeplacement(props: {
   return (
     <div className="mon-deplacement">
       <p>
-        Déplacement :{" "}
+        {pour ? <>Déplacement de {pour} :</> : "Déplacement :"}{" "}
         {total === null ? (
-          <span className="discret">choisis ta famille sur ta fiche pour le calculer</span>
+          <span className="discret">
+            {pour ? "famille à choisir sur sa fiche pour le calculer" : "choisis ta famille sur ta fiche pour le calculer"}
+          </span>
         ) : (
           <>
             reste <strong>{reste} m</strong> sur {total} m
