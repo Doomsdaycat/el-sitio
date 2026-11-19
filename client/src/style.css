@@ -249,11 +249,13 @@ button.lien {
 
 /* --- Étape 2 : dés et journal --- */
 
+/* La table tient dans l'écran : la page ne défile plus, chaque colonne défile seule.
+   L'ascenseur de la colonne de la scène se trouve donc entre les deux colonnes. */
 .table-de-jeu {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 28rem;
-  gap: 1rem;
-  align-items: start;
+  gap: 0.4rem;
+  height: calc(100dvh - 1.5rem);
 }
 
 /* Colonne de droite : combat, lancer de dés et journal empilés. Elle reste à l'écran quand la
@@ -261,8 +263,28 @@ button.lien {
 /* Colonne de gauche : la barre du haut, puis la scène. */
 .colonne-gauche {
   display: grid;
+  align-content: start;
   gap: 0.75rem;
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.6rem;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bordure) transparent;
+}
+
+.colonne-gauche::-webkit-scrollbar {
+  width: 8px;
+}
+
+.colonne-gauche::-webkit-scrollbar-thumb {
+  background: var(--bordure);
+  border-radius: 4px;
+}
+
+.colonne-gauche::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .colonne-gauche > .barre-haut {
@@ -270,12 +292,10 @@ button.lien {
 }
 
 .colonne-droite {
-  position: sticky;
-  top: 0.75rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  max-height: calc(100vh - 1.5rem);
+  min-height: 0;
   min-width: 0;
 }
 
@@ -675,10 +695,11 @@ select {
 @media (max-width: 1000px) {
   .table-de-jeu {
     grid-template-columns: minmax(0, 1fr);
+    height: auto;
   }
-  .colonne-droite {
-    position: static;
-    max-height: none;
+  .colonne-gauche {
+    overflow: visible;
+    padding-right: 0;
   }
   .colonne-droite > .journal {
     max-height: 70vh;
