@@ -111,6 +111,7 @@ function Affichage(props: {
   const cadre = useRef<HTMLElement>(null);
   const zone = useRef<HTMLDivElement>(null);
   const calque = useRef<HTMLCanvasElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
   const [pleinEcran, setPleinEcran] = useState(false);
   const [vue, setVue] = useState<Vue>(VUE_ENTIERE);
   const glisse = useRef<{ x: number; y: number } | null>(null);
@@ -140,10 +141,13 @@ function Affichage(props: {
   }, []);
 
   // Nouvelle image : on revient à l'image entière.
+  // Une image déjà dans le cache du navigateur (page rechargée, changement de partie) peut être
+  // chargée avant ce moment : son « onLoad » est alors déjà passé, on lit sa taille tout de suite.
   useEffect(() => {
     setVue(VUE_ENTIERE);
-    setTailleImage(null);
     setPret(false);
+    const img = imageRef.current;
+    setTailleImage(img?.complete && img.naturalWidth > 0 ? { l: img.naturalWidth, h: img.naturalHeight } : null);
   }, [props.id]);
 
   // Brouillard désactivé : on revient à l'outil Déplacer.
@@ -399,6 +403,7 @@ function Affichage(props: {
           }}
         >
           <img
+            ref={imageRef}
             src={urlImage(props.id)}
             alt={props.titre}
             draggable={false}
