@@ -781,7 +781,7 @@ export function Carte(props: {
             <span className="groupe-outils" role="group" aria-label="Outil">
               {(
                 [
-                  ["deplacer", "✋ Déplacer", "Glisser la carte ou un pion"],
+                  ["deplacer", "🥾 Déplacer", "Glisser la carte ou un pion"],
                   ["regle", "📏 Règle", "Mesurer une distance (tout le monde la voit)"],
                   ["pointeur", "👉 Pointer du doigt", "Cliquer pour montrer un endroit à tous"],
                   ...(estMj && scene.brouillard.actif
