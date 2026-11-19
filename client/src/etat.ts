@@ -11,6 +11,21 @@ import type { Invitation, PartieMj, Present } from "../../shared/messages.ts";
 import type { ImageBibliotheque, Scene } from "../../shared/scenes.ts";
 import { socket } from "./connexion.ts";
 
+/** Onglets du panneau Gestion (MJ). */
+export type OngletGestion = "invitations" | "scenes" | "images" | "parties" | "export";
+const ONGLETS_GESTION: OngletGestion[] = ["invitations", "scenes", "images", "parties", "export"];
+const CLE_ONGLET_GESTION = "brumeland.gestion.onglet";
+
+function ongletGestionMemorise(): OngletGestion {
+  try {
+    const o = localStorage.getItem(CLE_ONGLET_GESTION) as OngletGestion | null;
+    if (o && ONGLETS_GESTION.includes(o)) return o;
+  } catch {
+    // Stockage indisponible : onglet par défaut.
+  }
+  return "invitations";
+}
+
 /** Réglages du prochain jet, partagés entre le panneau de jet et la fiche. */
 export interface ReglagesJet {
   faveurs: number;
@@ -50,6 +65,9 @@ interface Etat {
   scenes: Scene[] | null;
   /** MJ : scène ouverte pour la préparer sans la montrer (sinon null). */
   scenePreparee: string | null;
+  /** MJ : panneau Gestion ouvert, et son onglet. */
+  gestionOuverte: boolean;
+  ongletGestion: OngletGestion;
   /** MJ : panneau « Réglages de la scène » ouvert à droite de la scène. */
   reglagesOuverts: boolean;
   /** MJ : nouvelle scène à préremplir dans « Mes scènes » (depuis la bibliothèque d'images). */
@@ -81,6 +99,8 @@ let etat: Etat = {
   scenePreparee: null,
   brouillonScene: null,
   reglagesOuverts: false,
+  gestionOuverte: false,
+  ongletGestion: ongletGestionMemorise(),
   reglesDistantes: [],
   pointeurs: [],
   scene: null,
@@ -127,6 +147,25 @@ socket.on("carte:regle", ({ sceneId, auteurId, auteur, mesure }) => {
   modifier({ reglesDistantes: mesure ? [...autres, { sceneId, auteurId, auteur, ...mesure }] : autres });
 });
 socket.on("carte:pointeur", ({ sceneId, auteur, x, y }) => ajouterPointeur(sceneId, auteur, x, y));
+
+/** MJ : ouvre le panneau Gestion (sur un onglet donné, sinon le dernier utilisé). */
+export function ouvrirGestion(onglet?: OngletGestion): void {
+  if (onglet) choisirOngletGestion(onglet);
+  modifier({ gestionOuverte: true });
+}
+
+export function fermerGestion(): void {
+  modifier({ gestionOuverte: false });
+}
+
+export function choisirOngletGestion(onglet: OngletGestion): void {
+  modifier({ ongletGestion: onglet });
+  try {
+    localStorage.setItem(CLE_ONGLET_GESTION, onglet);
+  } catch {
+    // Sans gravité.
+  }
+}
 
 /** MJ : ouvre ou ferme le panneau « Réglages de la scène ». */
 export function ouvrirReglages(ouverts: boolean): void {

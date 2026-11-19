@@ -1366,7 +1366,7 @@ textarea {
   border: 1px solid var(--bordure);
 }
 
-/* --- Scènes : « Mes scènes » (MJ) --- */
+/* --- Scènes : onglet « Scènes » du panneau Gestion (MJ) --- */
 
 .mes-scenes h3 {
   font-family: Georgia, "Times New Roman", serif;
@@ -1423,17 +1423,12 @@ textarea {
   gap: 0.3rem;
 }
 
-.ligne-scene-reglages {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem;
+.ligne-scene-nom {
+  overflow-wrap: anywhere;
 }
 
-.ligne-scene-reglages select {
-  padding: 0.2rem 0.4rem;
-  font-size: 0.85rem;
-  max-width: 14rem;
+.ligne-scene-infos .badge-montree-texte {
+  margin-left: 0.4rem;
 }
 
 .badge-montree-texte {
@@ -2672,8 +2667,10 @@ button.choix-scene.actuelle {
   min-width: 0;
 }
 
-.nouvelle-scene-menu {
-  justify-self: start;
+.pied-menu-scenes {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
   margin: 0.3rem 0.4rem 0.1rem;
 }
 

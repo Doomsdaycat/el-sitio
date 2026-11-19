@@ -5,6 +5,7 @@ import { ChoixNom } from "./ChoixNom.tsx";
 import { Centre } from "./Centre.tsx";
 import { BarreHaut } from "./BarreHaut.tsx";
 import { Combat } from "./Combat.tsx";
+import { fermerGestion, ouvrirGestion, useEtat } from "./etat.ts";
 import { Gestion } from "./Gestion.tsx";
 import { Installation } from "./Import.tsx";
 import { Journal } from "./Journal.tsx";
@@ -34,7 +35,7 @@ export function App() {
   });
   const [identite, setIdentite] = useState<Identite | null>(null);
   const [changementNom, setChangementNom] = useState(false);
-  const [gestion, setGestion] = useState(false);
+  const gestion = useEtat("gestionOuverte");
 
   useEffect(() => {
     const surConnexion = () => setEtat("connecte");
@@ -88,7 +89,7 @@ export function App() {
       libelle={LIBELLES[etat]}
       classeStatut={`statut-${etat}`}
       gestionOuverte={gestion}
-      surGestion={() => setGestion((g) => !g)}
+      surGestion={() => (gestion ? fermerGestion() : ouvrirGestion())}
       surChangerNom={() => setChangementNom(true)}
     />
   );
@@ -131,7 +132,7 @@ export function App() {
             </div>
           </div>
 
-          {estMj && gestion && <Gestion surFermer={() => setGestion(false)} />}
+          {estMj && gestion && <Gestion />}
         </>
       )}
     </main>

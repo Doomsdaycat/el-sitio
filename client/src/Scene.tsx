@@ -1,5 +1,5 @@
-// Onglet Scène : la scène montrée (illustration ou immersive) ; pour le MJ, la préparation
-// d'une scène, la liste « Mes scènes », et la bibliothèque d'images (affichée dans le panneau Gestion).
+// Onglet Scène : la scène montrée (illustration ou immersive) ; pour le MJ, le menu et les
+// réglages de la scène. Aussi : la liste des scènes et la bibliothèque d'images (panneau Gestion).
 
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import type { Reponse } from "../../shared/messages.ts";
@@ -19,7 +19,7 @@ import { Carte } from "./Carte.tsx";
 import { MenuScenes } from "./MenuScenes.tsx";
 import { BlocReglages, BoutonReglages, PanneauReglages } from "./ReglagesScene.tsx";
 import { jeton, socket } from "./connexion.ts";
-import { ouvrirReglages, preparerScene, proposerScene, useEtat } from "./etat.ts";
+import { fermerGestion, ouvrirGestion, ouvrirReglages, preparerScene, proposerScene, useEtat } from "./etat.ts";
 
 function mega(octets: number): string {
   return `${(octets / 1024 / 1024).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} Mo`;
@@ -683,7 +683,7 @@ export function Bibliotheque(props: { surNouvelleScene: (b: { imageId: string; n
 }
 
 // ---------------------------------------------------------------------------
-// Mes scènes (MJ)
+// Scènes de la partie (MJ) : onglet « Scènes » du panneau Gestion
 
 /** Glisser-déposer et flèches pour réordonner « Mes scènes ». */
 interface Ordre {
@@ -703,16 +703,12 @@ function LigneScene(props: {
   scene: SceneDonnees;
   montree: boolean;
   preparee: boolean;
-  images: ImageBibliotheque[];
   surErreur: (e: string | null) => void;
   ordre: Ordre;
 }) {
-  const { scene, montree, preparee, images, surErreur, ordre } = props;
-  const [nom, setNom] = useState<string | null>(null);
+  const { scene, montree, preparee, surErreur, ordre } = props;
   const [confirmer, setConfirmer] = useState(false);
   const repondre = (r: Reponse) => surErreur(r.ok ? null : r.erreur);
-  const modifier = (changement: { nom?: string; type?: TypeScene; imageId?: string }) =>
-    socket.emit("mj:modifierScene", { id: scene.id, ...changement }, repondre);
 
   function supprimer() {
     if (!confirmer) {
@@ -758,13 +754,7 @@ function LigneScene(props: {
         >
           ⋮⋮
         </span>
-        <button
-          type="button"
-          className="fleche"
-          aria-label={`Monter « ${scene.nom} »`}
-          disabled={ordre.rang === 0}
-          onClick={() => ordre.deplacer(ordre.rang - 1)}
-        >
+        <button type="button" className="fleche" aria-label={`Monter « ${scene.nom} »`} disabled={ordre.rang === 0} onClick={() => ordre.deplacer(ordre.rang - 1)}>
           ↑
         </button>
         <button
@@ -779,51 +769,27 @@ function LigneScene(props: {
       </div>
       <img className="ligne-scene-vignette" src={urlImage(scene.image.id)} alt="" loading="lazy" />
       <div className="ligne-scene-infos">
-        <input
-          className="nom-image"
-          aria-label="Nom de la scène"
-          maxLength={SCENE_NOM_MAX}
-          value={nom ?? scene.nom}
-          onFocus={() => setNom(scene.nom)}
-          onChange={(e) => setNom(e.target.value)}
-          onBlur={() => {
-            if (nom !== null && nom.trim() !== "" && nom !== scene.nom) modifier({ nom });
-            setNom(null);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") e.currentTarget.blur();
-          }}
-        />
-        <div className="ligne-scene-reglages">
-          <select
-            aria-label="Type de scène"
-            value={scene.type}
-            onChange={(e) => modifier({ type: e.target.value as TypeScene })}
-          >
-            {TYPES_SCENE.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.nom}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="Image de la scène"
-            value={scene.image.id}
-            onChange={(e) => modifier({ imageId: e.target.value })}
-          >
-            {images.map((i) => (
-              <option key={i.id} value={i.id}>
-                {i.nom}
-              </option>
-            ))}
-          </select>
+        <strong className="ligne-scene-nom">{scene.nom}</strong>
+        <span className="discret petit">
+          {scene.type === "immersive" ? "Immersive" : "Illustration"} · {scene.image.nom}
           {montree && <span className="badge-montree-texte">montrée</span>}
-        </div>
+        </span>
       </div>
       <div className="ligne-scene-actions">
+        <button
+          type="button"
+          className="secondaire"
+          title="Afficher cette scène sur ton écran (les joueurs ne la voient pas tant qu'elle n'est pas montrée)"
+          onClick={() => {
+            preparerScene(montree ? null : scene.id);
+            fermerGestion();
+          }}
+        >
+          Ouvrir
+        </button>
         {montree ? (
           <button type="button" className="secondaire" onClick={() => socket.emit("mj:montrerScene", { id: null }, repondre)}>
-            Ne plus montrer la scène
+            Ne plus montrer
           </button>
         ) : (
           <button
@@ -835,16 +801,7 @@ function LigneScene(props: {
               })
             }
           >
-            Montrer la scène
-          </button>
-        )}
-        {!montree && (
-          <button
-            type="button"
-            className={preparee ? "secondaire actif" : "secondaire"}
-            onClick={() => preparerScene(preparee ? null : scene.id)}
-          >
-            {preparee ? "Fermer" : "Préparer"}
+            Montrer
           </button>
         )}
         <button type="button" className={confirmer ? "danger" : "lien"} onClick={supprimer}>
@@ -855,7 +812,11 @@ function LigneScene(props: {
   );
 }
 
-function MesScenes() {
+/**
+ * Onglet « Scènes » du panneau Gestion (MJ) : les scènes de la partie, dans l'ordre choisi,
+ * et la création d'une scène (préremplie depuis l'onglet Images).
+ */
+export function GestionScenes() {
   const brouillon = useEtat("brouillonScene");
   const scenes = useEtat("scenes");
   const images = useEtat("images");
@@ -891,7 +852,6 @@ function MesScenes() {
 
   return (
     <section className="mes-scenes">
-      <h3>Mes scènes</h3>
       {scenes && scenes.length > 0 ? (
         <ul className="liste-scenes">
           {scenes.map((s, rang) => (
@@ -900,7 +860,6 @@ function MesScenes() {
               scene={s}
               montree={active?.id === s.id}
               preparee={preparee === s.id}
-              images={images ?? []}
               surErreur={setErreur}
               ordre={{
                 rang,
@@ -930,7 +889,7 @@ function MesScenes() {
           ))}
         </ul>
       ) : (
-        <p className="discret petit">Aucune scène pour l'instant.</p>
+        <p className="discret petit">Aucune scène pour l'instant : crée la première ci-dessous.</p>
       )}
       {erreur && <p className="erreur">{erreur}</p>}
 
@@ -950,6 +909,7 @@ function MesScenes() {
             if (r.id) {
               preparerScene(r.id);
               ouvrirReglages(true);
+              fermerGestion();
             }
           });
         }}
@@ -982,7 +942,13 @@ function MesScenes() {
         </button>
         <p className="discret petit aide-type">{TYPES_SCENE.find((t) => t.id === type)?.aide}</p>
         {(images ?? []).length === 0 && (
-          <p className="discret petit">Dépose d'abord une image : bouton ⚙️ de la barre du haut, onglet « Images ».</p>
+          <p className="discret petit">
+            Dépose d'abord une image dans l'onglet{" "}
+            <button type="button" className="lien" onClick={() => ouvrirGestion("images")}>
+              Images
+            </button>
+            .
+          </p>
         )}
       </form>
     </section>
@@ -1044,7 +1010,7 @@ export function Scene({ estMj, moiId }: { estMj: boolean; moiId: number }) {
           {estMj && <div className="barre barre-scene barre-scene-seule">{entete}</div>}
           <p className="discret scene-vide">
             {estMj
-              ? "Aucune scène montrée. Choisis une scène dans le menu ci-dessus, ou crée-en une plus bas, puis clique sur « Montrer à tous »."
+              ? "Aucune scène montrée. Choisis une scène dans le menu ci-dessus (ou crée-en une), puis clique sur « Montrer à tous »."
               : "Le MJ n'a pas encore montré de scène."}
           </p>
         </>
@@ -1064,7 +1030,6 @@ export function Scene({ estMj, moiId }: { estMj: boolean; moiId: number }) {
           {estMj && reglagesOuverts && <PreparerIllustration scene={affichee} />}
         </div>
       )}
-      {estMj && <MesScenes />}
     </div>
   );
 }

@@ -4,13 +4,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import { urlImage } from "../../shared/scenes.ts";
-import { preparerScene, useEtat } from "./etat.ts";
+import { ouvrirGestion, preparerScene, useEtat } from "./etat.ts";
 
-/** Fait défiler jusqu'au formulaire « Nouvelle scène » de « Mes scènes » et y place le curseur. */
-function allerANouvelleScene(): void {
-  const formulaire = document.querySelector<HTMLFormElement>(".nouvelle-scene");
-  formulaire?.scrollIntoView({ behavior: "smooth", block: "center" });
-  formulaire?.querySelector("input")?.focus({ preventScroll: true });
+/** Ouvre l'onglet Scènes de Gestion ; avec « nouvelle », place le curseur dans le formulaire de création. */
+function allerAuxScenes(nouvelle: boolean): void {
+  ouvrirGestion("scenes");
+  if (!nouvelle) return;
+  window.setTimeout(() => {
+    const formulaire = document.querySelector<HTMLFormElement>(".gestion .nouvelle-scene");
+    formulaire?.scrollIntoView({ behavior: "smooth", block: "center" });
+    formulaire?.querySelector("input")?.focus({ preventScroll: true });
+  }, 50);
 }
 
 export function MenuScenes({ afficheeId }: { afficheeId: string | null }) {
@@ -84,16 +88,28 @@ export function MenuScenes({ afficheeId }: { afficheeId: string | null }) {
               {s.id === active?.id && <span className="badge-montree-texte">montrée</span>}
             </button>
           ))}
-          <button
-            type="button"
-            className="lien nouvelle-scene-menu"
-            onClick={() => {
-              setOuvert(false);
-              allerANouvelleScene();
-            }}
-          >
-            ＋ Nouvelle scène
-          </button>
+          <div className="pied-menu-scenes">
+            <button
+              type="button"
+              className="lien"
+              onClick={() => {
+                setOuvert(false);
+                allerAuxScenes(true);
+              }}
+            >
+              ＋ Nouvelle scène
+            </button>
+            <button
+              type="button"
+              className="lien"
+              onClick={() => {
+                setOuvert(false);
+                allerAuxScenes(false);
+              }}
+            >
+              Gérer les scènes…
+            </button>
+          </div>
         </div>
       )}
     </div>

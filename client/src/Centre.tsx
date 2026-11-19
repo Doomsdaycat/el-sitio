@@ -13,11 +13,11 @@ export function Centre({ moiId, estMj }: { moiId: number; estMj: boolean }) {
   const sceneMontree = scene?.id ?? null;
   const [onglet, setOnglet] = useState<Onglet>("personnages");
   const precedente = useRef<string | null | undefined>(undefined);
-  // MJ : « Nouvelle scène » depuis la bibliothèque : « Mes scènes » est sous l'onglet Scène.
-  const brouillon = useEtat("brouillonScene");
+  // MJ : une scène ouverte pour la préparer (menu des scènes, onglet Scènes de Gestion) s'affiche.
+  const preparee = useEtat("scenePreparee");
   useEffect(() => {
-    if (brouillon) setOnglet("scene");
-  }, [brouillon]);
+    if (preparee) setOnglet("scene");
+  }, [preparee]);
 
   useEffect(() => {
     // Nouvelle scène montrée (ou scène déjà montrée à l'arrivée) : on l'affiche.
