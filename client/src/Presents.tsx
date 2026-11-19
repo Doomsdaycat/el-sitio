@@ -1,32 +1,26 @@
 // Liste des participants et de leur statut (connecté ou non), visible par tout le monde.
+// Affichée dans le panneau de connexion de la barre du haut.
 
-import { useEtat } from "./etat.ts";
+import type { Present } from "../../shared/messages.ts";
 
-export function Presents({ moiId }: { moiId: number }) {
-  const liste = useEtat("presents");
-
-  if (liste === null) return null;
-  const nbConnectes = liste.filter((p) => p.connecte).length;
-
+export function ListePresents({ liste, moiId }: { liste: Present[]; moiId: number | null }) {
   return (
-    <section className="carte presents">
-      <h2>À la table</h2>
-      <p className="discret">
-        {nbConnectes} connecté{nbConnectes > 1 ? "s" : ""} sur {liste.length}
-      </p>
-      <ul>
-        {liste.map((p) => (
-          <li key={p.id} className={p.connecte ? "present connecte" : "present absent"}>
-            <span className="pastille" aria-hidden="true" />
-            <span className="present-nom">
-              {p.nom ?? <em>nouveau joueur</em>}
-              {p.id === moiId && <span className="discret"> (toi)</span>}
-            </span>
-            {p.role === "mj" && <span className="badge-mj">MJ</span>}
-            <span className="visually-hidden">{p.connecte ? "connecté" : "déconnecté"}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
+    <ul className="liste-presents">
+      {liste.map((p) => (
+        <li key={p.id} className={p.connecte ? "present connecte" : "present absent"}>
+          <span className="pastille" aria-hidden="true" />
+          <span className="present-nom">
+            {p.nom ?? <em>nouveau joueur</em>}
+            {p.id === moiId && <span className="discret"> (toi)</span>}
+          </span>
+          {p.role === "mj" ? (
+            <span className="badge-mj">MJ</span>
+          ) : (
+            !p.connecte && <span className="discret present-statut">absent</span>
+          )}
+          <span className="visually-hidden">{p.connecte ? "connecté" : "déconnecté"}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
