@@ -798,17 +798,13 @@ export function Carte(props: {
                   >
                     {nom}
                   </button>
-                  {/* Annuler un déplacement : juste après l'outil Déplacer. Icône compacte, place toujours
-                      réservée (invisible s'il n'y a rien à annuler) : les autres boutons ne bougent pas. */}
-                  {id === "deplacer" && (
+                  {/* Annuler un déplacement : juste après l'outil Déplacer, seulement s'il y a quelque chose à annuler. */}
+                  {id === "deplacer" && annulables > 0 && (
                     <button
                       type="button"
                       className="secondaire bouton-annuler"
                       title="Annuler mon dernier déplacement (Ctrl + Z, souris sur la carte)"
                       aria-label="Annuler mon dernier déplacement"
-                      aria-hidden={annulables === 0}
-                      tabIndex={annulables === 0 ? -1 : 0}
-                      style={{ visibility: annulables > 0 ? "visible" : "hidden" }}
                       onClick={annulerDeplacement}
                     >
                       <span className="botte-barree">🥾</span>
