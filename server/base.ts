@@ -4,6 +4,7 @@
 import { mkdirSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { CHEMIN_BASE, DOSSIER_DONNEES } from "./chemins.ts";
+import { FORMAT_JETON, nouveauJeton } from "./jetons.ts";
 import { appliquerImportEnAttente } from "./restauration.ts";
 import { sauvegarder } from "./sauvegardes.ts";
 
@@ -18,8 +19,9 @@ export const base = new DatabaseSync(CHEMIN_BASE);
 base.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
 
 // Évolutions successives du schéma. On n'en modifie jamais une déjà publiée :
-// on en ajoute une nouvelle à la fin de la liste.
-const MIGRATIONS: string[] = [
+// on en ajoute une nouvelle à la fin de la liste. Une évolution est du SQL, ou une fonction
+// quand il faut calculer quelque chose (jetons aléatoires…).
+const MIGRATIONS: (string | (() => void))[] = [
   `
   CREATE TABLE partie (
     id        INTEGER PRIMARY KEY,
@@ -195,6 +197,17 @@ const MIGRATIONS: string[] = [
   ALTER TABLE participant ADD COLUMN ordre INTEGER NOT NULL DEFAULT 0;
   UPDATE participant SET ordre = id;
   `,
+  // Liens d'invitation plus courts (« k7m2-qx9p-4hdt ») : chaque jeton long est remplacé.
+  // L'ancien est gardé pour que les liens déjà envoyés mènent au nouveau (redirection).
+  () => {
+    base.exec("ALTER TABLE participant ADD COLUMN ancien_jeton TEXT");
+    base.exec("CREATE UNIQUE INDEX participant_ancien_jeton ON participant (ancien_jeton)");
+    const lignes = base.prepare("SELECT id, jeton FROM participant").all() as { id: number; jeton: string }[];
+    const remplacer = base.prepare("UPDATE participant SET jeton = ?, ancien_jeton = jeton WHERE id = ?");
+    for (const { id, jeton } of lignes) {
+      if (!FORMAT_JETON.test(jeton)) remplacer.run(nouveauJeton(), id);
+    }
+  },
 ];
 
 function migrer(): void {
@@ -206,7 +219,9 @@ function migrer(): void {
   for (let i = versionActuelle; i < MIGRATIONS.length; i++) {
     base.exec("BEGIN");
     try {
-      base.exec(MIGRATIONS[i]);
+      const migration = MIGRATIONS[i];
+      if (typeof migration === "string") base.exec(migration);
+      else migration();
       base.exec(`PRAGMA user_version = ${i + 1}`);
       base.exec("COMMIT");
     } catch (erreur) {

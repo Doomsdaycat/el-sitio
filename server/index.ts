@@ -83,6 +83,13 @@ if (MODE_PARTIE) {
     process.exit(1);
   }
   app.use(express.static(DOSSIER_INTERFACE, { index: false }));
+  // Lien d'invitation tapé autrement (majuscules, sans tirets) ou ancien lien long :
+  // redirection vers le lien exact, que le navigateur mémorise ensuite.
+  app.get("/jeu/:jeton", (req, res, suite) => {
+    const participant = participantParJeton(req.params.jeton);
+    if (participant && participant.jeton !== req.params.jeton) res.redirect(302, `/jeu/${participant.jeton}`);
+    else suite();
+  });
   // Toute autre adresse (par exemple /jeu/<jeton>) affiche la page de l'application.
   app.get("/{*chemin}", (_req, res) => {
     res.sendFile(resolve(DOSSIER_INTERFACE, "index.html"));

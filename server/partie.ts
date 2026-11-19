@@ -1,8 +1,8 @@
 // La partie et ses participants (MJ et joueurs).
 // Pour l'instant, il n'existe qu'une seule partie, créée au premier lancement.
 
-import { randomBytes } from "node:crypto";
 import { base } from "./base.ts";
+import { FORMAT_JETON, nouveauJeton } from "./jetons.ts";
 import type { Role } from "../shared/messages.ts";
 
 export interface Partie {
@@ -17,11 +17,6 @@ export interface Participant {
   jeton: string;
   nom: string | null;
   etiquette: string | null;
-}
-
-/** Jeton d'invitation : 32 caractères aléatoires, impossibles à deviner. */
-function nouveauJeton(): string {
-  return randomBytes(24).toString("base64url");
 }
 
 function maintenant(): string {
@@ -48,8 +43,18 @@ export function partieCourante(): Partie {
 
 const COLONNES = "id, partie_id AS partieId, role, jeton, nom, etiquette";
 
+/**
+ * Participant d'après le jeton de son lien. Un lien court est reconnu même tapé en majuscules
+ * ou sans tirets ; un ancien lien long (d'avant les liens courts) marche toujours.
+ */
 export function participantParJeton(jeton: string): Participant | undefined {
-  return base.prepare(`SELECT ${COLONNES} FROM participant WHERE jeton = ?`).get(jeton) as
+  const court = jeton.toLowerCase().replaceAll("-", "").replace(/^(.{4})(.{4})(.{4})$/, "$1-$2-$3");
+  if (FORMAT_JETON.test(court)) {
+    return base.prepare(`SELECT ${COLONNES} FROM participant WHERE jeton = ?`).get(court) as
+      | Participant
+      | undefined;
+  }
+  return base.prepare(`SELECT ${COLONNES} FROM participant WHERE ancien_jeton = ?`).get(jeton) as
     | Participant
     | undefined;
 }
