@@ -37,15 +37,13 @@ import { estSonTour } from "../shared/combat.ts";
 import { annulerDansCombat, diffuserCombat, lireCombat, noterDeplacement } from "./combat.ts";
 import { diffuserImages } from "./images.ts";
 import type { Participant } from "./partie.ts";
+import { salleJoueurs, salleMj, salleParticipant, sallePartie } from "./salles.ts";
 
 interface DonneesSocket {
   participant: Participant;
 }
 type Io = Server<MessagesClient, MessagesServeur, Record<string, never>, DonneesSocket>;
 type SocketBrumeland = Socket<MessagesClient, MessagesServeur, Record<string, never>, DonneesSocket>;
-
-const SALLE_MJ = "mj";
-const SALLE_JOUEURS = "joueurs";
 
 // ---------------------------------------------------------------------------
 // Mémoire des déplacements, pour pouvoir les annuler (le temps de la séance)
@@ -157,12 +155,20 @@ export function sceneActive(partieId: number): Scene | null {
   return (ligne.id && lireScene(partieId, ligne.id)) || null;
 }
 
-/** Noms des scènes qui utilisent une image (pour empêcher de supprimer une image utilisée). */
+/**
+ * Noms des scènes qui utilisent une image (pour empêcher de supprimer une image utilisée).
+ * La bibliothèque est commune : les scènes de cette partie d'abord, puis celles des autres
+ * parties, avec le nom de leur partie.
+ */
 export function scenesUtilisant(partieId: number, imageId: string): string[] {
   const lignes = base
-    .prepare("SELECT nom FROM scene WHERE partie_id = ? AND image_id = ? ORDER BY cree_le")
-    .all(partieId, imageId) as { nom: string }[];
-  return lignes.map((l) => l.nom);
+    .prepare(
+      `SELECT scene.nom, scene.partie_id AS partieId, partie.nom AS partie FROM scene
+       JOIN partie ON partie.id = scene.partie_id
+       WHERE scene.image_id = ? ORDER BY scene.partie_id <> ?, scene.partie_id, scene.cree_le`,
+    )
+    .all(imageId, partieId) as { nom: string; partieId: number; partie: string }[];
+  return lignes.map((l) => (l.partieId === partieId ? l.nom : `${l.nom} (partie « ${l.partie} »)`));
 }
 
 // ---------------------------------------------------------------------------
@@ -205,12 +211,12 @@ export function assurerPionsPj(partieId: number): void {
  * tout le monde reçoit la scène montrée.
  */
 export function diffuserScenes(io: Io, partieId: number): void {
-  io.to(SALLE_MJ).emit("scenes", toutesLesScenes(partieId));
-  diffuserImages(io, partieId);
+  io.to(salleMj(partieId)).emit("scenes", toutesLesScenes(partieId));
+  diffuserImages(io);
   // Les pions cachés ne quittent jamais le serveur pour les joueurs.
   const active = sceneActive(partieId);
-  io.to(SALLE_MJ).emit("scene", active);
-  io.to(SALLE_JOUEURS).emit("scene", vuePourJoueurs(active));
+  io.to(salleMj(partieId)).emit("scene", active);
+  io.to(salleJoueurs(partieId)).emit("scene", vuePourJoueurs(active));
 }
 
 export function envoyerScenes(socket: SocketBrumeland, partieId: number): void {
@@ -274,7 +280,7 @@ function nettoyerNom(brut: unknown): string {
 const typeValide = (t: unknown): t is TypeScene => t === "illustration" || t === "immersive";
 
 function imageExiste(partieId: number, id: unknown): id is string {
-  return typeof id === "string" && !!base.prepare("SELECT 1 FROM image WHERE partie_id = ? AND id = ?").get(partieId, id);
+  return typeof id === "string" && !!base.prepare("SELECT 1 FROM image WHERE id = ?").get(id);
 }
 
 // ---------------------------------------------------------------------------
@@ -286,7 +292,7 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
 
   /** Dit à cette personne (tous ses onglets) combien de déplacements elle peut annuler. */
   const signalerAnnulables = () =>
-    io.to(`participant:${moi().id}`).emit("carte:annulables", (memoireDeplacements.get(moi().id) ?? []).length);
+    io.to(salleParticipant(moi().id)).emit("carte:annulables", (memoireDeplacements.get(moi().id) ?? []).length);
   socket.emit("carte:annulables", (memoireDeplacements.get(moi().id) ?? []).length);
 
   function proteger<D>(action: (d: D) => Reponse, reserveMj = false) {
@@ -483,7 +489,7 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
       if (d.cache !== undefined) diffuserCombat(io, partieId); // nom « ??? » ou révélé dans l'ordre du combat
       // Pion caché qui devient visible : tout le monde joue l'animation de révélation.
       if (pion.cache === 1 && d.cache === false) {
-        io.emit("carte:revelation", { sceneId: pion.sceneId, pionId: String(d.id) });
+        io.to(sallePartie(partieId)).emit("carte:revelation", { sceneId: pion.sceneId, pionId: String(d.id) });
       }
       return { ok: true };
     }, true),
@@ -662,7 +668,7 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
     if (!peutAgirSur(d?.sceneId)) return;
     const de = lireCase(d.mesure?.de);
     const a = lireCase(d.mesure?.a);
-    socket.broadcast.emit("carte:regle", {
+    socket.to(sallePartie(partieId)).emit("carte:regle", {
       sceneId: d.sceneId,
       auteurId: moi().id,
       auteur: moi().nom ?? "Meneur de jeu",
@@ -672,7 +678,7 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
 
   socket.on("carte:pointeur", (d) => {
     if (!peutAgirSur(d?.sceneId) || !fini(d.x) || !fini(d.y)) return;
-    socket.broadcast.emit("carte:pointeur", {
+    socket.to(sallePartie(partieId)).emit("carte:pointeur", {
       sceneId: d.sceneId,
       auteurId: moi().id,
       auteur: moi().nom ?? "Meneur de jeu",

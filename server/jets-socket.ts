@@ -27,10 +27,7 @@ import {
 import { diffuserFiche, peutGererFiche } from "./fiches-socket.ts";
 import { enregistrerFiche, lireFiche } from "./fiches.ts";
 import { listerParticipants, type Participant } from "./partie.ts";
-
-/** Salles Socket.IO : les navigateurs du MJ, et ceux des joueurs. */
-export const SALLE_MJ = "mj";
-export const SALLE_JOUEURS = "joueurs";
+import { salleJoueurs, salleMj, sallePartie } from "./salles.ts";
 
 interface DonneesSocket {
   participant: Participant;
@@ -39,9 +36,9 @@ type Io = Server<MessagesClient, MessagesServeur, Record<string, never>, Donnees
 type SocketBrumeland = Socket<MessagesClient, MessagesServeur, Record<string, never>, DonneesSocket>;
 
 /** Envoie un jet à chacun, dans la version qu'il a le droit de voir. */
-function diffuserEntree(io: Io, entree: EntreeJournal): void {
-  io.to(SALLE_MJ).emit("journal:entree", entree);
-  io.to(SALLE_JOUEURS).emit("journal:entree", vuePourJoueur(entree));
+function diffuserEntree(io: Io, partieId: number, entree: EntreeJournal): void {
+  io.to(salleMj(partieId)).emit("journal:entree", entree);
+  io.to(salleJoueurs(partieId)).emit("journal:entree", vuePourJoueur(entree));
 }
 
 /** Envoie le journal à un navigateur qui arrive (ou revient). */
@@ -145,7 +142,7 @@ export function brancherJets(io: Io, socket: SocketBrumeland, partieId: number):
       opposeA: opposition?.id ?? null,
       ouverte: opposition?.ouverte ?? false,
     });
-    diffuserEntree(io, entree);
+    diffuserEntree(io, partieId, entree);
   }
 
   socket.on(
@@ -271,7 +268,7 @@ export function brancherJets(io: Io, socket: SocketBrumeland, partieId: number):
       // Nouvelle tentative : on relance tous les dés, avec les mêmes faveurs et fléaux.
       const { valeur, faveurs, fleaux } = origine.resultat;
       const resultat = jetCompetence({ valeur, faveurs, fleaux });
-      diffuserEntree(io, { ...origine, dejaForce: true });
+      diffuserEntree(io, partieId, { ...origine, dejaForce: true });
       // La nouvelle tentative appartient au même personnage que le jet d'origine,
       // quelle que soit la personne qui a cliqué (le joueur ou le MJ).
       const tentative = enregistrerJet({
@@ -287,11 +284,11 @@ export function brancherJets(io: Io, socket: SocketBrumeland, partieId: number):
         pourId: origine.pourId,
         pourNom: origine.pourNom,
       });
-      diffuserEntree(io, tentative);
+      diffuserEntree(io, partieId, tentative);
       if (fiche) {
         const avecEtat = appliquerModification(fiche, { champ: "etat", etat: etat.id, actif: true });
         enregistrerFiche(partieId, avecEtat);
-        diffuserFiche(io, avecEtat);
+        diffuserFiche(io, partieId, avecEtat);
       }
       return { ok: true };
     }),
@@ -306,7 +303,7 @@ export function brancherJets(io: Io, socket: SocketBrumeland, partieId: number):
         return { ok: false, erreur: "Ce jet n'est plus à révéler." };
       }
       const entree = trouverJet(partieId, id);
-      if (entree) diffuserEntree(io, entree);
+      if (entree) diffuserEntree(io, partieId, entree);
       return { ok: true };
     }),
   );
@@ -316,7 +313,7 @@ export function brancherJets(io: Io, socket: SocketBrumeland, partieId: number):
     proteger(() => {
       if (!estMj()) return { ok: false, erreur: "Action réservée au Meneur de jeu." };
       viderJournal(partieId);
-      io.emit("journal:vide");
+      io.to(sallePartie(partieId)).emit("journal:vide");
       return { ok: true };
     }),
   );

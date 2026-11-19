@@ -1,5 +1,5 @@
-// La partie et ses participants (MJ et joueurs).
-// Pour l'instant, il n'existe qu'une seule partie, créée au premier lancement.
+// Les parties et leurs participants (MJ et joueurs).
+// La partie principale (la plus ancienne) est créée au premier lancement.
 
 import { base } from "./base.ts";
 import { FORMAT_JETON, nouveauJeton } from "./jetons.ts";
@@ -23,8 +23,12 @@ function maintenant(): string {
   return new Date().toISOString();
 }
 
-/** Renvoie la partie, en la créant (avec son MJ) si elle n'existe pas encore. */
-export function partieCourante(): Partie {
+export function partieParId(id: number): Partie | undefined {
+  return base.prepare("SELECT id, nom FROM partie WHERE id = ?").get(id) as Partie | undefined;
+}
+
+/** Renvoie la partie principale (la plus ancienne), en la créant (avec son MJ) s'il n'y en a aucune. */
+export function partiePrincipale(): Partie {
   const existante = base.prepare("SELECT id, nom FROM partie ORDER BY id LIMIT 1").get() as
     | Partie
     | undefined;

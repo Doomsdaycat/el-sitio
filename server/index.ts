@@ -27,7 +27,8 @@ import { ficheDuJoueur } from "./fiches.ts";
 import { brancherCombat, diffuserCombat, envoyerCombat } from "./combat.ts";
 import { brancherImages, brancherRoutesImages, envoyerImages } from "./images.ts";
 import { apresNouveauJoueur, brancherScenes, diffuserScenes, envoyerScenes } from "./scenes.ts";
-import { brancherJets, envoyerJournal, SALLE_JOUEURS, SALLE_MJ } from "./jets-socket.ts";
+import { brancherJets, envoyerJournal } from "./jets-socket.ts";
+import { salleJoueurs, salleMj, salleParticipant, sallePartie } from "./salles.ts";
 import { lienInvitation, MODE_PARTIE } from "./liens.ts";
 import {
   changerNom,
@@ -38,7 +39,8 @@ import {
   nomDejaPris,
   noterVisite,
   ordonnerInvitations,
-  partieCourante,
+  partieParId,
+  partiePrincipale,
   participantParJeton,
   supprimerInvitation,
   type Participant,
@@ -47,16 +49,14 @@ import {
 const PORT = Number(process.env.PORT ?? 3000);
 const VERSION = (JSON.parse(readFileSync(resolve(import.meta.dirname, "../package.json"), "utf8")) as { version: string }).version;
 
-/** Salle Socket.IO propre à un participant (il peut avoir plusieurs onglets ouverts). */
-const salleParticipant = (id: number) => `participant:${id}`;
-
 interface DonneesSocket {
   participant: Participant;
 }
 
 type SocketBrumeland = Socket<MessagesClient, MessagesServeur, Record<string, never>, DonneesSocket>;
 
-const partie = partieCourante();
+/** Partie principale : créée au premier lancement, c'est elle qu'on installe sur un serveur neuf. */
+const partie = partiePrincipale();
 
 const app = express();
 const serveurHttp = createServer(app);
@@ -69,9 +69,9 @@ app.get("/api/sante", (_req, res) => {
 });
 
 // Images : dépôt par le MJ et lecture (avant l'interface, qui prend toutes les autres adresses).
-brancherRoutesImages(app, io, partie.id);
+brancherRoutesImages(app, io);
 // Export de la partie en .zip (MJ seulement).
-brancherRoutesExport(app, partie.id);
+brancherRoutesExport(app);
 // Import d'un export .zip : le serveur redémarre pour l'appliquer (code de sortie 75).
 brancherRoutesImport(app, partie.id, () => arreter(CODE_REDEMARRAGE));
 
@@ -99,15 +99,17 @@ if (MODE_PARTIE) {
 // ---------------------------------------------------------------------------
 // Diffusions
 
-function invitationsPourMj(): Invitation[] {
-  return listerInvitations(partie.id).map(({ jeton, ...reste }) => ({
+// Chaque partie a ses propres salles : rien ne passe d'une partie à l'autre.
+
+function invitationsPourMj(partieId: number): Invitation[] {
+  return listerInvitations(partieId).map(({ jeton, ...reste }) => ({
     ...reste,
     lien: lienInvitation(jeton),
   }));
 }
 
-function diffuserInvitations(): void {
-  io.to(SALLE_MJ).emit("invitations", invitationsPourMj());
+function diffuserInvitations(partieId: number): void {
+  io.to(salleMj(partieId)).emit("invitations", invitationsPourMj(partieId));
 }
 
 /** Vrai si au moins un onglet de ce participant est connecté. */
@@ -119,20 +121,20 @@ function estConnecte(participantId: number): boolean {
  * Liste des présents, pour tout le monde. On n'y montre pas les invitations jamais utilisées :
  * un joueur y apparaît dès qu'il a choisi son nom, ou tant qu'il est connecté.
  */
-function listePresents(): Present[] {
-  return listerParticipants(partie.id)
+function listePresents(partieId: number): Present[] {
+  return listerParticipants(partieId)
     .map((p) => ({ ...p, connecte: estConnecte(p.id) }))
     .filter((p) => p.nom !== null || p.connecte);
 }
 
-function diffuserPresents(): void {
-  io.emit("presents", listePresents());
+function diffuserPresents(partieId: number): void {
+  io.to(sallePartie(partieId)).emit("presents", listePresents(partieId));
 }
 
 function identite(participant: Participant): Identite {
   return {
     version: VERSION,
-    partie: { nom: partie.nom },
+    partie: { nom: partieParId(participant.partieId)?.nom ?? "" },
     moi: { id: participant.id, role: participant.role, nom: participant.nom },
   };
 }
@@ -152,7 +154,7 @@ function nettoyerNom(brut: unknown): string | null {
 io.use((socket, suivant) => {
   const { jeton } = socket.handshake.auth as AuthClient;
   const participant = typeof jeton === "string" ? participantParJeton(jeton) : undefined;
-  if (!participant || participant.partieId !== partie.id) {
+  if (!participant) {
     suivant(new Error(ERREUR_LIEN_INCONNU));
     return;
   }
@@ -182,34 +184,35 @@ function reserveMj<D>(
 
 io.on("connection", (socket) => {
   const { participant } = socket.data;
+  const partieId = participant.partieId;
   const qui = () =>
     `${participant.nom ?? participant.etiquette ?? "(sans nom)"} [${participant.role}]`;
   console.log(`Connexion : ${qui()}`);
   noterVisite(participant.id);
 
-  socket.join(salleParticipant(participant.id));
+  socket.join([sallePartie(partieId), salleParticipant(participant.id)]);
   socket.emit("bienvenue", identite(participant));
 
   if (participant.role === "mj") {
-    socket.join(SALLE_MJ);
-    socket.emit("invitations", invitationsPourMj());
+    socket.join(salleMj(partieId));
+    socket.emit("invitations", invitationsPourMj(partieId));
   } else {
-    socket.join(SALLE_JOUEURS);
+    socket.join(salleJoueurs(partieId));
     // Un joueur vient d'arriver : le MJ voit qu'il est « déjà venu ».
-    diffuserInvitations();
+    diffuserInvitations(partieId);
   }
   // Tout le monde voit arriver cette personne, et elle reçoit la liste complète.
-  diffuserPresents();
-  envoyerJournal(socket, partie.id);
-  envoyerFiches(socket, partie.id);
-  envoyerImages(socket, partie.id);
-  envoyerScenes(socket, partie.id);
-  envoyerCombat(socket, partie.id);
-  brancherJets(io, socket, partie.id);
-  brancherFiches(io, socket, partie.id);
-  brancherImages(io, socket, partie.id);
-  brancherScenes(io, socket, partie.id);
-  brancherCombat(io, socket, partie.id);
+  diffuserPresents(partieId);
+  envoyerJournal(socket, partieId);
+  envoyerFiches(socket, partieId);
+  envoyerImages(socket, partieId);
+  envoyerScenes(socket, partieId);
+  envoyerCombat(socket, partieId);
+  brancherJets(io, socket, partieId);
+  brancherFiches(io, socket, partieId);
+  brancherImages(io, socket, partieId);
+  brancherScenes(io, socket, partieId);
+  brancherCombat(io, socket, partieId);
 
   socket.on("ping", (reponse) => {
     if (typeof reponse === "function") reponse(new Date().toISOString());
@@ -222,8 +225,8 @@ io.on("connection", (socket) => {
       if (brute.length > ETIQUETTE_MAX) {
         return { ok: false, erreur: `Étiquette trop longue (${ETIQUETTE_MAX} caractères au plus).` };
       }
-      creerInvitation(partie.id, brute === "" ? null : brute);
-      diffuserInvitations();
+      creerInvitation(partieId, brute === "" ? null : brute);
+      diffuserInvitations(partieId);
       return { ok: true };
     }),
   );
@@ -232,10 +235,10 @@ io.on("connection", (socket) => {
     "mj:ordonnerInvitations",
     reserveMj(socket, (demande: { ids: number[] }) => {
       const ids = Array.isArray(demande?.ids) ? demande.ids.map(Number) : [];
-      if (!ordonnerInvitations(partie.id, ids)) {
+      if (!ordonnerInvitations(partieId, ids)) {
         return { ok: false, erreur: "La liste des invitations a changé entre-temps : réessaie." };
       }
-      diffuserInvitations();
+      diffuserInvitations(partieId);
       return { ok: true };
     }),
   );
@@ -244,18 +247,18 @@ io.on("connection", (socket) => {
     "mj:supprimerInvitation",
     reserveMj(socket, async (demande: { id: number }) => {
       const id = Number(demande?.id);
-      if (!Number.isInteger(id) || !supprimerInvitation(partie.id, id)) {
+      if (!Number.isInteger(id) || !supprimerInvitation(partieId, id)) {
         return { ok: false, erreur: "Cette invitation n'existe plus." };
       }
       // Le joueur concerné est déconnecté tout de suite, sur tous ses onglets.
       const salle = salleParticipant(id);
       io.to(salle).emit("exclu");
       io.in(salle).disconnectSockets(true);
-      diffuserInvitations();
-      diffuserPresents();
-      io.emit("fiche:supprimee", id);
-      diffuserScenes(io, partie.id);
-      diffuserCombat(io, partie.id);
+      diffuserInvitations(partieId);
+      diffuserPresents(partieId);
+      io.to(sallePartie(partieId)).emit("fiche:supprimee", id);
+      diffuserScenes(io, partieId);
+      diffuserCombat(io, partieId);
       return { ok: true };
     }),
   );
@@ -275,7 +278,7 @@ io.on("connection", (socket) => {
       reponse({ ok: false, erreur: `Nom trop long (${NOM_MAX} caractères au plus).` });
       return;
     }
-    if (nomDejaPris(partie.id, nom, participant.id)) {
+    if (nomDejaPris(partieId, nom, participant.id)) {
       reponse({ ok: false, erreur: `« ${nom} » est déjà pris par quelqu'un d'autre.` });
       return;
     }
@@ -286,18 +289,18 @@ io.on("connection", (socket) => {
     const sockets = await io.in(salleParticipant(participant.id)).fetchSockets();
     for (const s of sockets) s.data.participant.nom = nom;
     io.to(salleParticipant(participant.id)).emit("bienvenue", identite({ ...participant, nom }));
-    diffuserInvitations();
-    diffuserPresents();
+    diffuserInvitations(partieId);
+    diffuserPresents(partieId);
     // Première fois que le joueur choisit son nom : sa fiche (vide) apparaît chez tout le monde.
-    diffuserFiche(io, ficheDuJoueur(partie.id, participant.id));
-    apresNouveauJoueur(io, partie.id);
+    diffuserFiche(io, partieId, ficheDuJoueur(partieId, participant.id));
+    apresNouveauJoueur(io, partieId);
     reponse({ ok: true });
   });
 
   socket.on("disconnect", (raison) => {
     console.log(`Déconnexion : ${qui()} (${raison})`);
     // À ce moment, l'onglet a déjà quitté ses salles : le statut calculé est à jour.
-    diffuserPresents();
+    diffuserPresents(partieId);
   });
 });
 

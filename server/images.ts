@@ -1,4 +1,5 @@
 // Bibliothèque d'images du MJ : dépôt, envoi aux navigateurs, renommage, suppression.
+// Elle est commune à toutes les parties : une carte déposée une fois sert partout.
 // Les scènes (qui utilisent ces images) sont gérées dans scenes.ts.
 // Les fichiers sont rangés dans data/medias/, à côté de la base (jamais dans le dépôt git).
 
@@ -19,16 +20,14 @@ import { DOSSIER_MEDIAS } from "./chemins.ts";
 import { nomDepuisFichier, reconnaitreImage } from "./images-format.ts";
 import { participantParJeton, type Participant } from "./partie.ts";
 import { mettreALaCorbeille } from "./sauvegardes.ts";
+import { salleMj } from "./salles.ts";
 import { diffuserScenes, scenesUtilisant } from "./scenes.ts";
-
 
 interface DonneesSocket {
   participant: Participant;
 }
 type Io = Server<MessagesClient, MessagesServeur, Record<string, never>, DonneesSocket>;
 type SocketBrumeland = Socket<MessagesClient, MessagesServeur, Record<string, never>, DonneesSocket>;
-
-const SALLE_MJ = "mj";
 
 // ---------------------------------------------------------------------------
 // Base de données
@@ -39,24 +38,25 @@ interface LigneImage extends Omit<ImageBibliotheque, "scenes"> {
 
 const COLONNES = "id, nom, fichier, type, taille, cree_le AS creeLe";
 
-function lireImage(partieId: number, id: string): LigneImage | undefined {
-  return base
-    .prepare(`SELECT ${COLONNES} FROM image WHERE partie_id = ? AND id = ?`)
-    .get(partieId, id) as LigneImage | undefined;
+function lireImage(id: string): LigneImage | undefined {
+  return base.prepare(`SELECT ${COLONNES} FROM image WHERE id = ?`).get(id) as LigneImage | undefined;
 }
 
+/** La bibliothèque, vue depuis une partie (scènes de cette partie d'abord, puis des autres). */
 export function listerImages(partieId: number): ImageBibliotheque[] {
   const lignes = base
-    .prepare(`SELECT ${COLONNES} FROM image WHERE partie_id = ? ORDER BY cree_le, id`)
-    .all(partieId) as unknown as LigneImage[];
+    .prepare(`SELECT ${COLONNES} FROM image ORDER BY cree_le, id`)
+    .all() as unknown as LigneImage[];
   return lignes.map(({ fichier: _fichier, ...image }) => ({ ...image, scenes: scenesUtilisant(partieId, image.id) }));
 }
 
 // ---------------------------------------------------------------------------
 // Diffusions (la bibliothèque n'est envoyée qu'au MJ)
 
-export function diffuserImages(io: Io, partieId: number): void {
-  io.to(SALLE_MJ).emit("images", listerImages(partieId));
+/** Bibliothèque commune : le MJ de chaque partie la reçoit (avec les scènes vues depuis sa partie). */
+export function diffuserImages(io: Io): void {
+  const parties = base.prepare("SELECT id FROM partie").all() as { id: number }[];
+  for (const { id } of parties) io.to(salleMj(id)).emit("images", listerImages(id));
 }
 
 export function envoyerImages(socket: SocketBrumeland, partieId: number): void {
@@ -67,11 +67,11 @@ export function envoyerImages(socket: SocketBrumeland, partieId: number): void {
 // Adresses HTTP : dépôt (MJ) et lecture des images
 
 /** Le dépôt passe par HTTP (plus adapté aux gros fichiers) : le MJ joint son jeton. */
-function exigerMj(partieId: number) {
+function exigerMj() {
   return (req: Request, res: Response, suite: NextFunction) => {
     const jeton = req.get("x-brumeland-jeton");
     const participant = jeton ? participantParJeton(jeton) : undefined;
-    if (!participant || participant.partieId !== partieId || participant.role !== "mj") {
+    if (!participant || participant.role !== "mj") {
       res.status(403).json({ ok: false, erreur: "Seul le Meneur de jeu peut déposer des images." });
       return;
     }
@@ -79,12 +79,12 @@ function exigerMj(partieId: number) {
   };
 }
 
-export function brancherRoutesImages(app: Express, io: Io, partieId: number): void {
+export function brancherRoutesImages(app: Express, io: Io): void {
   mkdirSync(DOSSIER_MEDIAS, { recursive: true });
 
   app.post(
     "/api/images",
-    exigerMj(partieId),
+    exigerMj(),
     express.raw({ type: () => true, limit: IMAGE_TAILLE_MAX }),
     (req, res) => {
       const octets = req.body;
@@ -108,10 +108,10 @@ export function brancherRoutesImages(app: Express, io: Io, partieId: number): vo
       writeFileSync(join(DOSSIER_MEDIAS, fichier), octets);
       base
         .prepare(
-          "INSERT INTO image (id, partie_id, nom, fichier, type, taille, cree_le) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          "INSERT INTO image (id, nom, fichier, type, taille, cree_le) VALUES (?, ?, ?, ?, ?, ?)",
         )
-        .run(id, partieId, nomDepuisFichier(nomFichier), fichier, format.type, octets.length, new Date().toISOString());
-      diffuserImages(io, partieId);
+        .run(id, nomDepuisFichier(nomFichier), fichier, format.type, octets.length, new Date().toISOString());
+      diffuserImages(io);
       res.json({ ok: true, id });
     },
   );
@@ -119,7 +119,7 @@ export function brancherRoutesImages(app: Express, io: Io, partieId: number): vo
   // Les identifiants d'images sont aléatoires et impossibles à deviner : un joueur ne connaît
   // que ceux des images des scènes que le MJ lui a montrées. Le navigateur les garde en cache.
   app.get("/api/images/:id", (req, res) => {
-    const image = /^[0-9a-f]{32}$/.test(req.params.id) ? lireImage(partieId, req.params.id) : undefined;
+    const image = /^[0-9a-f]{32}$/.test(req.params.id) ? lireImage(req.params.id) : undefined;
     const chemin = image && join(DOSSIER_MEDIAS, image.fichier);
     if (!image || !chemin || !existsSync(chemin)) {
       res.status(404).json({ ok: false, erreur: "Image introuvable." });
@@ -168,13 +168,14 @@ export function brancherImages(io: Io, socket: SocketBrumeland, partieId: number
   socket.on(
     "mj:renommerImage",
     reserveMj((d: { id: string; nom: string }) => {
-      const image = typeof d?.id === "string" ? lireImage(partieId, d.id) : undefined;
+      const image = typeof d?.id === "string" ? lireImage(d.id) : undefined;
       if (!image) return { ok: false, erreur: "Cette image n'existe plus." };
       const nom = typeof d.nom === "string" ? d.nom.normalize("NFC").replace(/\s+/g, " ").trim() : "";
       if (nom === "") return { ok: false, erreur: "Donne un nom à l'image." };
       if (nom.length > IMAGE_NOM_MAX) return { ok: false, erreur: `${IMAGE_NOM_MAX} caractères au plus.` };
       base.prepare("UPDATE image SET nom = ? WHERE id = ?").run(nom, image.id);
       diffuserScenes(io, partieId); // envoie aussi la bibliothèque
+      diffuserImages(io); // (à toutes les parties)
       return { ok: true };
     }),
   );
@@ -182,9 +183,9 @@ export function brancherImages(io: Io, socket: SocketBrumeland, partieId: number
   socket.on(
     "mj:supprimerImage",
     reserveMj((d: { id: string }) => {
-      const image = typeof d?.id === "string" ? lireImage(partieId, d.id) : undefined;
+      const image = typeof d?.id === "string" ? lireImage(d.id) : undefined;
       if (!image) return { ok: false, erreur: "Cette image n'existe plus." };
-      // Une image utilisée par des scènes ne peut pas être supprimée.
+      // Une image utilisée par des scènes (de n'importe quelle partie) ne peut pas être supprimée.
       const utilisee = scenesUtilisant(partieId, image.id);
       if (utilisee.length > 0) {
         const liste = utilisee.map((n) => `« ${n} »`).join(", ");
@@ -196,7 +197,7 @@ export function brancherImages(io: Io, socket: SocketBrumeland, partieId: number
       base.prepare("DELETE FROM image WHERE id = ?").run(image.id);
       // Le fichier n'est pas effacé : les sauvegardes précédentes peuvent en avoir besoin.
       mettreALaCorbeille(image.fichier);
-      diffuserImages(io, partieId);
+      diffuserImages(io);
       return { ok: true };
     }),
   );

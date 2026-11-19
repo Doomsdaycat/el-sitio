@@ -7,6 +7,7 @@ import type { MessagesClient, MessagesServeur, Reponse } from "../shared/message
 import { enregistrerFiche, lireFiche, toutesLesFiches } from "./fiches.ts";
 import type { Participant } from "./partie.ts";
 import { etatSelonPs } from "./scenes.ts";
+import { sallePartie } from "./salles.ts";
 
 interface DonneesSocket {
   participant: Participant;
@@ -14,8 +15,8 @@ interface DonneesSocket {
 type Io = Server<MessagesClient, MessagesServeur, Record<string, never>, DonneesSocket>;
 type SocketBrumeland = Socket<MessagesClient, MessagesServeur, Record<string, never>, DonneesSocket>;
 
-export function diffuserFiche(io: Io, fiche: Fiche): void {
-  io.emit("fiche", fiche);
+export function diffuserFiche(io: Io, partieId: number, fiche: Fiche): void {
+  io.to(sallePartie(partieId)).emit("fiche", fiche);
 }
 
 export function envoyerFiches(socket: SocketBrumeland, partieId: number): void {
@@ -40,7 +41,7 @@ export function brancherFiches(io: Io, socket: SocketBrumeland, partieId: number
       }
       const nouvelle = appliquerModification(fiche, demande.modification as ModificationFiche);
       enregistrerFiche(partieId, nouvelle);
-      diffuserFiche(io, nouvelle);
+      diffuserFiche(io, partieId, nouvelle);
       // PS à 0 : le pion du personnage passe « à terre » (et se relève si les PS remontent).
       etatSelonPs(io, partieId, { joueurId }, fiche.psActuels, nouvelle.psActuels);
       repondre({ ok: true });

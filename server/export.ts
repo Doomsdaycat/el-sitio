@@ -20,7 +20,8 @@ import { copierBase, fichiersImages } from "./sauvegardes.ts";
 const IMPORT_TAILLE_MAX = 500 * 1024 * 1024;
 
 /**
- * Serveur tout neuf : personne n'est encore venu (ni MJ ni joueur) et la bibliothèque est vide.
+ * Serveur tout neuf : une seule partie, personne n'est encore venu (ni MJ ni joueur) et la
+ * bibliothèque est vide.
  * La première personne qui ouvre l'adresse peut alors installer la partie. Sur un serveur en
  * ligne, à faire avant d'ouvrir l'adresse au public.
  */
@@ -30,13 +31,15 @@ function installationOuverte(partieId: number): boolean {
     .prepare("SELECT count(*) AS v FROM participant WHERE partie_id = ? AND derniere_visite IS NOT NULL")
     .get(partieId) as { v: number };
   const { i } = base.prepare("SELECT count(*) AS i FROM image").get() as { i: number };
-  return n === 1 && v === 0 && i === 0;
+  const { p } = base.prepare("SELECT count(*) AS p FROM partie").get() as { p: number };
+  return n === 1 && v === 0 && i === 0 && p === 1;
 }
 
-function estMj(req: Request, partieId: number): boolean {
+/** Le MJ (de n'importe quelle partie) qui fait la demande, d'après le jeton en en-tête. */
+function estMj(req: Request): boolean {
   const jeton = req.get("x-brumeland-jeton");
   const participant = jeton ? participantParJeton(jeton) : undefined;
-  return !!participant && participant.partieId === partieId && participant.role === "mj";
+  return !!participant && participant.role === "mj";
 }
 
 const LISEZMOI = `Export d'une partie Brumeland VTT.
@@ -52,9 +55,9 @@ Attention : ce fichier contient les liens d'invitation (MJ et joueurs). Garde-le
 
 const deux = (n: number) => String(n).padStart(2, "0");
 
-export function brancherRoutesExport(app: Express, partieId: number): void {
+export function brancherRoutesExport(app: Express): void {
   app.get("/api/export", (req, res) => {
-    if (!estMj(req, partieId)) {
+    if (!estMj(req)) {
       res.status(403).json({ ok: false, erreur: "Seul le Meneur de jeu peut exporter la partie." });
       return;
     }
@@ -116,7 +119,7 @@ export function brancherRoutesImport(app: Express, partieId: number, redemarrer:
   app.post(
     "/api/import",
     (req: Request, res: Response, suite: NextFunction) => {
-      if (!estMj(req, partieId) && !installationOuverte(partieId)) {
+      if (!estMj(req) && !installationOuverte(partieId)) {
         res.status(403).json({ ok: false, erreur: "Seul le Meneur de jeu peut importer une partie." });
         return;
       }

@@ -25,15 +25,13 @@ import type { MessagesClient, MessagesServeur, Reponse } from "../shared/message
 import { base } from "./base.ts";
 import type { Participant } from "./partie.ts";
 import { etatSelonPs, pionsInvisiblesPourJoueurs } from "./scenes.ts";
+import { salleJoueurs, salleMj } from "./salles.ts";
 
 interface DonneesSocket {
   participant: Participant;
 }
 type Io = Server<MessagesClient, MessagesServeur, Record<string, never>, DonneesSocket>;
 type SocketBrumeland = Socket<MessagesClient, MessagesServeur, Record<string, never>, DonneesSocket>;
-
-const SALLE_MJ = "mj";
-const SALLE_JOUEURS = "joueurs";
 
 // ---------------------------------------------------------------------------
 // Lecture et écriture
@@ -75,8 +73,8 @@ const pionsCaches = (partieId: number): Set<string> => pionsInvisiblesPourJoueur
 /** Le MJ voit tout ; les joueurs ne voient ni les PS des PNJ ni le nom des PNJ cachés. */
 export function diffuserCombat(io: Io, partieId: number): void {
   const c = lireCombat(partieId);
-  io.to(SALLE_MJ).emit("combat", c);
-  io.to(SALLE_JOUEURS).emit("combat", vueCombatJoueurs(c, pionsCaches(partieId)));
+  io.to(salleMj(partieId)).emit("combat", c);
+  io.to(salleJoueurs(partieId)).emit("combat", vueCombatJoueurs(c, pionsCaches(partieId)));
 }
 
 export function envoyerCombat(socket: SocketBrumeland, partieId: number): void {

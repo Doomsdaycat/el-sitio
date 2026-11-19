@@ -208,6 +208,23 @@ const MIGRATIONS: (string | (() => void))[] = [
       if (!FORMAT_JETON.test(jeton)) remplacer.run(nouveauJeton(), id);
     }
   },
+  // Plusieurs parties : la bibliothèque d'images devient commune à toutes les parties
+  // (la colonne partie_id disparaît ; les scènes, elles, restent propres à leur partie).
+  `
+  CREATE TABLE image_commune (
+    id         TEXT PRIMARY KEY,
+    nom        TEXT NOT NULL,
+    fichier    TEXT NOT NULL,
+    type       TEXT NOT NULL,
+    taille     INTEGER NOT NULL,
+    cree_le    TEXT NOT NULL,
+    grille     TEXT
+  );
+  INSERT INTO image_commune (id, nom, fichier, type, taille, cree_le, grille)
+    SELECT id, nom, fichier, type, taille, cree_le, grille FROM image;
+  DROP TABLE image;
+  ALTER TABLE image_commune RENAME TO image;
+  `,
 ];
 
 function migrer(): void {
@@ -216,18 +233,31 @@ function migrer(): void {
   };
   // Mise à jour de l'outil sur une partie existante : copie de la base avant d'y toucher.
   if (versionActuelle > 0 && versionActuelle < MIGRATIONS.length) sauvegarder(base, "avant-mise-a-jour");
-  for (let i = versionActuelle; i < MIGRATIONS.length; i++) {
-    base.exec("BEGIN");
-    try {
-      const migration = MIGRATIONS[i];
-      if (typeof migration === "string") base.exec(migration);
-      else migration();
-      base.exec(`PRAGMA user_version = ${i + 1}`);
-      base.exec("COMMIT");
-    } catch (erreur) {
-      base.exec("ROLLBACK");
-      throw erreur;
+  // Clés étrangères suspendues pendant les migrations (méthode recommandée par SQLite pour
+  // reconstruire une table) ; on vérifie avant chaque validation qu'aucune référence
+  // incohérente n'est apparue.
+  base.exec("PRAGMA foreign_keys = OFF");
+  const incoherencesAvant = base.prepare("PRAGMA foreign_key_check").all().length;
+  try {
+    for (let i = versionActuelle; i < MIGRATIONS.length; i++) {
+      base.exec("BEGIN");
+      try {
+        const migration = MIGRATIONS[i];
+        if (typeof migration === "string") base.exec(migration);
+        else migration();
+        const incoherences = base.prepare("PRAGMA foreign_key_check").all();
+        if (incoherences.length > incoherencesAvant) {
+          throw new Error(`Migration ${i + 1} : références incohérentes ${JSON.stringify(incoherences)}`);
+        }
+        base.exec(`PRAGMA user_version = ${i + 1}`);
+        base.exec("COMMIT");
+      } catch (erreur) {
+        base.exec("ROLLBACK");
+        throw erreur;
+      }
     }
+  } finally {
+    base.exec("PRAGMA foreign_keys = ON");
   }
 }
 
