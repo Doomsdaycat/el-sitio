@@ -1666,27 +1666,39 @@ button.nom-depliable {
 }
 
 .nom-depliable .chevron {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 1.6rem;
+  height: 1.6rem;
   margin-left: auto;
-  font-size: 0.75rem;
+  font-size: 1.1rem;
+  line-height: 1;
+  border-radius: 4px;
 }
 
-/* Détail d'un combattant : petit encadré sous sa ligne, libellé à gauche, valeur à droite. */
+.nom-depliable:hover .chevron {
+  color: var(--texte);
+  background: var(--bordure);
+}
+
+/* Détail d'un combattant : une ligne sous la sienne, sans en-têtes (PS, déplacement, réaction). */
 .ligne-ordre-detail {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.35rem 0.75rem;
-  margin: 0.3rem 0 0.35rem 2.2rem;
-  padding: 0.45rem 0.6rem;
+  gap: 0.4rem 0.9rem;
+  margin: 0.3rem 0 0.25rem 2rem;
+  padding: 0.35rem 0.55rem;
   font-size: 0.9rem;
   background: var(--fond);
   border: 1px solid var(--bordure);
   border-radius: 6px;
 }
 
-.detail-libelle {
-  color: var(--discret);
-  font-size: 0.8rem;
+.detail-deplacement {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .ligne-ordre-detail button.secondaire {
