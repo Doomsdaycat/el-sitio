@@ -202,7 +202,7 @@ function Entree(props: {
   if (entree.forceDe !== null) classes.push("tentative");
   if (entree.secret && !entree.revele) classes.push("secret");
   if (verdict) classes.push(`barre-${verdict.barre}`);
-  // Contexte en petit, sous « qui · quoi » : pour qui, opposition, secret (MJ).
+  // Contexte en petit, sous « qui · quoi » : pour qui, opposition, état subi.
   const contexte: React.ReactNode[] = [];
   if (pour) contexte.push(<>pour {pour}</>);
   if (entree.opposeA !== null) {
@@ -213,7 +213,6 @@ function Entree(props: {
       </>,
     );
   }
-  if (estMj && entree.secret) contexte.push(<>{entree.revele ? "secret, révélé" : "secret"}</>);
   if (etat) contexte.push(<>devient {etat.nom} ({etat.carac})</>);
 
   const actions = (
@@ -241,6 +240,15 @@ function Entree(props: {
       <div className="entree-gauche">
         <div className="entree-qui">
           <strong>{nomAuteur(entree, fiches)}</strong>
+          {entree.secret && (
+            <span
+              className="icone-secret"
+              title={entree.revele ? "Jet secret, révélé aux joueurs" : "Jet secret : les joueurs ne voient pas le résultat"}
+              aria-label={entree.revele ? "jet secret, révélé" : "jet secret"}
+            >
+              {entree.revele ? " 🔓" : " 🔒"}
+            </span>
+          )}
           {entree.forceDe !== null && <span className="discret"> · relance</span>}
           {entree.libelle && <span className="libelle"> · {entree.libelle}</span>}
         </div>

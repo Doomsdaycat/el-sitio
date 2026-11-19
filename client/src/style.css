@@ -500,9 +500,9 @@ label.case > span {
   border-left-color: var(--erreur);
 }
 
-.entree.secret {
-  border-style: dashed;
-  border-left-style: solid;
+/* Jet secret : un cadenas après le nom de l'auteur (ouvert une fois révélé). */
+.icone-secret {
+  font-size: 0.85rem;
 }
 
 .entree-gauche {
