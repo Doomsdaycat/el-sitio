@@ -258,6 +258,17 @@ button.lien {
 
 /* Colonne de droite : combat, lancer de dés et journal empilés. Elle reste à l'écran quand la
    page défile, et le journal prend la hauteur restante (il défile à l'intérieur). */
+/* Colonne de gauche : la barre du haut, puis la scène. */
+.colonne-gauche {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.colonne-gauche > .barre-haut {
+  margin-bottom: 0;
+}
+
 .colonne-droite {
   position: sticky;
   top: 0.75rem;
@@ -2277,7 +2288,8 @@ button.nom-depliable {
 }
 
 .bouton-gestion {
-  padding: 0.3rem 0.75rem;
+  padding: 0.25rem 0.5rem;
+  line-height: 1;
 }
 
 button.bouton-gestion.actif {

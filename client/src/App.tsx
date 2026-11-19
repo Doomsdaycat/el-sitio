@@ -78,6 +78,20 @@ export function App() {
   const coupure = etat === "deconnecte" && identite !== null;
 
   const estMj = identite?.moi.role === "mj";
+  // À la table, la barre du haut ne couvre que la colonne de la scène : la colonne de droite
+  // monte jusqu'en haut de l'écran. Ailleurs (lien inconnu, choix du nom), elle est seule en haut.
+  const aLaTable = identite !== null && !sansAcces && (estMj || identite.moi.nom !== null);
+  const barre = (
+    <BarreHaut
+      identite={sansAcces ? null : identite}
+      connecte={etat === "connecte"}
+      libelle={LIBELLES[etat]}
+      classeStatut={`statut-${etat}`}
+      gestionOuverte={gestion}
+      surGestion={() => setGestion((g) => !g)}
+      surChangerNom={() => setChangementNom(true)}
+    />
+  );
 
   return (
     <main className={coupure ? "page en-coupure" : "page"}>
@@ -86,15 +100,7 @@ export function App() {
           Connexion perdue. Reconnexion automatique en cours… Tu n'as rien à faire.
         </div>
       )}
-      <BarreHaut
-        identite={sansAcces ? null : identite}
-        connecte={etat === "connecte"}
-        libelle={LIBELLES[etat]}
-        classeStatut={`statut-${etat}`}
-        gestionOuverte={gestion}
-        surGestion={() => setGestion((g) => !g)}
-        surChangerNom={() => setChangementNom(true)}
-      />
+      {!aLaTable && barre}
 
       {sansAcces && (
         <p className="explication">
@@ -107,15 +113,17 @@ export function App() {
         <ChoixNom nomActuel={null} />
       )}
 
-      {identite && !sansAcces && (estMj || identite.moi.nom !== null) && (
+      {aLaTable && (
         <>
-          {changementNom && identite.moi.role === "joueur" && (
-            <ChoixNom nomActuel={identite.moi.nom} surTermine={() => setChangementNom(false)} />
-          )}
-
           {/* Deux colonnes : la scène prend la place ; à droite, empilés, ce qui sert souvent ensemble. */}
           <div className="table-de-jeu">
-            <Centre moiId={identite.moi.id} estMj={estMj} />
+            <div className="colonne-gauche">
+              {barre}
+              {changementNom && identite.moi.role === "joueur" && (
+                <ChoixNom nomActuel={identite.moi.nom} surTermine={() => setChangementNom(false)} />
+              )}
+              <Centre moiId={identite.moi.id} estMj={estMj} />
+            </div>
             <div className="colonne-droite">
               <Combat moiId={identite.moi.id} estMj={estMj} />
               <PanneauJet estMj={estMj} />

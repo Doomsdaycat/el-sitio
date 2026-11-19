@@ -57,9 +57,11 @@ export function BarreHaut({ identite, connecte, libelle, classeStatut, gestionOu
             type="button"
             className={gestionOuverte ? "bouton-gestion actif" : "bouton-gestion secondaire"}
             aria-expanded={gestionOuverte}
+            aria-label="Gestion"
+            title="Gestion : invitations, parties, export et import"
             onClick={surGestion}
           >
-            ⚙️ Gestion
+            ⚙️
           </button>
         )}
       </div>
