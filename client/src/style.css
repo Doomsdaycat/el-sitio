@@ -251,25 +251,59 @@ button.lien {
 
 .table-de-jeu {
   display: grid;
-  grid-template-columns: 21rem minmax(0, 1fr) 24rem;
-  gap: 1.25rem;
+  grid-template-columns: minmax(0, 1fr) 24rem;
+  gap: 1rem;
   align-items: start;
 }
 
-.colonne-gauche {
-  display: grid;
-  gap: 1.25rem;
+/* Colonne de droite : combat, lancer de dés et journal empilés. Elle reste à l'écran quand la
+   page défile, et le journal prend la hauteur restante (il défile à l'intérieur). */
+.colonne-droite {
+  position: sticky;
+  top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: calc(100vh - 1.5rem);
   min-width: 0;
 }
 
-/* Rien dans la colonne de gauche ne doit dépasser sous la colonne centrale. */
-.colonne-gauche > * {
+.colonne-droite > * {
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
-.colonne-gauche select {
+.colonne-droite select {
   max-width: 100%;
+}
+
+.colonne-droite > .carte {
+  padding: 0.75rem 0.9rem;
+}
+
+/* Combat : jamais plus de la moitié de la hauteur, il défile au besoin. */
+.colonne-droite > .combat {
+  flex: 0 0 auto;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.colonne-droite > .panneau-jet {
+  flex: 0 0 auto;
+}
+
+.colonne-droite > .journal {
+  flex: 1 1 auto;
+  min-height: 12rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.colonne-droite .liste-journal {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
 }
 
 .export {
@@ -629,13 +663,17 @@ select {
 
 /* --- Étape 3 : fiches de personnage --- */
 
-/* Écran plus étroit : le journal passe sous la fiche. */
-@media (max-width: 1250px) {
+/* Écran étroit : la colonne de droite passe sous la scène. */
+@media (max-width: 1000px) {
   .table-de-jeu {
-    grid-template-columns: 21rem minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
   }
-  .table-de-jeu > .journal {
-    grid-column: 2;
+  .colonne-droite {
+    position: static;
+    max-height: none;
+  }
+  .colonne-droite > .journal {
+    max-height: 70vh;
   }
 }
 
@@ -1554,8 +1592,8 @@ button.secondaire.actif {
 .carte-initiative {
   display: inline-grid;
   place-items: center;
-  width: 1.9rem;
-  height: 2.5rem;
+  width: 1.7rem;
+  height: 2.1rem;
   padding: 0;
   border-radius: 4px;
   border: 1px solid var(--accent);
@@ -1579,16 +1617,62 @@ button.secondaire.actif {
 }
 
 .ligne-ordre {
+  padding: 0.15rem 0.3rem;
+  border-radius: 6px;
+}
+
+.ligne-ordre-resume {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.2rem 0.3rem;
-  border-radius: 6px;
 }
 
 .ligne-ordre .nom-participant {
   flex: 1;
   min-width: 0;
+}
+
+/* Nom cliquable (détails) : il garde l'allure d'un texte. */
+button.nom-depliable {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  padding: 0.15rem 0;
+  text-align: left;
+  white-space: normal;
+  color: inherit;
+  background: none;
+  border: none;
+  border-radius: 0;
+}
+
+.nom-depliable .chevron {
+  margin-left: auto;
+  font-size: 0.75rem;
+}
+
+.ligne-ordre-detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.3rem 0 0.2rem 2.4rem;
+}
+
+/* Hors combat : une seule ligne. */
+.combat.combat-vide {
+  border-color: var(--bordure);
+}
+
+.combat-vide-ligne {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.combat-vide-ligne button {
+  padding: 0.25rem 0.75rem;
 }
 
 .ligne-ordre.courante {
@@ -2213,4 +2297,86 @@ button.bouton-gestion.actif {
 .gestion-contenu .parties,
 .gestion-contenu .export {
   margin: 0;
+}
+
+/* Combat (MJ) : Round suivant, Participants, Fin du combat sur une seule ligne. */
+.actions-combat-mj {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--bordure);
+}
+
+.actions-combat-mj button:not(.lien) {
+  padding: 0.3rem 0.75rem;
+}
+
+/* Lancer les dés, en une ligne ; options dépliables. */
+.panneau-jet-entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.panneau-jet-entete h2 {
+  margin: 0;
+}
+
+.mode-jet button {
+  padding: 0.2rem 0.55rem;
+  font-size: 0.85rem;
+}
+
+.panneau-jet .formulaire-jet {
+  gap: 0.4rem;
+}
+
+.ligne-jet {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.ligne-jet .champ-libelle {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ligne-jet .champ-valeur {
+  width: 4.5rem;
+  flex: 0 0 auto;
+}
+
+.ligne-jet .champ-formule {
+  width: 6rem;
+  flex: 0 0 auto;
+}
+
+.ligne-jet .bouton-lancer {
+  flex: 0 0 auto;
+  padding: 0.45rem 0.9rem;
+  font-size: 1rem;
+}
+
+.bouton-options {
+  justify-self: start;
+  font-size: 0.85rem;
+  white-space: normal;
+  text-align: left;
+}
+
+.rappel-options {
+  color: var(--accent);
+}
+
+.options-jet {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px dashed var(--bordure);
+  border-radius: 6px;
 }

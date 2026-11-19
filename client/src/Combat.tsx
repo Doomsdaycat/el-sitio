@@ -209,10 +209,33 @@ function ChoixSurprise(props: { combat: DonneesCombat; moiId: number; estMj: boo
   );
 }
 
-/** Ordre du round : une ligne par carte, du 1 au 10. */
+/** Boutons − / + autour d'un nombre de PS. */
+function ReglagePs(props: { actuels: number; max: number; changer: (n: number) => void; libelle?: string }) {
+  const { actuels, max, changer, libelle = "" } = props;
+  return (
+    <span className="ps-pnj">
+      <button type="button" className="secondaire" aria-label="Moins 1 PS" disabled={actuels <= 0} onClick={() => changer(actuels - 1)}>
+        −
+      </button>
+      <span className={actuels === 0 ? "ps-combat zero" : "ps-combat"} title="Points de santé">
+        {actuels}/{max}
+        {libelle}
+      </span>
+      <button type="button" className="secondaire" aria-label="Plus 1 PS" disabled={actuels >= max} onClick={() => changer(actuels + 1)}>
+        +
+      </button>
+    </span>
+  );
+}
+
+/**
+ * Ordre du round : une ligne courte par carte (numéro, nom, PS en bref). Un clic sur le nom
+ * déplie le détail : PS à régler, et pour le MJ le déplacement restant et la réaction d'un joueur.
+ */
 function Ordre(props: { combat: DonneesCombat; moiId: number; estMj: boolean; emettre: Emettre }) {
   const { combat, moiId, estMj, emettre } = props;
   const { nom, fiche } = useNoms();
+  const [deplie, setDeplie] = useState<string | null>(null);
   const courante = carteCourante(combat);
   const cartes = [...combat.cartes].sort((a, b) => a.valeur - b.valeur);
 
@@ -224,89 +247,76 @@ function Ordre(props: { combat: DonneesCombat; moiId: number; estMj: boolean; em
         const siennes = cartesDe(combat, x.id);
         const rang = siennes.length > 1 ? ` (${siennes.findIndex((s) => s.valeur === carte.valeur) + 1}/${siennes.length})` : "";
         const f = fiche(x);
+        // PS en bref : fiche du joueur (tout le monde), PS du PNJ (MJ seulement).
+        const ps = f ? { actuels: f.psActuels, max: psMax(f) } : estMj && x.ps ? x.ps : null;
+        const reglerFiche = !!f && (estMj || x.joueurId === moiId);
+        const aDetail = reglerFiche || (estMj && (!!x.ps || x.type === "pj"));
+        const ouverte = aDetail && deplie === `${carte.valeur}`;
         const classes = ["ligne-ordre"];
         if (carte.jouee) classes.push("jouee");
         if (courante?.valeur === carte.valeur) classes.push("courante");
         if (x.type === "pj" && x.joueurId === moiId) classes.push("moi");
+        if (ouverte) classes.push("ouverte");
         return (
           <li key={carte.valeur} className={classes.join(" ")}>
-            <button
-              type="button"
-              className="carte-initiative"
-              disabled={!estMj}
-              title={estMj ? (carte.jouee ? "Remettre la carte face visible" : "Retourner la carte (tour joué ou réaction)") : undefined}
-              onClick={() => emettre("mj:combat:retourner", { valeur: carte.valeur, jouee: !carte.jouee })}
-            >
-              {carte.valeur}
-            </button>
-            <span className="nom-participant">
-              {nom(x)}
-              {rang}
-              {carte.attendue && <span className="discret petit"> · a attendu</span>}
-            </span>
-            {f && (estMj || x.joueurId === moiId) ? (
-              <span className="ps-pnj">
+            <div className="ligne-ordre-resume">
+              <button
+                type="button"
+                className="carte-initiative"
+                disabled={!estMj}
+                title={estMj ? (carte.jouee ? "Remettre la carte face visible" : "Retourner la carte (tour joué ou réaction)") : undefined}
+                onClick={() => emettre("mj:combat:retourner", { valeur: carte.valeur, jouee: !carte.jouee })}
+              >
+                {carte.valeur}
+              </button>
+              {aDetail ? (
                 <button
                   type="button"
-                  className="secondaire"
-                  aria-label="Moins 1 PS"
-                  disabled={f.psActuels <= 0}
-                  onClick={() =>
-                    emettre("fiche:modifier", { joueurId: f.joueurId, modification: { champ: "ps", valeur: f.psActuels - 1 } })
-                  }
+                  className="nom-participant nom-depliable"
+                  aria-expanded={ouverte}
+                  title={ouverte ? "Replier" : "Détails : PS, déplacement…"}
+                  onClick={() => setDeplie(ouverte ? null : `${carte.valeur}`)}
                 >
-                  −
+                  {nom(x)}
+                  {rang}
+                  {carte.attendue && <span className="discret petit"> · a attendu</span>}
+                  <span className="discret chevron" aria-hidden="true">{ouverte ? "▴" : "▾"}</span>
                 </button>
-                <span className={f.psActuels === 0 ? "ps-combat zero" : "ps-combat"} title="Points de santé">
-                  {f.psActuels}/{psMax(f)} PS
+              ) : (
+                <span className="nom-participant">
+                  {nom(x)}
+                  {rang}
+                  {carte.attendue && <span className="discret petit"> · a attendu</span>}
                 </span>
-                <button
-                  type="button"
-                  className="secondaire"
-                  aria-label="Plus 1 PS"
-                  disabled={f.psActuels >= psMax(f)}
-                  onClick={() =>
-                    emettre("fiche:modifier", { joueurId: f.joueurId, modification: { champ: "ps", valeur: f.psActuels + 1 } })
-                  }
-                >
-                  +
-                </button>
-              </span>
-            ) : (
-              f && (
-                <span className={f.psActuels === 0 ? "ps-combat zero" : "ps-combat"} title="Points de santé">
-                  {f.psActuels}/{psMax(f)} PS
+              )}
+              {ps && (
+                <span className={ps.actuels === 0 ? "ps-combat zero" : "ps-combat"} title="Points de santé">
+                  {ps.actuels}/{ps.max}
                 </span>
-              )
-            )}
-            {estMj && x.ps && (
-              <span className="ps-pnj">
-                <button
-                  type="button"
-                  className="secondaire"
-                  aria-label="Moins 1 PS"
-                  disabled={x.ps.actuels <= 0}
-                  onClick={() => emettre("mj:combat:modifier", { id: x.id, ps: { ...x.ps!, actuels: x.ps!.actuels - 1 } })}
-                >
-                  −
-                </button>
-                <span className={x.ps.actuels === 0 ? "ps-combat zero" : "ps-combat"}>
-                  {x.ps.actuels}/{x.ps.max}
-                </span>
-                <button
-                  type="button"
-                  className="secondaire"
-                  aria-label="Plus 1 PS"
-                  disabled={x.ps.actuels >= x.ps.max}
-                  onClick={() => emettre("mj:combat:modifier", { id: x.id, ps: { ...x.ps!, actuels: x.ps!.actuels + 1 } })}
-                >
-                  +
-                </button>
-              </span>
-            )}
-            {carte.jouee && <span className="discret petit">a joué</span>}
-            {estMj && x.type === "pj" && (
-              <LigneMjJoueur combat={combat} combattant={x} deplacementFiche={f ? deplacement(f) : null} emettre={emettre} />
+              )}
+            </div>
+            {ouverte && (
+              <div className="ligne-ordre-detail">
+                {f && reglerFiche && (
+                  <ReglagePs
+                    actuels={f.psActuels}
+                    max={psMax(f)}
+                    libelle=" PS"
+                    changer={(n) => emettre("fiche:modifier", { joueurId: f.joueurId, modification: { champ: "ps", valeur: n } })}
+                  />
+                )}
+                {estMj && x.ps && (
+                  <ReglagePs
+                    actuels={x.ps.actuels}
+                    max={x.ps.max}
+                    libelle=" PS"
+                    changer={(n) => emettre("mj:combat:modifier", { id: x.id, ps: { ...x.ps!, actuels: n } })}
+                  />
+                )}
+                {estMj && x.type === "pj" && (
+                  <LigneMjJoueur combat={combat} combattant={x} deplacementFiche={f ? deplacement(f) : null} emettre={emettre} />
+                )}
+              </div>
             )}
           </li>
         );
@@ -483,14 +493,17 @@ export function Combat({ moiId, estMj }: { moiId: number; estMj: boolean }) {
       setErreur(r.ok ? null : r.erreur),
     );
 
+  // Hors combat : une seule ligne pour le MJ, rien pour les joueurs.
   if (!combat) {
     if (!estMj) return null;
     return (
-      <section className="carte combat">
-        <h2>Combat</h2>
-        <button type="button" onClick={() => emettre("mj:combat:commencer")}>
-          Commencer un combat
-        </button>
+      <section className="carte combat combat-vide">
+        <div className="combat-vide-ligne">
+          <span className="discret">⚔️ Pas de combat</span>
+          <button type="button" className="secondaire" onClick={() => emettre("mj:combat:commencer")}>
+            Commencer
+          </button>
+        </div>
         {erreur && <p className="erreur">{erreur}</p>}
       </section>
     );
@@ -525,51 +538,49 @@ export function Combat({ moiId, estMj }: { moiId: number; estMj: boolean }) {
         <>
           <Ordre combat={combat} moiId={moiId} estMj={estMj} emettre={emettre} />
           <MesActions combat={combat} moiId={moiId} estMj={estMj} emettre={emettre} />
-          {estMj && (
+          {estMj && voirParticipants && <Participants combat={combat} emettre={emettre} />}
+        </>
+      )}
+
+      {/* MJ : actions du combat, sur une seule ligne. */}
+      {estMj && (
+        <div className="actions-combat-mj">
+          {combat.phase === "round" && (
             <>
               <button
                 type="button"
-                className="bouton-lancer"
+                className={carteCourante(combat) !== null ? "secondaire" : undefined}
                 disabled={carteCourante(combat) !== null}
                 title={
                   carteCourante(combat) !== null
                     ? "Disponible quand tout le monde a joué (ou retourne les cartes restantes)"
-                    : undefined
+                    : "Nouveau tirage d'initiative"
                 }
                 onClick={() => emettre("mj:combat:tirer")}
               >
-                Round suivant (nouveau tirage)
+                Round suivant
               </button>
-              {carteCourante(combat) !== null && (
-                <p className="discret petit">
-                  Le round suivant sera disponible quand tout le monde aura joué.
-                </p>
-              )}
               <button type="button" className="lien" onClick={() => setVoirParticipants((v) => !v)}>
                 {voirParticipants ? "Masquer les participants" : "Participants…"}
               </button>
-              {voirParticipants && <Participants combat={combat} emettre={emettre} />}
             </>
           )}
-        </>
-      )}
-
-      {estMj && (
-        <button
-          type="button"
-          className={confirmerFin ? "danger" : "lien"}
-          onClick={() => {
-            if (!confirmerFin) {
-              setConfirmerFin(true);
-              window.setTimeout(() => setConfirmerFin(false), 4000);
-              return;
-            }
-            setConfirmerFin(false);
-            emettre("mj:combat:finir");
-          }}
-        >
-          {confirmerFin ? "Confirmer : fin du combat" : "Fin du combat"}
-        </button>
+          <button
+            type="button"
+            className={confirmerFin ? "danger" : "lien"}
+            onClick={() => {
+              if (!confirmerFin) {
+                setConfirmerFin(true);
+                window.setTimeout(() => setConfirmerFin(false), 4000);
+                return;
+              }
+              setConfirmerFin(false);
+              emettre("mj:combat:finir");
+            }}
+          >
+            {confirmerFin ? "Confirmer : fin du combat" : "Fin du combat"}
+          </button>
+        </div>
       )}
       {erreur && <p className="erreur">{erreur}</p>}
     </section>

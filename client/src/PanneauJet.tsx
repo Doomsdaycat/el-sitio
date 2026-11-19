@@ -1,4 +1,6 @@
-// Panneau pour lancer les dés : jet de compétence ou jet libre.
+// Panneau pour lancer les dés : jet de compétence ou jet libre, sur une ligne.
+// Les options (pour qui, faveurs et fléaux, jet secret, raccourcis) se déplient au besoin ;
+// repliées, celles qui sont actives restent rappelées en bref.
 // Le navigateur n'invente aucun résultat : il envoie la demande, le serveur lance.
 
 import { useState, type FormEvent } from "react";
@@ -78,6 +80,7 @@ export function PanneauJet({ estMj }: { estMj: boolean }) {
   const pourId = estMj && pourValide !== "" ? Number(pourValide) : null;
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [options, setOptions] = useState(false);
 
   function terminer(r: Reponse) {
     setEnvoi(false);
@@ -118,9 +121,42 @@ export function PanneauJet({ estMj }: { estMj: boolean }) {
     /^\d+$/.test(valeur) && Number(valeur) >= VALEUR_MIN && Number(valeur) <= VALEUR_MAX;
   const pret = mode === "competence" ? valeurOk : formule.trim() !== "";
 
+  // Rappel des options actives quand elles sont repliées (faveurs posées depuis une fiche…).
+  const pourNom = pourId !== null ? joueurs.find((j) => j.id === pourId)?.nom : null;
+  const rappel = [
+    pourNom ? `pour ${pourNom}` : null,
+    mode === "competence" && faveurs > 0 ? `${faveurs} faveur${faveurs > 1 ? "s" : ""}` : null,
+    mode === "competence" && fleaux > 0 ? `${fleaux} fléau${fleaux > 1 ? "x" : ""}` : null,
+    estMj && secret ? "secret" : null,
+  ].filter((x): x is string => x !== null);
+
   return (
     <section className="carte panneau-jet">
-      <h2>Lancer les dés</h2>
+      <div className="panneau-jet-entete">
+        <h2>Lancer les dés</h2>
+        {cible === null && (
+          <span className="groupe-outils mode-jet" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === "competence"}
+              className={mode === "competence" ? "outil actif" : "outil secondaire"}
+              onClick={() => setMode("competence")}
+            >
+              Compétence
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === "libre"}
+              className={mode === "libre" ? "outil actif" : "outil secondaire"}
+              onClick={() => setMode("libre")}
+            >
+              Jet libre
+            </button>
+          </span>
+        )}
+      </div>
 
       {cible && (
         <div className="bandeau-opposition">
@@ -152,99 +188,83 @@ export function PanneauJet({ estMj }: { estMj: boolean }) {
         </div>
       )}
 
-      <div className="onglets" role="tablist" hidden={cible !== null}>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "competence"}
-          className={mode === "competence" ? "onglet actif" : "onglet"}
-          onClick={() => setMode("competence")}
-        >
-          Compétence
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "libre"}
-          className={mode === "libre" ? "onglet actif" : "onglet"}
-          onClick={() => setMode("libre")}
-        >
-          Jet libre
-        </button>
-      </div>
-
       <form onSubmit={surLancer} className="formulaire-jet">
-        {estMj && (
-          <label>
-            <span>Pour qui ?</span>
-            <select value={pourValide} onChange={(e) => setPour(e.target.value)}>
-              <option value="">PNJ ou monstre</option>
-              {joueurs.map((j) => (
-                <option key={j.id} value={j.id}>
-                  {j.nom} (personnage joueur)
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        <label>
-          <span>{mode === "competence" ? "Compétence ou caractéristique" : "Pour quoi ?"}</span>
+        <div className="ligne-jet">
           <input
+            className="champ-libelle"
             value={libelle}
             onChange={(e) => setLibelle(e.target.value)}
             maxLength={LIBELLE_MAX}
-            placeholder={mode === "competence" ? "ex. : Discrétion (facultatif)" : "ex. : dégâts de l'épée"}
+            aria-label={mode === "competence" ? "Compétence ou caractéristique (facultatif)" : "Pour quoi ? (facultatif)"}
+            placeholder={mode === "competence" ? "Compétence (facultatif)" : "Pour quoi ? (facultatif)"}
           />
-        </label>
+          {mode === "competence" ? (
+            <input
+              value={valeur}
+              onChange={(e) => setValeur(e.target.value.replace(/\D/g, "").slice(0, 2))}
+              inputMode="numeric"
+              aria-label={`Valeur (de ${VALEUR_MIN} à ${VALEUR_MAX})`}
+              title={`Valeur de la compétence ou de la caractéristique (de ${VALEUR_MIN} à ${VALEUR_MAX})`}
+              placeholder="Valeur"
+              className="champ-valeur"
+            />
+          ) : (
+            <input
+              value={formule}
+              onChange={(e) => setFormule(e.target.value)}
+              maxLength={FORMULE_MAX}
+              aria-label="Dés à lancer"
+              placeholder="2D6+3"
+              className="champ-formule"
+            />
+          )}
+          <button type="submit" disabled={!pret || envoi} className="bouton-lancer">
+            {secret && estMj ? "En secret" : "Lancer"}
+          </button>
+        </div>
 
-        {mode === "competence" ? (
-          <>
-            <label>
-              <span>Valeur (de {VALEUR_MIN} à {VALEUR_MAX})</span>
-              <input
-                value={valeur}
-                onChange={(e) => setValeur(e.target.value.replace(/\D/g, "").slice(0, 2))}
-                inputMode="numeric"
-                placeholder="ex. : 12"
-                className="champ-court"
-              />
-            </label>
-            <div className="compteurs">
-              <Compteur nom="Faveurs" valeur={faveurs} surChangement={setFaveurs} classe="faveur" />
-              <Compteur nom="Fléaux" valeur={fleaux} surChangement={setFleaux} classe="fleau" />
-            </div>
-          </>
-        ) : (
-          <>
-            <label>
-              <span>Dés à lancer</span>
-              <input
-                value={formule}
-                onChange={(e) => setFormule(e.target.value)}
-                maxLength={FORMULE_MAX}
-                placeholder="ex. : 2D6+3"
-              />
-            </label>
-            <div className="raccourcis">
-              {RACCOURCIS.map((r) => (
-                <button key={r} type="button" className="secondaire" onClick={() => setFormule(r)}>
-                  {r}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-
-        {estMj && (
-          <label className="case">
-            <input type="checkbox" checked={secret} onChange={(e) => setSecret(e.target.checked)} />
-            <span>Jet secret (les joueurs ne voient pas le résultat)</span>
-          </label>
-        )}
-
-        <button type="submit" disabled={!pret || envoi} className="bouton-lancer">
-          {secret && estMj ? "Lancer en secret" : "Lancer"}
+        <button type="button" className="lien bouton-options" aria-expanded={options} onClick={() => setOptions((o) => !o)}>
+          {options ? "Masquer les options ▴" : "Options ▾"}
+          {!options && rappel.length > 0 && <span className="rappel-options"> · {rappel.join(" · ")}</span>}
         </button>
+
+        {options && (
+          <div className="options-jet">
+            {estMj && (
+              <label>
+                <span>Pour qui ?</span>
+                <select value={pourValide} onChange={(e) => setPour(e.target.value)}>
+                  <option value="">PNJ ou monstre</option>
+                  {joueurs.map((j) => (
+                    <option key={j.id} value={j.id}>
+                      {j.nom} (personnage joueur)
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {mode === "competence" ? (
+              <div className="compteurs">
+                <Compteur nom="Faveurs" valeur={faveurs} surChangement={setFaveurs} classe="faveur" />
+                <Compteur nom="Fléaux" valeur={fleaux} surChangement={setFleaux} classe="fleau" />
+              </div>
+            ) : (
+              <div className="raccourcis">
+                {RACCOURCIS.map((r) => (
+                  <button key={r} type="button" className="secondaire" onClick={() => setFormule(r)}>
+                    {r}
+                  </button>
+                ))}
+              </div>
+            )}
+            {estMj && (
+              <label className="case">
+                <input type="checkbox" checked={secret} onChange={(e) => setSecret(e.target.checked)} />
+                <span>Jet secret (les joueurs ne voient pas le résultat)</span>
+              </label>
+            )}
+          </div>
+        )}
         {erreur && <p className="erreur">{erreur}</p>}
       </form>
     </section>

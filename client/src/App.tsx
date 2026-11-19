@@ -113,13 +113,14 @@ export function App() {
             <ChoixNom nomActuel={identite.moi.nom} surTermine={() => setChangementNom(false)} />
           )}
 
+          {/* Deux colonnes : la scène prend la place ; à droite, empilés, ce qui sert souvent ensemble. */}
           <div className="table-de-jeu">
-            <div className="colonne-gauche">
+            <Centre moiId={identite.moi.id} estMj={estMj} />
+            <div className="colonne-droite">
               <Combat moiId={identite.moi.id} estMj={estMj} />
               <PanneauJet estMj={estMj} />
+              <Journal moiId={identite.moi.id} estMj={estMj} />
             </div>
-            <Centre moiId={identite.moi.id} estMj={estMj} />
-            <Journal moiId={identite.moi.id} estMj={estMj} />
           </div>
 
           {estMj && gestion && <Gestion surFermer={() => setGestion(false)} />}
