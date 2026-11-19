@@ -151,7 +151,7 @@ export function Parties() {
 
   return (
     <section className="carte parties">
-      <h2>Mes parties</h2>
+      {/* Pas de titre : l'onglet du panneau Gestion le donne déjà. */}
       <p className="discret">
         Chaque partie a ses joueurs, ses fiches, son journal et ses scènes. La bibliothèque d'images est
         commune à toutes. Pour essayer quelque chose sans toucher ta campagne, duplique-la : la copie

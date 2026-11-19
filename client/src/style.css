@@ -380,9 +380,6 @@ button.lien {
   color: var(--discret);
 }
 
-.champ-court {
-  width: 6rem;
-}
 
 .compteurs {
   display: grid;
@@ -1001,7 +998,8 @@ textarea {
 /* Cadre de l'image : taille fixe, l'image zoomée y est découpée. */
 .scene-zone {
   position: relative;
-  height: 72vh;
+  /* Hauteur de l'écran, moins la barre du haut, les onglets et les barres de la scène. */
+  height: max(24rem, calc(100vh - 15rem));
   overflow: hidden;
   border-radius: 6px;
   user-select: none;
@@ -1127,10 +1125,6 @@ textarea {
   border-color: var(--accent);
 }
 
-.carte-image.apercu {
-  outline: 2px dashed var(--discret);
-  outline-offset: 2px;
-}
 
 .vignette {
   position: relative;
@@ -1226,12 +1220,6 @@ textarea {
   gap: 0.5rem;
 }
 
-.carte-outils {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-}
 
 .groupe-outils {
   display: inline-flex;
@@ -1244,18 +1232,14 @@ textarea {
 
 .carte-zone {
   position: relative;
-  height: 72vh;
+  /* Hauteur de l'écran, moins la barre du haut, les onglets et les barres de la scène. */
+  height: max(24rem, calc(100vh - 15rem));
   overflow: hidden;
   border-radius: 6px;
   background: var(--fond);
   border: 1px solid var(--bordure);
 }
 
-.carte-chargement {
-  position: absolute;
-  inset: 45% 0 auto;
-  text-align: center;
-}
 
 /* Plein écran : la carte occupe tout l'écran, les outils restent en haut. */
 .carte-cadre:fullscreen {
@@ -1282,16 +1266,7 @@ textarea {
   font-size: 0.95rem;
 }
 
-.reglage-carte {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-}
 
-.reglage-carte > span:first-child {
-  color: var(--discret);
-}
 
 .bloc-reglages {
   margin-top: 1rem;
@@ -1897,10 +1872,6 @@ button.nom-depliable {
 
 /* --- Étape 7 : brouillard de guerre --- */
 
-.options-brouillard {
-  padding-left: 0.4rem;
-  border-left: 1px solid var(--bordure);
-}
 
 .bloc-reglages.premier {
   margin-top: 0;
@@ -2528,4 +2499,9 @@ button.bouton-gestion.actif {
 
 .ligne-ordre.jouee .nom-texte {
   text-decoration: none;
+}
+
+/* Colonne de droite : titres plus petits, pour laisser la place au contenu. */
+.colonne-droite h2 {
+  font-size: 1.05rem;
 }

@@ -37,7 +37,7 @@ export function Export() {
 
   return (
     <section className="carte export">
-      <h2>Export et import</h2>
+      {/* Pas de titre : l'onglet du panneau Gestion le donne déjà. */}
       <p className="discret">
         Le serveur sauvegarde tout seul (au démarrage, puis toutes les 30 minutes). Pour garder une
         copie ailleurs ou déplacer une partie sur un autre serveur, exporte-la : un seul fichier .zip

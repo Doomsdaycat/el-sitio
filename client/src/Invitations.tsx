@@ -153,7 +153,7 @@ export function Invitations() {
 
   return (
     <section className="carte">
-      <h2>Invitations des joueurs</h2>
+      {/* Pas de titre : l'onglet du panneau Gestion le donne déjà. */}
       <p className="discret">
         Un lien par joueur. Envoie-le sur Discord : il suffit d'un clic pour rejoindre la partie.
       </p>
