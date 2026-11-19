@@ -1,5 +1,5 @@
 // Onglet Scène : la scène montrée (illustration ou immersive) ; pour le MJ, la préparation
-// d'une scène, la liste « Mes scènes » et la bibliothèque d'images.
+// d'une scène, la liste « Mes scènes », et la bibliothèque d'images (affichée dans le panneau Gestion).
 
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import type { Reponse } from "../../shared/messages.ts";
@@ -17,7 +17,7 @@ import {
 } from "../../shared/scenes.ts";
 import { Carte } from "./Carte.tsx";
 import { jeton, socket } from "./connexion.ts";
-import { preparerScene, useEtat } from "./etat.ts";
+import { preparerScene, proposerScene, useEtat } from "./etat.ts";
 
 function mega(octets: number): string {
   return `${(octets / 1024 / 1024).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} Mo`;
@@ -521,12 +521,6 @@ function deposer(fichier: File, progression: (pourcent: number) => void): Promis
   });
 }
 
-/** Nouvelle scène à préremplir (depuis la bibliothèque : « Créer une scène » avec cette image). */
-interface Brouillon {
-  imageId: string;
-  nom: string;
-}
-
 function CarteImage(props: {
   image: ImageBibliotheque;
   surNouvelleScene: () => void;
@@ -593,7 +587,11 @@ function CarteImage(props: {
   );
 }
 
-function Bibliotheque(props: { surNouvelleScene: (b: Brouillon) => void }) {
+/**
+ * Bibliothèque d'images (MJ), commune à toutes les parties : elle est dans le panneau Gestion.
+ * « Nouvelle scène » avec une image préremplit le formulaire de « Mes scènes ».
+ */
+export function Bibliotheque(props: { surNouvelleScene: (b: { imageId: string; nom: string }) => void }) {
   const images = useEtat("images");
   const [envois, setEnvois] = useState<{ nom: string; pourcent: number }[]>([]);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -624,9 +622,9 @@ function Bibliotheque(props: { surNouvelleScene: (b: Brouillon) => void }) {
 
   return (
     <section className="bibliotheque">
-      <h3>Bibliothèque d'images</h3>
       <p className="discret petit">
-        Les joueurs ne voient jamais la bibliothèque. Une image peut servir à plusieurs scènes.
+        Les joueurs ne voient jamais la bibliothèque. Elle est commune à toutes tes parties, et une
+        image peut servir à plusieurs scènes.
       </p>
       <div
         className={survol ? "zone-depot survol" : "zone-depot"}
@@ -855,7 +853,8 @@ function LigneScene(props: {
   );
 }
 
-function MesScenes(props: { brouillon: Brouillon | null; surBrouillonUtilise: () => void }) {
+function MesScenes() {
+  const brouillon = useEtat("brouillonScene");
   const scenes = useEtat("scenes");
   const images = useEtat("images");
   const active = useEtat("scene");
@@ -876,14 +875,15 @@ function MesScenes(props: { brouillon: Brouillon | null; surBrouillonUtilise: ()
     socket.emit("mj:ordonnerScenes", { ids }, (r: Reponse) => setErreur(r.ok ? null : r.erreur));
   }
 
-  // « Nouvelle scène » depuis la bibliothèque : on préremplit le formulaire.
+  // « Nouvelle scène » depuis la bibliothèque (panneau Gestion) : on préremplit le formulaire.
   useEffect(() => {
-    if (!props.brouillon) return;
-    setImageId(props.brouillon.imageId);
-    setNom(props.brouillon.nom);
+    if (!brouillon) return;
+    setImageId(brouillon.imageId);
+    setNom(brouillon.nom);
     formulaire.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    props.surBrouillonUtilise();
-  }, [props.brouillon]); // eslint-disable-line react-hooks/exhaustive-deps
+    formulaire.current?.querySelector("input")?.focus({ preventScroll: true });
+    proposerScene(null);
+  }, [brouillon]);
 
   const imageChoisie = images?.some((i) => i.id === imageId) ? imageId : "";
 
@@ -977,7 +977,7 @@ function MesScenes(props: { brouillon: Brouillon | null; surBrouillonUtilise: ()
         </button>
         <p className="discret petit aide-type">{TYPES_SCENE.find((t) => t.id === type)?.aide}</p>
         {(images ?? []).length === 0 && (
-          <p className="discret petit">Dépose d'abord une image dans la bibliothèque, ci-dessous.</p>
+          <p className="discret petit">Dépose d'abord une image : bouton ⚙️ de la barre du haut, onglet « Images ».</p>
         )}
       </form>
     </section>
@@ -991,7 +991,6 @@ export function Scene({ estMj, moiId }: { estMj: boolean; moiId: number }) {
   const active = useEtat("scene");
   const scenes = useEtat("scenes");
   const prepareeId = useEtat("scenePreparee");
-  const [brouillon, setBrouillon] = useState<Brouillon | null>(null);
 
   // Le MJ peut ouvrir une autre scène pour la préparer ; les joueurs voient la scène montrée.
   const preparee =
@@ -1050,8 +1049,7 @@ export function Scene({ estMj, moiId }: { estMj: boolean; moiId: number }) {
           {estMj && <PreparerIllustration scene={affichee} />}
         </>
       )}
-      {estMj && <MesScenes brouillon={brouillon} surBrouillonUtilise={() => setBrouillon(null)} />}
-      {estMj && <Bibliotheque surNouvelleScene={setBrouillon} />}
+      {estMj && <MesScenes />}
     </div>
   );
 }

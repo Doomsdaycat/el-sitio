@@ -50,6 +50,8 @@ interface Etat {
   scenes: Scene[] | null;
   /** MJ : scène ouverte pour la préparer sans la montrer (sinon null). */
   scenePreparee: string | null;
+  /** MJ : nouvelle scène à préremplir dans « Mes scènes » (depuis la bibliothèque d'images). */
+  brouillonScene: { imageId: string; nom: string } | null;
   reglesDistantes: RegleDistante[];
   pointeurs: Pointeur[];
   /** Scène montrée à tous par le MJ. */
@@ -75,6 +77,7 @@ let etat: Etat = {
   combat: null,
   scenes: null,
   scenePreparee: null,
+  brouillonScene: null,
   reglesDistantes: [],
   pointeurs: [],
   scene: null,
@@ -121,6 +124,11 @@ socket.on("carte:regle", ({ sceneId, auteurId, auteur, mesure }) => {
   modifier({ reglesDistantes: mesure ? [...autres, { sceneId, auteurId, auteur, ...mesure }] : autres });
 });
 socket.on("carte:pointeur", ({ sceneId, auteur, x, y }) => ajouterPointeur(sceneId, auteur, x, y));
+
+/** MJ : prépare la création d'une scène avec cette image (ou null une fois le formulaire rempli). */
+export function proposerScene(brouillon: { imageId: string; nom: string } | null): void {
+  modifier({ brouillonScene: brouillon });
+}
 
 /** MJ : ouvre une scène pour la préparer (ou null pour revenir à la scène montrée). */
 export function preparerScene(id: string | null): void {

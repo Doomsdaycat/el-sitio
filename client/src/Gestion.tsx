@@ -1,15 +1,18 @@
 // Panneau Gestion du MJ : glisse par-dessus la droite de l'écran, la table reste visible.
-// Trois onglets : invitations des joueurs, mes parties, export et import.
+// Quatre onglets : invitations des joueurs, images (bibliothèque commune), mes parties, export et import.
 
 import { useEffect, useState } from "react";
+import { proposerScene } from "./etat.ts";
 import { Export } from "./Export.tsx";
 import { Invitations } from "./Invitations.tsx";
 import { Parties } from "./Parties.tsx";
+import { Bibliotheque } from "./Scene.tsx";
 
-type Onglet = "invitations" | "parties" | "export";
+type Onglet = "invitations" | "images" | "parties" | "export";
 
 const ONGLETS: { id: Onglet; libelle: string }[] = [
   { id: "invitations", libelle: "Invitations" },
+  { id: "images", libelle: "Images" },
   { id: "parties", libelle: "Mes parties" },
   { id: "export", libelle: "Export et import" },
 ];
@@ -19,7 +22,7 @@ const CLE_ONGLET = "brumeland.gestion.onglet";
 function ongletMemorise(): Onglet {
   try {
     const o = localStorage.getItem(CLE_ONGLET);
-    if (o === "invitations" || o === "parties" || o === "export") return o;
+    if (o === "invitations" || o === "images" || o === "parties" || o === "export") return o;
   } catch {
     // Stockage indisponible : onglet par défaut.
   }
@@ -71,6 +74,15 @@ export function Gestion({ surFermer }: { surFermer: () => void }) {
       </div>
       <div className="gestion-contenu">
         {onglet === "invitations" && <Invitations />}
+        {onglet === "images" && (
+          <Bibliotheque
+            surNouvelleScene={(b) => {
+              // La scène se crée dans « Mes scènes », sous la scène : on y retourne.
+              proposerScene(b);
+              surFermer();
+            }}
+          />
+        )}
         {onglet === "parties" && <Parties />}
         {onglet === "export" && <Export />}
       </div>
