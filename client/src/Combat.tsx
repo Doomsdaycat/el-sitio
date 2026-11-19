@@ -229,8 +229,8 @@ function ReglagePs(props: { actuels: number; max: number; changer: (n: number) =
 }
 
 /**
- * Ordre du round : une ligne courte par carte (numéro, nom, PS en bref). Un clic sur le nom
- * déplie le détail : PS à régler, et pour le MJ le déplacement restant et la réaction d'un joueur.
+ * Ordre du round : une ligne courte par carte (numéro, nom, où en est son tour). Un clic sur le
+ * nom déplie le détail : PS à régler, et pour le MJ le déplacement restant et la réaction d'un joueur.
  */
 function Ordre(props: { combat: DonneesCombat; moiId: number; estMj: boolean; emettre: Emettre }) {
   const { combat, moiId, estMj, emettre } = props;
@@ -247,16 +247,37 @@ function Ordre(props: { combat: DonneesCombat; moiId: number; estMj: boolean; em
         const siennes = cartesDe(combat, x.id);
         const rang = siennes.length > 1 ? ` (${siennes.findIndex((s) => s.valeur === carte.valeur) + 1}/${siennes.length})` : "";
         const f = fiche(x);
-        // PS en bref : fiche du joueur (tout le monde), PS du PNJ (MJ seulement).
-        const ps = f ? { actuels: f.psActuels, max: psMax(f) } : estMj && x.ps ? x.ps : null;
         const reglerFiche = !!f && (estMj || x.joueurId === moiId);
         const aDetail = reglerFiche || (estMj && (!!x.ps || x.type === "pj"));
         const ouverte = aDetail && deplie === `${carte.valeur}`;
-        const classes = ["ligne-ordre"];
+        const estCourante = courante?.valeur === carte.valeur;
+        const estMoi = x.type === "pj" && x.joueurId === moiId;
+        // État marquant (pas de chiffres sur la ligne) : à terre (joueur), hors de combat (PNJ, MJ seulement).
+        const aTerre = !!f && f.psActuels === 0;
+        const horsCombat = estMj && x.type === "pnj" && x.ps?.actuels === 0;
+        const classes = ["ligne-ordre", x.type === "pj" ? "pj" : "pnj"];
         if (carte.jouee) classes.push("jouee");
-        if (courante?.valeur === carte.valeur) classes.push("courante");
-        if (x.type === "pj" && x.joueurId === moiId) classes.push("moi");
+        if (estCourante) classes.push("courante");
+        if (estMoi) classes.push("moi");
         if (ouverte) classes.push("ouverte");
+        const contenuNom = (
+          <>
+            <span className="nom-texte">
+              {nom(x)}
+              {rang}
+              {estMoi && <span className="discret"> (toi)</span>}
+            </span>
+            {estCourante ? (
+              <span className="etiquette-tour">{estMoi ? "à toi" : "son tour"}</span>
+            ) : carte.jouee ? (
+              <span className="etiquette-jouee">a joué</span>
+            ) : carte.attendue ? (
+              <span className="etiquette-jouee">a attendu</span>
+            ) : null}
+            {aTerre && <span className="etiquette-danger">à terre</span>}
+            {horsCombat && <span className="etiquette-danger">mort</span>}
+          </>
+        );
         return (
           <li key={carte.valeur} className={classes.join(" ")}>
             <div className="ligne-ordre-resume">
@@ -264,7 +285,7 @@ function Ordre(props: { combat: DonneesCombat; moiId: number; estMj: boolean; em
                 type="button"
                 className="carte-initiative"
                 disabled={!estMj}
-                title={estMj ? (carte.jouee ? "Remettre la carte face visible" : "Retourner la carte (tour joué ou réaction)") : undefined}
+                title={estMj ? (carte.jouee ? "Remettre la carte face visible" : "Retourner la carte (tour joué ou réaction)") : `Carte ${carte.valeur}`}
                 onClick={() => emettre("mj:combat:retourner", { valeur: carte.valeur, jouee: !carte.jouee })}
               >
                 {carte.valeur}
@@ -274,25 +295,14 @@ function Ordre(props: { combat: DonneesCombat; moiId: number; estMj: boolean; em
                   type="button"
                   className="nom-participant nom-depliable"
                   aria-expanded={ouverte}
-                  title={ouverte ? "Replier" : "Détails : PS, déplacement…"}
+                  title={ouverte ? "Replier" : "Détails : santé, déplacement…"}
                   onClick={() => setDeplie(ouverte ? null : `${carte.valeur}`)}
                 >
-                  {nom(x)}
-                  {rang}
-                  {carte.attendue && <span className="discret petit"> · a attendu</span>}
+                  {contenuNom}
                   <span className="discret chevron" aria-hidden="true">{ouverte ? "▴" : "▾"}</span>
                 </button>
               ) : (
-                <span className="nom-participant">
-                  {nom(x)}
-                  {rang}
-                  {carte.attendue && <span className="discret petit"> · a attendu</span>}
-                </span>
-              )}
-              {ps && (
-                <span className={ps.actuels === 0 ? "ps-combat zero" : "ps-combat"} title="Points de santé">
-                  {ps.actuels}/{ps.max}
-                </span>
+                <span className="nom-participant">{contenuNom}</span>
               )}
             </div>
             {ouverte && (

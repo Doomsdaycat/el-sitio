@@ -2421,3 +2421,99 @@ button.bouton-gestion.actif {
   border: 1px dashed var(--bordure);
   border-radius: 6px;
 }
+
+/* Combat : lignes de l'ordre du round (refonte du 19 novembre).
+   À venir : carte au contour vert ; tour en cours : carte pleine, ligne surlignée ;
+   joué : carte et nom effacés. Pas de chiffres sur la ligne (PS dans le détail). */
+.ordre-combat {
+  gap: 0.2rem;
+}
+
+.ligne-ordre {
+  padding: 0.2rem 0.35rem;
+  border: 1px solid transparent;
+}
+
+.ligne-ordre .carte-initiative {
+  width: 1.55rem;
+  height: 2rem;
+  font-size: 0.9rem;
+  color: var(--accent);
+  background: transparent;
+  border: 1.5px solid var(--accent);
+}
+
+.ligne-ordre.courante {
+  outline: none;
+  border-color: var(--accent);
+  background: rgba(164, 184, 102, 0.14);
+}
+
+.ligne-ordre.courante .carte-initiative {
+  color: var(--accent-texte);
+  background: var(--accent);
+}
+
+.ligne-ordre.courante .nom-texte {
+  font-weight: 700;
+}
+
+.ligne-ordre.jouee .carte-initiative {
+  color: var(--discret);
+  background: transparent;
+  border-color: var(--bordure);
+}
+
+.ligne-ordre.jouee .nom-participant {
+  color: var(--discret);
+}
+
+.ligne-ordre.moi .nom-participant {
+  font-weight: normal;
+}
+
+.ligne-ordre.moi .nom-texte {
+  font-weight: 700;
+}
+
+.ligne-ordre .nom-participant {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.nom-texte {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.etiquette-tour,
+.etiquette-jouee,
+.etiquette-danger {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+
+.etiquette-tour {
+  color: var(--accent);
+}
+
+.etiquette-jouee {
+  color: var(--discret);
+  border-color: transparent;
+  padding-left: 0;
+  font-style: italic;
+}
+
+.etiquette-danger {
+  color: var(--erreur);
+}
+
+.ligne-ordre.jouee .nom-texte {
+  text-decoration: none;
+}
