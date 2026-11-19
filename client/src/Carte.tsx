@@ -567,6 +567,8 @@ export function Carte(props: {
   estMj: boolean;
   /** Boutons propres au MJ (montrer, préparation…), affichés dans la barre d'outils. */
   bandeau?: React.ReactNode;
+  /** MJ : menu des scènes, à la place du nom de la scène. */
+  entete?: React.ReactNode;
 }) {
   const { scene, moiId, estMj } = props;
   const fiches = useEtat("fiches");
@@ -773,7 +775,7 @@ export function Carte(props: {
         <div className="barres-scene">
           {/* Ligne 1 : la scène (nom, la montrer ou non) et le plein écran. */}
           <div className="barre barre-scene">
-            <span className="scene-titre">{scene.nom}</span>
+            {props.entete ?? <span className="scene-titre">{scene.nom}</span>}
             <span className="actions-scene">{props.bandeau}</span>
           </div>
           {/* Ligne 2 : les outils (et l'annulation, après Déplacer) à gauche ; la navigation (zoom, plein écran) sur sa propre ligne, à droite. */}

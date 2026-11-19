@@ -16,6 +16,7 @@ import {
   type TypeScene,
 } from "../../shared/scenes.ts";
 import { Carte } from "./Carte.tsx";
+import { MenuScenes } from "./MenuScenes.tsx";
 import { jeton, socket } from "./connexion.ts";
 import { preparerScene, proposerScene, useEtat } from "./etat.ts";
 
@@ -102,6 +103,8 @@ function Affichage(props: {
   id: string;
   titre: string;
   bandeau?: React.ReactNode;
+  /** MJ : menu des scènes, à la place du nom de la scène. */
+  entete?: React.ReactNode;
   /** Brouillard de l'illustration (avec la scène, pour que le MJ puisse peindre). */
   brouillard?: Brouillard;
   sceneId?: string;
@@ -277,7 +280,7 @@ function Affichage(props: {
       <div className="barres-scene">
         {/* Ligne 1 : la scène (nom, la montrer ou non) et le plein écran. */}
         <div className="barre barre-scene">
-          <span className="scene-titre">{props.titre}</span>
+          {props.entete ?? <span className="scene-titre">{props.titre}</span>}
           <span className="actions-scene">{props.bandeau}</span>
         </div>
         {/* Ligne 2 : les outils (MJ, si le brouillard est actif) ; la navigation (zoom, plein écran) sur sa propre ligne, à droite. */}
@@ -997,9 +1000,10 @@ export function Scene({ estMj, moiId }: { estMj: boolean; moiId: number }) {
     estMj && prepareeId && prepareeId !== active?.id ? scenes?.find((s) => s.id === prepareeId) ?? null : null;
   const affichee = preparee ?? active;
 
+  // MJ : le menu des scènes (avec l'état « montrée » ou « en préparation ») à la place du nom.
+  const entete = estMj ? <MenuScenes afficheeId={affichee?.id ?? null} /> : undefined;
   const bandeau = !estMj ? undefined : preparee ? (
     <>
-      <span className="badge-secret">préparation : les joueurs ne voient pas cette scène</span>
       <button
         type="button"
         onClick={() =>
@@ -1008,10 +1012,10 @@ export function Scene({ estMj, moiId }: { estMj: boolean; moiId: number }) {
           })
         }
       >
-        Montrer la scène à tous
+        Montrer à tous
       </button>
       <button type="button" className="lien" onClick={() => preparerScene(null)}>
-        Fermer
+        {active ? "Revenir à la scène montrée" : "Fermer"}
       </button>
     </>
   ) : (
@@ -1029,19 +1033,23 @@ export function Scene({ estMj, moiId }: { estMj: boolean; moiId: number }) {
   return (
     <div className="scene">
       {affichee === null ? (
-        <p className="discret scene-vide">
-          {estMj
-            ? "Aucune scène montrée. Crée une scène ci-dessous, puis clique sur « Montrer la scène »."
-            : "Le MJ n'a pas encore montré de scène."}
-        </p>
+        <>
+          {estMj && <div className="barre barre-scene barre-scene-seule">{entete}</div>}
+          <p className="discret scene-vide">
+            {estMj
+              ? "Aucune scène montrée. Choisis une scène dans le menu ci-dessus, ou crée-en une plus bas, puis clique sur « Montrer à tous »."
+              : "Le MJ n'a pas encore montré de scène."}
+          </p>
+        </>
       ) : affichee.type === "immersive" ? (
-        <Carte key={affichee.id} scene={affichee} moiId={moiId} estMj={estMj} bandeau={bandeau} />
+        <Carte key={affichee.id} scene={affichee} moiId={moiId} estMj={estMj} bandeau={bandeau} entete={entete} />
       ) : (
         <>
           <Affichage
             id={affichee.image.id}
             titre={affichee.nom}
             bandeau={bandeau}
+            entete={entete}
             brouillard={affichee.brouillard}
             sceneId={affichee.id}
             estMj={estMj}
