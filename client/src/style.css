@@ -251,7 +251,7 @@ button.lien {
 
 .table-de-jeu {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 24rem;
+  grid-template-columns: minmax(0, 1fr) 28rem;
   gap: 1rem;
   align-items: start;
 }
