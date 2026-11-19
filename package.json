@@ -1,6 +1,6 @@
 {
   "name": "brumeland-vtt",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "description": "Table de jeu virtuelle maison pour jouer à Dragonbane entre amis",
   "type": "module",
