@@ -4,13 +4,15 @@
 
 import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { io as connecter, type Socket } from "socket.io-client";
-import type { PartieMj } from "../shared/messages.ts";
+import { DatabaseSync } from "node:sqlite";
+import { unzipSync } from "fflate";
+import type { Invitation, PartieMj } from "../shared/messages.ts";
 
 const dossier = mkdtempSync(join(tmpdir(), "brumeland-parties-"));
 process.env.BRUMELAND_BASE = join(dossier, "brumeland.db");
@@ -220,5 +222,76 @@ describe("plusieurs parties sur un même serveur", () => {
     assert.equal(scenes.length, 0);
     const mj1 = await ouvrir(jetons.mj1);
     assert.equal((mj1.recu.find((r) => r.evenement === "scenes")!.donnees as unknown[]).length, 1);
+  });
+
+  it("dupliquer : copie complète, avec de nouveaux liens", async () => {
+    const mj2 = await ouvrir(jetons.mj2);
+    const reponse = await demander<{ ok: boolean; id?: string }>(mj2.socket, "mj:dupliquerPartie", { id: 2 });
+    assert.equal(reponse.ok, true);
+    const parties = mj2.recu.findLast((r) => r.evenement === "parties")!.donnees as PartieMj[];
+    const copie = parties.find((p) => String(p.id) === reponse.id)!;
+    assert.equal(copie.nom, "Partie de test (copie)");
+    assert.notEqual(copie.lien, parties.find((p) => p.id === 2)!.lien);
+
+    const mjCopie = await ouvrir(new URL(copie.lien).pathname.split("/").at(-1)!);
+    const invitations = mjCopie.recu.find((r) => r.evenement === "invitations")!.donnees as Invitation[];
+    assert.deepEqual(invitations.map((i) => i.nom), ["Prout"]);
+    assert.ok(!invitations[0].lien.endsWith(jetons.joueur2), "la copie garde le lien du joueur");
+    assert.equal((mjCopie.recu.find((r) => r.evenement === "fiches")!.donnees as unknown[]).length, 1);
+    assert.equal((mjCopie.recu.find((r) => r.evenement === "journal")!.donnees as unknown[]).length, 1);
+    // L'original n'a pas bougé.
+    const original = await ouvrir(jetons.mj2);
+    assert.equal((original.recu.find((r) => r.evenement === "journal")!.donnees as unknown[]).length, 1);
+  });
+
+  it("exporter une partie seule, puis l'importer comme nouvelle partie", async () => {
+    const reponse = await fetch(`http://localhost:${port}/api/export`, { headers: { "X-Brumeland-Jeton": jetons.mj1 } });
+    assert.equal(reponse.status, 200);
+    assert.match(reponse.headers.get("content-disposition") ?? "", /brumeland-brumeland-/);
+    const zip = new Uint8Array(await reponse.arrayBuffer());
+    const fichierBase = join(dossier, "export-lu.db");
+    writeFileSync(fichierBase, unzipSync(zip)["brumeland.db"]);
+    const lue = new DatabaseSync(fichierBase, { readOnly: true });
+    const partiesExport = lue.prepare("SELECT nom FROM partie").all() as { nom: string }[];
+    const mjExport = lue.prepare("SELECT jeton FROM participant WHERE role = 'mj'").all() as { jeton: string }[];
+    const scenesExport = lue.prepare("SELECT nom FROM scene").all() as { nom: string }[];
+    lue.close();
+    assert.deepEqual(partiesExport.map((p) => p.nom), ["Brumeland"]);
+    assert.deepEqual(mjExport.map((p) => p.jeton), [jetons.mj1], "l'export garde le lien MJ");
+    assert.deepEqual(scenesExport.map((p) => p.nom), ["Taverne"]);
+
+    // Un joueur ne peut pas importer.
+    const refus = await fetch(`http://localhost:${port}/api/import`, {
+      method: "POST",
+      body: zip,
+      headers: { "X-Brumeland-Jeton": jetons.joueur1 },
+    });
+    assert.equal(refus.status, 403);
+
+    // Réimport sur le même serveur : partie ajoutée, liens changés (déjà utilisés ici).
+    const imp = await fetch(`http://localhost:${port}/api/import`, {
+      method: "POST",
+      body: zip,
+      headers: { "X-Brumeland-Jeton": jetons.mj2 },
+    });
+    const corps = (await imp.json()) as { ok: boolean; ajoutees: { nom: string; liensGardes: boolean }[] };
+    assert.deepEqual(corps, { ok: true, ajoutees: [{ nom: "Brumeland (importée)", liensGardes: false }] });
+    const mj1 = await ouvrir(jetons.mj1);
+    const parties = mj1.recu.findLast((r) => r.evenement === "parties")!.donnees as PartieMj[];
+    const importee = parties.find((p) => p.nom === "Brumeland (importée)")!;
+    const mjImporte = await ouvrir(new URL(importee.lien).pathname.split("/").at(-1)!);
+    const scenes = mjImporte.recu.find((r) => r.evenement === "scenes")!.donnees as { nom: string }[];
+    assert.deepEqual(scenes.map((x) => x.nom), ["Taverne"]);
+  });
+
+  it("exporter tout le serveur", async () => {
+    const reponse = await fetch(`http://localhost:${port}/api/export?tout=1`, { headers: { "X-Brumeland-Jeton": jetons.mj2 } });
+    const zip = new Uint8Array(await reponse.arrayBuffer());
+    const fichierBase = join(dossier, "export-tout.db");
+    writeFileSync(fichierBase, unzipSync(zip)["brumeland.db"]);
+    const lue = new DatabaseSync(fichierBase, { readOnly: true });
+    const { n } = lue.prepare("SELECT count(*) AS n FROM partie").get() as { n: number };
+    lue.close();
+    assert.equal(n, 4);
   });
 });

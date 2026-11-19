@@ -2067,3 +2067,13 @@ button.secondaire.actif {
   font-weight: bold;
   font-size: inherit;
 }
+
+.succes {
+  color: var(--ok);
+}
+
+.actions-export .succes,
+.actions-installation .succes {
+  flex-basis: 100%;
+  margin: 0.25rem 0 0;
+}

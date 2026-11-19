@@ -1,18 +1,25 @@
-// Export et import de la partie.
-// - Export (MJ seulement) : un seul fichier .zip avec une copie de la base et toutes les images.
+// Export et import des parties.
+// - Export (MJ seulement) : un fichier .zip avec une base et ses images. Soit la partie ouverte
+//   seule, soit tout le serveur (toutes les parties, toute la bibliothèque).
 //   Il contient les liens d'invitation : le MJ doit le garder pour lui.
-// - Import : le MJ (ou, sur un serveur tout neuf, la première personne qui l'ouvre) dépose un
-//   export. Il est vérifié, mis en attente, et le serveur redémarre pour l'appliquer base fermée.
+// - Import par le MJ : chaque partie de l'export est ajoutée au serveur (rien n'est remplacé),
+//   avec ses liens d'invitation s'ils ne sont pas déjà utilisés ici.
+// - Installation d'un serveur tout neuf (la première personne qui l'ouvre) : l'export remplace
+//   tout ; il est vérifié, mis en attente, et le serveur redémarre pour l'appliquer base fermée.
 
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import express, { type Express, type NextFunction, type Request, type Response } from "express";
+import { DatabaseSync } from "node:sqlite";
 import { zipSync, type Zippable } from "fflate";
+import { PARTIE_NOM_MAX } from "../shared/messages.ts";
 import { base } from "./base.ts";
 import { DOSSIER_MEDIAS, FICHIER_IMPORT, NOM_FICHIER_IMAGE } from "./chemins.ts";
+import { copierPartie, nomLibre } from "./copie-partie.ts";
 import { lienInvitation } from "./liens.ts";
-import { jetonMj, noterVisite, participantParJeton } from "./partie.ts";
+import { migrerBase } from "./migrations.ts";
+import { jetonMj, nomPartieDejaPris, noterVisite, participantParJeton, partieParId, type Participant } from "./partie.ts";
 import { ErreurRestauration, lireExport } from "./restauration.ts";
 import { copierBase, fichiersImages } from "./sauvegardes.ts";
 
@@ -35,50 +42,84 @@ function installationOuverte(partieId: number): boolean {
   return n === 1 && v === 0 && i === 0 && p === 1;
 }
 
-/** Le MJ (de n'importe quelle partie) qui fait la demande, d'après le jeton en en-tête. */
-function estMj(req: Request): boolean {
+/** Le MJ qui fait la demande (d'après le jeton en en-tête), sinon undefined. */
+function mjDemandeur(req: Request): Participant | undefined {
   const jeton = req.get("x-brumeland-jeton");
   const participant = jeton ? participantParJeton(jeton) : undefined;
-  return !!participant && participant.role === "mj";
+  return participant?.role === "mj" ? participant : undefined;
 }
+const estMj = (req: Request) => mjDemandeur(req) !== undefined;
 
-const LISEZMOI = `Export d'une partie Brumeland VTT.
+const LISEZMOI = `Export Brumeland VTT.
 
-- brumeland.db : la partie (invitations, fiches, journal, scènes, combat).
-- medias/ : les images de la bibliothèque.
+- brumeland.db : la ou les parties (invitations, fiches, journal, scènes, combat).
+- medias/ : les images utilisées.
 
-Pour la reprendre : copie ce fichier dans le dossier du projet, arrête le serveur, puis
+Pour ajouter ces parties à un serveur : écran MJ, « 📥 Importer une partie ».
+Pour remplacer tout le contenu d'un serveur par cet export : arrête le serveur, puis
   npm run restaurer -- nom-du-fichier.zip
 
 Attention : ce fichier contient les liens d'invitation (MJ et joueurs). Garde-le pour toi.
 `;
 
+/** Nom de fichier sans caractères gênants : « Les Brumes d'Été » → « les-brumes-d-ete ». */
+function enNomDeFichier(texte: string): string {
+  const s = texte
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return s.slice(0, 40) || "partie";
+}
+
 const deux = (n: number) => String(n).padStart(2, "0");
 
+/**
+ * GET /api/export : la partie ouverte par ce MJ (sa base à elle seule, avec les images de ses
+ * scènes) ; GET /api/export?tout=1 : tout le serveur (copie de la base entière, toutes les images).
+ */
 export function brancherRoutesExport(app: Express): void {
   app.get("/api/export", (req, res) => {
-    if (!estMj(req)) {
+    const mj = mjDemandeur(req);
+    if (!mj) {
       res.status(403).json({ ok: false, erreur: "Seul le Meneur de jeu peut exporter la partie." });
       return;
     }
+    const tout = req.query.tout === "1";
     const dossier = mkdtempSync(join(tmpdir(), "brumeland-export-"));
     try {
       const copie = join(dossier, "brumeland.db");
-      copierBase(base, copie);
+      if (tout) {
+        copierBase(base, copie);
+      } else {
+        // Base neuve, avec seulement cette partie (mêmes liens : la base est vide).
+        const seule = new DatabaseSync(copie);
+        try {
+          migrerBase(seule);
+          copierPartie(base, mj.partieId, seule, { nom: partieParId(mj.partieId)?.nom ?? "Partie", liens: "garder", images: true });
+        } finally {
+          seule.close();
+        }
+      }
       const contenu: Zippable = {
         "LISEZMOI.txt": new TextEncoder().encode(LISEZMOI),
         "brumeland.db": readFileSync(copie),
       };
       // Seulement les images de la bibliothèque (pas la corbeille). Déjà compressées : stockées telles quelles.
       const medias: Zippable = {};
-      for (const f of fichiersImages(base)) {
+      const lue = new DatabaseSync(copie, { readOnly: true });
+      const fichiers = fichiersImages(lue);
+      lue.close();
+      for (const f of fichiers) {
         const chemin = join(DOSSIER_MEDIAS, f);
         if (NOM_FICHIER_IMAGE.test(f) && existsSync(chemin)) medias[f] = [readFileSync(chemin), { level: 0 }];
       }
       if (Object.keys(medias).length > 0) contenu.medias = medias;
       const zip = zipSync(contenu, { level: 6 });
       const d = new Date();
-      const nom = `brumeland-${d.getFullYear()}-${deux(d.getMonth() + 1)}-${deux(d.getDate())}_${deux(d.getHours())}h${deux(d.getMinutes())}.zip`;
+      const quoi = tout ? "serveur" : enNomDeFichier(partieParId(mj.partieId)?.nom ?? "partie");
+      const nom = `brumeland-${quoi}-${d.getFullYear()}-${deux(d.getMonth() + 1)}-${deux(d.getDate())}_${deux(d.getHours())}h${deux(d.getMinutes())}.zip`;
       res.set("Content-Type", "application/zip");
       res.set("Content-Disposition", `attachment; filename="${nom}"`);
       res.set("Cache-Control", "no-store");
@@ -92,11 +133,51 @@ export function brancherRoutesExport(app: Express): void {
   });
 }
 
+export interface PartieAjoutee {
+  nom: string;
+  /** Faux si des liens ont dû être changés (déjà utilisés sur ce serveur). */
+  liensGardes: boolean;
+}
+
 /**
+ * Ajoute au serveur toutes les parties d'un export (déjà vérifié par lireExport) : la base de
+ * l'export est d'abord mise au niveau de l'outil, sur une copie temporaire.
+ */
+function ajouterParties(octetsBase: Uint8Array, medias: [string, Uint8Array][]): PartieAjoutee[] {
+  const dossier = mkdtempSync(join(tmpdir(), "brumeland-import-"));
+  try {
+    const chemin = join(dossier, "brumeland.db");
+    writeFileSync(chemin, octetsBase);
+    const source = new DatabaseSync(chemin);
+    try {
+      migrerBase(source);
+      // Images d'abord : une scène ne doit jamais renvoyer à un fichier absent.
+      mkdirSync(DOSSIER_MEDIAS, { recursive: true });
+      for (const [nom, donnees] of medias) {
+        const cible = join(DOSSIER_MEDIAS, nom);
+        if (!existsSync(cible)) writeFileSync(cible, donnees);
+      }
+      const parties = source.prepare("SELECT id, nom FROM partie ORDER BY id").all() as { id: number; nom: string }[];
+      return parties.map((p) => {
+        const nom = nomLibre(p.nom, (n) => nomPartieDejaPris(n, null), "importée", PARTIE_NOM_MAX, true);
+        const bilan = copierPartie(source, p.id, base, { nom, liens: "garder", images: true });
+        return { nom, liensGardes: bilan.liensGardes };
+      });
+    } finally {
+      source.close();
+    }
+  } finally {
+    rmSync(dossier, { recursive: true, force: true });
+  }
+}
+
+/**
+ * @param partieId partie principale (celle qu'on installe sur un serveur neuf).
  * @param redemarrer arrête proprement le serveur pour qu'il redémarre et applique l'import
  *   (relancé par « npm run partie », « npm start » ou l'hébergeur).
+ * @param apresAjout prévient les écrans MJ (liste des parties, bibliothèque) après un ajout.
  */
-export function brancherRoutesImport(app: Express, partieId: number, redemarrer: () => void): void {
+export function brancherRoutesImport(app: Express, partieId: number, redemarrer: () => void, apresAjout: () => void): void {
   let importEnCours = false;
 
   app.get("/api/installation", (_req, res) => {
@@ -138,11 +219,24 @@ export function brancherRoutesImport(app: Express, partieId: number, redemarrer:
       }
       try {
         const contenu = lireExport(octets);
-        writeFileSync(FICHIER_IMPORT, octets);
+        if (installationOuverte(partieId)) {
+          // Serveur neuf : l'export remplace tout (mêmes liens), après redémarrage.
+          writeFileSync(FICHIER_IMPORT, octets);
+          importEnCours = true;
+          res.json({ ok: true, redemarrage: true, lien: lienInvitation(contenu.jetonMj) });
+          // Le temps que la réponse parte, puis redémarrage.
+          setTimeout(redemarrer, 500);
+          return;
+        }
+        // Sinon (MJ) : les parties de l'export s'ajoutent à celles du serveur.
         importEnCours = true;
-        res.json({ ok: true, nomPartie: contenu.nomPartie, lien: lienInvitation(contenu.jetonMj) });
-        // Le temps que la réponse parte, puis redémarrage (la partie importée remplace l'actuelle).
-        setTimeout(redemarrer, 500);
+        try {
+          const ajoutees = ajouterParties(contenu.octetsBase, contenu.medias);
+          apresAjout();
+          res.json({ ok: true, ajoutees });
+        } finally {
+          importEnCours = false;
+        }
       } catch (erreur) {
         if (erreur instanceof ErreurRestauration) {
           res.status(400).json({ ok: false, erreur: erreur.message });

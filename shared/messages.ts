@@ -118,6 +118,8 @@ export interface MessagesClient {
   /** Nouvelle partie : la réponse donne son numéro (id), son lien est dans la liste des parties. */
   "mj:creerPartie": (demande: { nom: string }, reponse: (r: Reponse) => void) => void;
   "mj:renommerPartie": (demande: { id: number; nom: string }, reponse: (r: Reponse) => void) => void;
+  /** Copie complète d'une partie, avec de nouveaux liens : la réponse donne son numéro (id). */
+  "mj:dupliquerPartie": (demande: { id: number }, reponse: (r: Reponse) => void) => void;
   /** Supprime une autre partie que celle qu'on a ouverte (jamais la dernière). */
   "mj:supprimerPartie": (demande: { id: number }, reponse: (r: Reponse) => void) => void;
   "mj:creerInvitation": (demande: { etiquette: string }, reponse: (r: Reponse) => void) => void;

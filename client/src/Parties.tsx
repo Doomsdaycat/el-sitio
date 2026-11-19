@@ -1,6 +1,6 @@
 // Écran MJ : plusieurs parties sur le même serveur (étape 9).
 // - ChoixPartie : sélecteur en haut de l'écran, pour passer d'une partie à l'autre ;
-// - Parties : panneau « Mes parties » (nouvelle partie, renommer, supprimer).
+// - Parties : panneau « Mes parties » (nouvelle partie, dupliquer, renommer, supprimer).
 // Chaque partie a son propre lien MJ : changer de partie, c'est ouvrir ce lien.
 
 import { useState, type FormEvent } from "react";
@@ -54,6 +54,13 @@ function LignePartie({ partie }: { partie: PartieMj }) {
     });
   }
 
+  function surDupliquer() {
+    setErreur(null);
+    socket.emit("mj:dupliquerPartie", { id: partie.id }, (r: Reponse) => {
+      if (!r.ok) setErreur(r.erreur);
+    });
+  }
+
   function surSupprimer() {
     if (!confirmer) {
       setConfirmer(true);
@@ -101,6 +108,14 @@ function LignePartie({ partie }: { partie: PartieMj }) {
           <button type="button" className="secondaire" onClick={() => setRenommage(partie.nom)}>
             ✏️ Renommer
           </button>
+          <button
+            type="button"
+            className="secondaire"
+            title="Copie complète (fiches, scènes, journal…), avec de nouveaux liens"
+            onClick={surDupliquer}
+          >
+            📑 Dupliquer
+          </button>
           {!partie.actuelle && (
             <button type="button" className={confirmer ? "danger" : "secondaire"} onClick={surSupprimer}>
               {confirmer ? "Confirmer : tout sera effacé" : "🗑️ Supprimer"}
@@ -139,7 +154,8 @@ export function Parties() {
       <h2>Mes parties</h2>
       <p className="discret">
         Chaque partie a ses joueurs, ses fiches, son journal et ses scènes. La bibliothèque d'images est
-        commune à toutes. Pour essayer quelque chose sans toucher ta campagne, crée une partie de test.
+        commune à toutes. Pour essayer quelque chose sans toucher ta campagne, duplique-la : la copie
+        a ses propres liens, tes joueurs ne risquent pas d'y entrer par erreur.
       </p>
 
       {parties === null ? (

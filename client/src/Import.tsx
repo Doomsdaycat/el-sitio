@@ -1,10 +1,15 @@
-// Import d'une partie (export .zip) : depuis l'écran MJ, ou à l'installation d'un serveur neuf.
-// Le serveur vérifie le fichier, redémarre pour l'appliquer, puis on ouvre le lien MJ de la partie importée.
+// Import d'un export .zip :
+// - depuis l'écran MJ : les parties de l'export s'ajoutent à celles du serveur (menu des parties) ;
+// - à l'installation d'un serveur neuf : l'export remplace tout ; le serveur redémarre pour
+//   l'appliquer, puis on ouvre le lien MJ de la partie importée.
 
 import { useEffect, useRef, useState } from "react";
 import { jeton } from "./connexion.ts";
 
-type Reponse = { ok: true; lien: string; nomPartie?: string } | { ok: false; erreur: string };
+type Reponse =
+  | { ok: true; redemarrage: true; lien: string }
+  | { ok: true; redemarrage?: false; ajoutees: { nom: string; liensGardes: boolean }[] }
+  | { ok: false; erreur: string };
 
 const pause = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
 
@@ -36,26 +41,18 @@ async function envoyer(fichier: File): Promise<Reponse> {
   }
 }
 
-/** Bouton « Importer une partie » ; `confirmer` : demande confirmation avant de remplacer la partie. */
-export function BoutonImport({ confirmer }: { confirmer: boolean }) {
+/** Bouton « Importer une partie ». */
+export function BoutonImport() {
   const champ = useRef<HTMLInputElement>(null);
   const [etape, setEtape] = useState<"pret" | "envoi" | "redemarrage">("pret");
   const [erreur, setErreur] = useState<string | null>(null);
+  const [bilan, setBilan] = useState<string | null>(null);
 
   async function surFichier(fichier: File | undefined) {
     if (champ.current) champ.current.value = "";
     if (!fichier) return;
-    if (
-      confirmer &&
-      !window.confirm(
-        `Remplacer la partie actuelle par « ${fichier.name} » ?\n\n` +
-          "La partie actuelle est d'abord sauvegardée (« avant restauration »). " +
-          "Tout le monde est déconnecté quelques secondes pendant le redémarrage.",
-      )
-    ) {
-      return;
-    }
     setErreur(null);
+    setBilan(null);
     setEtape("envoi");
     const r = await envoyer(fichier);
     if (!r.ok) {
@@ -63,8 +60,18 @@ export function BoutonImport({ confirmer }: { confirmer: boolean }) {
       setEtape("pret");
       return;
     }
-    setEtape("redemarrage");
-    await ouvrirApresRedemarrage(r.lien);
+    if (r.redemarrage) {
+      setEtape("redemarrage");
+      await ouvrirApresRedemarrage(r.lien);
+      return;
+    }
+    setEtape("pret");
+    const noms = r.ajoutees.map((p) => `« ${p.nom} »`).join(", ");
+    const liensChanges = r.ajoutees.some((p) => !p.liensGardes);
+    setBilan(
+      `${r.ajoutees.length > 1 ? "Parties ajoutées" : "Partie ajoutée"} : ${noms}. Ouvre-la depuis « Mes parties ».` +
+        (liensChanges ? " Certains de ses liens étaient déjà utilisés ici : ils ont été remplacés par de nouveaux." : ""),
+    );
   }
 
   return (
@@ -84,6 +91,7 @@ export function BoutonImport({ confirmer }: { confirmer: boolean }) {
             : "📥 Importer une partie"}
       </button>
       {erreur && <p className="erreur">{erreur}</p>}
+      {bilan && <p className="succes">{bilan}</p>}
     </>
   );
 }
@@ -103,7 +111,9 @@ export function Installation() {
   async function nouvelle() {
     setErreur(null);
     try {
-      const r = (await (await fetch("/api/installation/nouvelle", { method: "POST" })).json()) as Reponse;
+      const r = (await (await fetch("/api/installation/nouvelle", { method: "POST" })).json()) as
+        | { ok: true; lien: string }
+        | { ok: false; erreur: string };
       if (r.ok) window.location.href = new URL(r.lien).pathname;
       else setErreur(r.erreur);
     } catch {
@@ -117,11 +127,11 @@ export function Installation() {
       <h2>Installation de la partie</h2>
       <p>
         Ce serveur est tout neuf. Pour y reprendre ta partie, importe le fichier .zip obtenu avec
-        « 📦 Exporter la partie » sur ton écran MJ actuel : tout est repris (liens, fiches, scènes,
+        « 📦 Exporter cette partie » (ou « Exporter tout le serveur ») sur ton écran MJ actuel : tout est repris (liens, fiches, scènes,
         images). Ton lien MJ s'ouvre ensuite tout seul.
       </p>
       <div className="actions-installation">
-        <BoutonImport confirmer={false} />
+        <BoutonImport />
         <button type="button" className="secondaire" onClick={() => void nouvelle()}>
           Commencer une nouvelle partie
         </button>

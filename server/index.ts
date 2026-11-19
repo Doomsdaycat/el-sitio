@@ -22,6 +22,7 @@ import {
 } from "../shared/messages.ts";
 import { base, CHEMIN_BASE } from "./base.ts";
 import { FICHIER_PID } from "./chemins.ts";
+import { copierPartie, nomLibre } from "./copie-partie.ts";
 import { brancherRoutesExport, brancherRoutesImport } from "./export.ts";
 import { demarrerSauvegardesAuto, sauvegarder } from "./sauvegardes.ts";
 import { brancherFiches, diffuserFiche, envoyerFiches } from "./fiches-socket.ts";
@@ -79,8 +80,17 @@ app.get("/api/sante", (_req, res) => {
 brancherRoutesImages(app, io);
 // Export de la partie en .zip (MJ seulement).
 brancherRoutesExport(app);
-// Import d'un export .zip : le serveur redémarre pour l'appliquer (code de sortie 75).
-brancherRoutesImport(app, partie.id, () => arreter(CODE_REDEMARRAGE));
+// Import d'un export .zip : ajout de parties (MJ) ; sur un serveur neuf, remplacement après
+// redémarrage (code de sortie 75).
+brancherRoutesImport(
+  app,
+  partie.id,
+  () => arreter(CODE_REDEMARRAGE),
+  () => {
+    diffuserParties();
+    diffuserImages(io);
+  },
+);
 
 // En mode partie, le serveur sert aussi l'interface compilée (un seul port à ouvrir).
 const DOSSIER_INTERFACE = resolve(import.meta.dirname, "../dist/client");
@@ -262,6 +272,22 @@ io.on("connection", (socket) => {
       console.log(`Nouvelle partie : ${cree.nom}`);
       diffuserParties();
       return { ok: true, id: String(cree.id) };
+    }),
+  );
+
+  socket.on(
+    "mj:dupliquerPartie",
+    reserveMj(socket, (demande: { id: number }) => {
+      const id = Number(demande?.id);
+      const source = Number.isInteger(id) ? partieParId(id) : undefined;
+      if (!source) return { ok: false, erreur: "Cette partie n'existe plus." };
+      const nom = nomLibre(source.nom, (n) => nomPartieDejaPris(n, null), "copie", PARTIE_NOM_MAX);
+      // Nouveaux liens : les joueurs ne risquent pas d'arriver dans la copie par erreur.
+      const { partieId: copie } = copierPartie(base, id, base, { nom, liens: "nouveaux", images: false });
+      console.log(`Partie dupliquée : ${source.nom} → ${nom}`);
+      diffuserParties();
+      diffuserImages(io); // les scènes de la copie utilisent les mêmes images
+      return { ok: true, id: String(copie) };
     }),
   );
 

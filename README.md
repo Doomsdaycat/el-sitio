@@ -92,8 +92,15 @@ lancement. Si un lien ne s'ouvre pas tout de suite, attends une minute : le tunn
 - **Journal** : tout le monde voit les jets, conservés d'une séance à l'autre (le MJ peut le vider).
 - **Sauvegarde** : la partie, les liens, les noms et le journal sont conservés quand tu arrêtes le serveur.
   Le serveur en prend aussi des copies tout seul (voir « Sauvegardes et export » plus bas).
-- **📦 Exporter la partie** (en bas de l'écran MJ) : télécharge un seul fichier `.zip` avec toute la
-  partie et ses images, pour la garder ailleurs ou la déplacer sur un autre ordinateur.
+- **Plusieurs parties** (panneau « Mes parties » de l'écran MJ) : une partie principale ⭐ et autant
+  d'autres que tu veux (tests, nouvelles campagnes). Chacune a ses liens, ses fiches, son journal et
+  ses scènes ; la bibliothèque d'images est commune. **📑 Dupliquer** fait une copie complète avec de
+  nouveaux liens, pour essayer quelque chose sans toucher ta campagne. Le menu en haut de l'écran
+  passe d'une partie à l'autre.
+- **📦 Exporter cette partie** (en bas de l'écran MJ) : télécharge un seul fichier `.zip` avec la
+  partie et ses images, pour la garder ailleurs ou la déplacer sur un autre serveur ;
+  **📥 Importer une partie** l'ajoute à tes parties (rien n'est remplacé). « Exporter tout le
+  serveur » prend toutes les parties d'un coup.
 
 ## Installation (une seule fois)
 
@@ -182,9 +189,12 @@ npm run restaurer -- 3
 Avant de restaurer, l'outil met de côté l'état actuel : il apparaît en tête de liste
 (« avant restauration »), pour pouvoir annuler la restauration de la même façon.
 
-**Export.** Sur ton écran MJ, **📦 Exporter la partie** télécharge un fichier `.zip` avec toute la
-partie et ses images. Garde-le hors du PC (clé USB, cloud), ou sers-t'en pour installer la partie
-ailleurs : copie le fichier dans le dossier du projet, serveur arrêté, puis :
+**Export.** Sur ton écran MJ, **📦 Exporter cette partie** télécharge un fichier `.zip` avec la
+partie et ses images (« Exporter tout le serveur » : toutes les parties). Garde-le hors du PC (clé
+USB, cloud). Pour le reprendre : **📥 Importer une partie** sur l'écran MJ de n'importe quel serveur
+l'ajoute aux parties existantes, avec les mêmes liens s'ils ne sont pas déjà utilisés sur ce
+serveur. Pour **remplacer tout** le contenu d'un serveur par un export : copie le fichier dans le
+dossier du projet, serveur arrêté, puis :
 
 ```bash
 npm run restaurer -- brumeland-2026-11-18_21h30.zip
@@ -223,11 +233,12 @@ La commande vérifie le code, envoie la version sur GitHub, attend que GitHub fa
 (3 à 6 minutes), puis demande au serveur de l'installer. La partie et les liens ne changent pas.
 
 **Première installation** : à la première ouverture de l'adresse, une page propose
-d'**importer une partie** (le `.zip` de « 📦 Exporter la partie ») ou d'en commencer une nouvelle.
+d'**importer une partie** (le `.zip` de « 📦 Exporter cette partie » ou « Exporter tout le serveur »)
+ou d'en commencer une nouvelle.
 Après l'import, ton lien MJ s'ouvre tout seul. À faire avant que l'adresse soit ouverte au public.
 
-**Ensuite**, depuis ton écran MJ en ligne : **📦 Exporter la partie** pour en garder une copie,
-**📥 Importer une partie** pour la remplacer par un export (l'état actuel est d'abord sauvegardé).
+**Ensuite**, depuis ton écran MJ en ligne : **📦 Exporter cette partie** pour en garder une copie,
+**📥 Importer une partie** pour ajouter la partie d'un export à tes parties.
 
 Détails techniques (pour l'hébergeur) : le chart Helm est dans `chart/` (nom `el-sitio` gardé
 pour que l'installation existante reste valable) ; un seul exemplaire, disque permanent de 2 Go
