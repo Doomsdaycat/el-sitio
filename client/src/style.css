@@ -229,15 +229,20 @@ button.lien {
   white-space: nowrap;
 }
 
+/* Bandeau de coupure : il flotte par-dessus le haut de l'écran, sans rien pousser vers le bas. */
 .bandeau-coupure {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  margin: -0.75rem -1rem 0.75rem;
-  padding: 0.6rem 1rem;
+  position: fixed;
+  top: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  max-width: calc(100vw - 2rem);
+  padding: 0.55rem 1.25rem;
   text-align: center;
   color: var(--accent-texte);
   background: var(--attente);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 45%);
 }
 
 /* Pendant une coupure, l'écran reste visible mais grisé : rien n'y est à jour. */
