@@ -500,9 +500,13 @@ label.case > span {
   border-left-color: var(--erreur);
 }
 
-/* Jet secret : un cadenas après le nom de l'auteur (ouvert une fois révélé). */
+/* Jet secret : un ninja après le nom de l'auteur (estompé une fois le jet révélé). */
 .icone-secret {
   font-size: 0.85rem;
+}
+
+.icone-secret.revele {
+  opacity: 0.45;
 }
 
 .entree-gauche {

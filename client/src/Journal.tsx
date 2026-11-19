@@ -242,11 +242,11 @@ function Entree(props: {
           <strong>{nomAuteur(entree, fiches)}</strong>
           {entree.secret && (
             <span
-              className="icone-secret"
+              className={entree.revele ? "icone-secret revele" : "icone-secret"}
               title={entree.revele ? "Jet secret, révélé aux joueurs" : "Jet secret : les joueurs ne voient pas le résultat"}
               aria-label={entree.revele ? "jet secret, révélé" : "jet secret"}
             >
-              {entree.revele ? " 🔓" : " 🔒"}
+              {" 🥷"}
             </span>
           )}
           {entree.forceDe !== null && <span className="discret"> · relance</span>}
