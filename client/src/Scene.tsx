@@ -280,7 +280,7 @@ function Affichage(props: {
           <span className="scene-titre">{props.titre}</span>
           <span className="actions-scene">{props.bandeau}</span>
         </div>
-        {/* Ligne 2 : les outils (MJ, si le brouillard est actif) ; la navigation (zoom, plein écran) à droite. */}
+        {/* Ligne 2 : les outils (MJ, si le brouillard est actif) ; la navigation (zoom, plein écran) sur sa propre ligne, à droite. */}
         <div className="barre barre-outils">
           {estMj && brouillardActif && (
             <span className="groupe-outils" role="group" aria-label="Outil">

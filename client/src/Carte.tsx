@@ -776,7 +776,7 @@ export function Carte(props: {
             <span className="scene-titre">{scene.nom}</span>
             <span className="actions-scene">{props.bandeau}</span>
           </div>
-          {/* Ligne 2 : les outils (et l'annulation, après Déplacer) à gauche ; la navigation (zoom, plein écran) à droite. */}
+          {/* Ligne 2 : les outils (et l'annulation, après Déplacer) à gauche ; la navigation (zoom, plein écran) sur sa propre ligne, à droite. */}
           <div className="barre barre-outils">
             <span className="groupe-outils" role="group" aria-label="Outil">
               {(

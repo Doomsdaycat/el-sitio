@@ -1932,13 +1932,13 @@ button.secondaire.actif {
 }
 
 /* Section « navigation » (zoom, ajuster, plein écran), à droite de la ligne des outils. */
+/* Navigation (zoom, Ajuster, plein écran) : toujours sur sa propre ligne, sous les outils, à droite. */
 .navigation {
-  display: inline-flex;
+  display: flex;
+  flex-basis: 100%;
+  justify-content: flex-end;
   align-items: center;
   gap: 0.3rem;
-  margin-left: auto;
-  padding-left: 0.6rem;
-  border-left: 1px solid var(--bordure);
 }
 
 .navigation button {
