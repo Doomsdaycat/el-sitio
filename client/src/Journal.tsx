@@ -27,27 +27,18 @@ function pluriel(n: number, mot: string): string {
   return `${n} ${mot}${n > 1 ? "x" : ""}`;
 }
 
-function DetailCompetence({ r }: { r: ResultatCompetence }) {
-  const net = r.faveurs - r.fleaux;
-  let verdict = r.reussi ? "Réussite" : "Échec";
-  let classe = r.reussi ? "reussite" : "echec";
-  if (r.dragon) {
-    verdict = "Dragon !";
-    classe = "dragon";
-  } else if (r.demon) {
-    verdict = "Démon !";
-    classe = "demon";
-  }
+/** Verdict d'un jet de compétence. Un Dragon est une réussite, un Démon un échec (barre verte ou rouge). */
+function verdictCompetence(r: ResultatCompetence): { texte: string; classe: string; barre: "reussite" | "echec" } {
+  if (r.dragon) return { texte: "Dragon !", classe: "dragon", barre: "reussite" };
+  if (r.demon) return { texte: "Démon !", classe: "demon", barre: "echec" };
+  return r.reussi ? { texte: "Réussite", classe: "reussite", barre: "reussite" } : { texte: "Échec", classe: "echec", barre: "echec" };
+}
 
+/** Dés d'un jet de compétence (le dé écarté barré) et ce qui a joué : valeur, faveurs, fléaux. */
+function DesCompetence({ r }: { r: ResultatCompetence }) {
+  const net = r.faveurs - r.fleaux;
   return (
     <div className="detail-jet">
-      <span className="discret">
-        sous {r.valeur}
-        {r.faveurs > 0 && <> · {r.faveurs} faveur{r.faveurs > 1 ? "s" : ""}</>}
-        {r.fleaux > 0 && <> · {pluriel(r.fleaux, "fléau")}</>}
-        {r.fleauEtat && <> (dont 1 dû à l'état {ETATS.find((e) => e.id === r.fleauEtat)?.nom})</>}
-        {r.faveurs > 0 && r.fleaux > 0 && net === 0 && <> (s'annulent)</>}
-      </span>
       <span className="des">
         {r.des.map((de, i) => (
           <span
@@ -59,7 +50,13 @@ function DetailCompetence({ r }: { r: ResultatCompetence }) {
           </span>
         ))}
       </span>
-      <span className={`verdict ${classe}`}>{verdict}</span>
+      <span className="discret">
+        sous {r.valeur}
+        {r.faveurs > 0 && <> · {r.faveurs} faveur{r.faveurs > 1 ? "s" : ""}</>}
+        {r.fleaux > 0 && <> · {pluriel(r.fleaux, "fléau")}</>}
+        {r.fleauEtat && <> (dont 1 dû à l'état {ETATS.find((e) => e.id === r.fleauEtat)?.nom})</>}
+        {r.faveurs > 0 && r.fleaux > 0 && net === 0 && <> (s'annulent)</>}
+      </span>
     </div>
   );
 }
@@ -74,7 +71,8 @@ function formuleAffichee(r: ResultatLibre): string {
     .join("");
 }
 
-function DetailLibre({ r }: { r: ResultatLibre }) {
+/** Dés d'un jet libre (formule, puis chaque dé). Le total s'affiche à droite de la carte. */
+function DesLibre({ r }: { r: ResultatLibre }) {
   return (
     <div className="detail-jet">
       <span className="discret">{formuleAffichee(r)}</span>
@@ -94,7 +92,6 @@ function DetailLibre({ r }: { r: ResultatLibre }) {
           </span>
         ))}
       </span>
-      <span className="verdict total">= {r.total}</span>
     </div>
   );
 }
@@ -199,76 +196,84 @@ function Entree(props: {
     socket.emit("jet:forcer", { id: entree.id, etat: id }, repondre);
   }
 
+  // Verdict (à droite) et couleur de la barre : vert réussite, rouge échec, neutre sinon.
+  const verdict = r?.type === "competence" ? verdictCompetence(r) : null;
   const classes = ["entree"];
   if (entree.forceDe !== null) classes.push("tentative");
   if (entree.secret && !entree.revele) classes.push("secret");
+  if (verdict) classes.push(`barre-${verdict.barre}`);
+  // Contexte en petit, sous « qui · quoi » : pour qui, opposition, secret (MJ).
+  const contexte: React.ReactNode[] = [];
+  if (pour) contexte.push(<>pour {pour}</>);
+  if (entree.opposeA !== null) {
+    contexte.push(
+      <>
+        {entree.ouverte ? "opposition ouverte" : "s'oppose"}
+        {cibleDeOpposition && <> à {nomCampAffiche(cibleDeOpposition, fiches)}</>}
+      </>,
+    );
+  }
+  if (estMj && entree.secret) contexte.push(<>{entree.revele ? "secret, révélé" : "secret"}</>);
+  if (etat) contexte.push(<>devient {etat.nom} ({etat.carac})</>);
+
+  const actions = (
+    <>
+      {peutForcerIci && !choixEtat && (
+        <button type="button" className="secondaire" onClick={() => setChoixEtat(true)}>
+          Forcer la chance
+        </button>
+      )}
+      {peutSOpposer && (
+        <button type="button" className="secondaire" onClick={() => choisirCibleOpposition(entree)}>
+          S'opposer
+        </button>
+      )}
+      {estMj && entree.secret && !entree.revele && (
+        <button type="button" className="secondaire" onClick={() => socket.emit("mj:revelerJet", { id: entree.id }, repondre)}>
+          Révéler
+        </button>
+      )}
+    </>
+  );
 
   return (
     <li className={classes.join(" ")}>
-      <div className="entree-entete">
-        <strong>{nomAuteur(entree, fiches)}</strong>
-        {entree.auteurRole === "mj" && <span className="badge-mj">MJ</span>}
-        {pour && (
-          <span>
-            pour <strong>{pour}</strong>
-          </span>
+      <div className="entree-gauche">
+        <div className="entree-qui">
+          <strong>{nomAuteur(entree, fiches)}</strong>
+          {entree.forceDe !== null && <span className="discret"> · relance</span>}
+          {entree.libelle && <span className="libelle"> · {entree.libelle}</span>}
+        </div>
+        {contexte.length > 0 && (
+          <div className="entree-contexte">
+            {contexte.map((c, i) => (
+              <span key={i}>
+                {i > 0 && " · "}
+                {c}
+              </span>
+            ))}
+          </div>
         )}
-        {entree.libelle && <span className="libelle">{entree.libelle}</span>}
-        {entree.opposeA !== null && (
-          <span className="badge-opposition">
-            {entree.ouverte ? "opposition ouverte" : "s'oppose"}
-            {cibleDeOpposition && <> à {nomCampAffiche(cibleDeOpposition, fiches)}</>}
-          </span>
+        {masque ? (
+          <p className="discret jet-cache">Le MJ lance les dés en secret…</p>
+        ) : r.type === "competence" ? (
+          <DesCompetence r={r} />
+        ) : (
+          <DesLibre r={r} />
         )}
-        {estMj && entree.secret && (
-          <span className="badge-secret">{entree.revele ? "révélé" : "secret"}</span>
-        )}
-        <span className="heure">{heure(entree.creeLe)}</span>
-      </div>
-
-      {etat && (
-        <p className="force-chance">
-          force la chance et devient <strong>{etat.nom}</strong> ({etat.carac})
-        </p>
-      )}
-
-      {masque ? (
-        <p className="discret jet-cache">Le MJ lance les dés en secret…</p>
-      ) : r.type === "competence" ? (
-        <DetailCompetence r={r} />
-      ) : (
-        <DetailLibre r={r} />
-      )}
-
-      {entree.auteurId === moiId &&
-        entree.auteurRole === "joueur" &&
-        r?.type === "competence" &&
-        r.demon && (
+        {entree.auteurId === moiId && entree.auteurRole === "joueur" && r?.type === "competence" && r.demon && (
           <p className="discret note-jet">Démon : impossible de forcer la chance sur ce jet.</p>
         )}
-
-      <div className="entree-actions">
-        {peutForcerIci && !choixEtat && (
-          <button type="button" className="secondaire" onClick={() => setChoixEtat(true)}>
-            Forcer la chance
-          </button>
-        )}
-        {peutSOpposer && (
-          <button type="button" className="secondaire" onClick={() => choisirCibleOpposition(entree)}>
-            S'opposer
-          </button>
-        )}
-        {estMj && entree.secret && !entree.revele && (
-          <button
-            type="button"
-            className="secondaire"
-            onClick={() => socket.emit("mj:revelerJet", { id: entree.id }, repondre)}
-          >
-            Révéler aux joueurs
-          </button>
-        )}
       </div>
-
+      <div className="entree-droite">
+        <span className="heure">{heure(entree.creeLe)}</span>
+        {verdict ? (
+          <span className={`verdict ${verdict.classe}`}>{verdict.texte}</span>
+        ) : r?.type === "libre" ? (
+          <span className="verdict total">= {r.total}</span>
+        ) : null}
+        <div className="entree-actions">{actions}</div>
+      </div>
       {paire && <ResultatOpposition entree={entree} paire={paire} journal={journal} />}
 
       {choixEtat && (

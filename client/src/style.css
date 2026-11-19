@@ -478,29 +478,61 @@ label.case > span {
   overflow-y: auto;
 }
 
+/* Carte d'un jet : à gauche ce qui s'est passé, à droite (largeur fixe) l'heure, le verdict et
+   les boutons, ancrés à droite. Toutes les cartes ont la même largeur, relances comprises.
+   Barre à gauche : verte (réussite, Dragon), rouge (échec, Démon), neutre (jet libre, secret). */
 .entree {
-  border-top: 1px solid var(--bordure);
-  padding-top: 0.6rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 8.5rem;
+  gap: 0.25rem 0.75rem;
+  padding: 0.5rem 0.6rem;
+  background: var(--fond);
+  border: 1px solid var(--bordure);
+  border-left: 4px solid var(--bordure);
+  border-radius: 0 6px 6px 0;
 }
 
-.entree.tentative {
-  border-left: 3px solid var(--attente);
-  padding-left: 0.6rem;
+.entree.barre-reussite {
+  border-left-color: var(--ok);
+}
+
+.entree.barre-echec {
+  border-left-color: var(--erreur);
 }
 
 .entree.secret {
-  opacity: 0.85;
+  border-style: dashed;
+  border-left-style: solid;
 }
 
-.entree-entete {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+.entree-gauche {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
 }
 
-.entree-entete .badge-mj {
-  margin-left: 0;
+.entree-qui {
+  overflow-wrap: anywhere;
+}
+
+.entree-contexte {
+  font-size: 0.8rem;
+  color: var(--discret);
+}
+
+.entree-droite {
+  display: grid;
+  justify-items: end;
+  align-content: start;
+  gap: 0.3rem;
+  text-align: right;
+}
+
+/* Résultat d'opposition, choix de l'état, erreur : sur toute la largeur de la carte. */
+.entree > .issue-opposition,
+.entree > .choix-etat,
+.entree > .erreur {
+  grid-column: 1 / -1;
 }
 
 .libelle {
@@ -508,8 +540,7 @@ label.case > span {
 }
 
 .heure {
-  margin-left: auto;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--discret);
 }
 
@@ -525,8 +556,8 @@ label.case > span {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.6rem;
-  margin-top: 0.35rem;
+  gap: 0.5rem;
+  font-size: 0.85rem;
 }
 
 .des {
@@ -572,38 +603,40 @@ label.case > span {
 
 .verdict {
   font-weight: 700;
-  padding: 0.1rem 0.55rem;
-  border-radius: 5px;
+  font-size: 1.05rem;
+  line-height: 1.2;
 }
 
-.verdict.reussite { color: var(--ok); }
-.verdict.echec { color: var(--erreur); }
+/* Dragon et Démon : même couleur que la réussite et l'échec, simplement en majuscules. */
+.verdict.reussite,
+.verdict.dragon { color: var(--ok); }
+.verdict.echec,
+.verdict.demon { color: var(--erreur); }
+.verdict.dragon,
+.verdict.demon { text-transform: uppercase; letter-spacing: 0.03em; }
 .verdict.total { color: var(--texte); }
-.verdict.dragon { color: var(--accent-texte); background: var(--accent); }
-.verdict.demon { color: #fff; background: var(--erreur); }
-
-.force-chance {
-  margin: 0.25rem 0 0;
-  font-size: 0.9rem;
-  color: var(--attente);
-}
 
 .jet-cache {
-  margin: 0.35rem 0 0;
+  margin: 0;
   font-style: italic;
 }
 
 .entree-actions {
   display: flex;
-  gap: 0.5rem;
-  margin-top: 0.4rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.3rem;
 }
 
 .entree-actions:empty {
   display: none;
 }
 
-.entree-actions button,
+.entree-actions button {
+  padding: 0.15rem 0.5rem;
+  font-size: 0.78rem;
+}
+
 .etats button {
   padding: 0.2rem 0.6rem;
   font-size: 0.85rem;
@@ -622,7 +655,7 @@ label.case > span {
 }
 
 .note-jet {
-  margin: 0.3rem 0 0;
+  margin: 0;
   font-size: 0.85rem;
   font-style: italic;
 }
@@ -655,19 +688,11 @@ select {
   justify-self: start;
 }
 
-.badge-opposition {
-  font-size: 0.75rem;
-  padding: 0.05rem 0.45rem;
-  border-radius: 999px;
-  border: 1px solid var(--accent);
-  color: var(--accent);
-}
-
 .issue-opposition {
-  margin: 0.4rem 0 0;
-  padding: 0.35rem 0.6rem;
-  border-radius: 5px;
-  background: var(--fond);
+  margin: 0.15rem 0 0;
+  padding: 0.35rem 0 0;
+  border-top: 1px dashed var(--bordure);
+  font-size: 0.9rem;
   font-weight: 600;
 }
 
