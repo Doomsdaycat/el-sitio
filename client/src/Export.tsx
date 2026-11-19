@@ -36,11 +36,12 @@ export function Export() {
 
   return (
     <section className="carte export">
-      <h2>Sauvegarde de la partie</h2>
+      <h2>Sauvegarde des parties</h2>
       <p className="discret">
         Le serveur sauvegarde la partie tout seul (au démarrage, puis toutes les 30 minutes). Pour en
         garder une copie ailleurs ou la déplacer sur un autre ordinateur, exporte-la : un seul fichier
-        .zip avec toute la partie et ses images. « Importer » remplace la partie par celle d'un export.
+        .zip avec toutes les parties et leurs images. « Importer » remplace tout (toutes les parties)
+        par le contenu d'un export.
       </p>
       <div className="actions-export">
         <button type="button" onClick={exporter} disabled={enCours}>

@@ -13,6 +13,8 @@ import {
   type AuthClient,
   type Identite,
   type Invitation,
+  PARTIE_NOM_MAX,
+  type PartieMj,
   type Present,
   type MessagesClient,
   type MessagesServeur,
@@ -21,11 +23,11 @@ import {
 import { base, CHEMIN_BASE } from "./base.ts";
 import { FICHIER_PID } from "./chemins.ts";
 import { brancherRoutesExport, brancherRoutesImport } from "./export.ts";
-import { demarrerSauvegardesAuto } from "./sauvegardes.ts";
+import { demarrerSauvegardesAuto, sauvegarder } from "./sauvegardes.ts";
 import { brancherFiches, diffuserFiche, envoyerFiches } from "./fiches-socket.ts";
 import { ficheDuJoueur } from "./fiches.ts";
 import { brancherCombat, diffuserCombat, envoyerCombat } from "./combat.ts";
-import { brancherImages, brancherRoutesImages, envoyerImages } from "./images.ts";
+import { brancherImages, brancherRoutesImages, diffuserImages, envoyerImages } from "./images.ts";
 import { apresNouveauJoueur, brancherScenes, diffuserScenes, envoyerScenes } from "./scenes.ts";
 import { brancherJets, envoyerJournal } from "./jets-socket.ts";
 import { salleJoueurs, salleMj, salleParticipant, sallePartie } from "./salles.ts";
@@ -33,16 +35,21 @@ import { lienInvitation, MODE_PARTIE } from "./liens.ts";
 import {
   changerNom,
   creerInvitation,
+  creerPartie,
   jetonMj,
   listerInvitations,
   listerParticipants,
+  listerParties,
   nomDejaPris,
+  nomPartieDejaPris,
   noterVisite,
   ordonnerInvitations,
   partieParId,
   partiePrincipale,
   participantParJeton,
+  renommerPartie,
   supprimerInvitation,
+  supprimerPartie,
   type Participant,
 } from "./partie.ts";
 
@@ -110,6 +117,22 @@ function invitationsPourMj(partieId: number): Invitation[] {
 
 function diffuserInvitations(partieId: number): void {
   io.to(salleMj(partieId)).emit("invitations", invitationsPourMj(partieId));
+}
+
+/** Menu des parties : le MJ de chaque partie reçoit la liste complète (avec « actuelle »). */
+function diffuserParties(): void {
+  const lignes = listerParties();
+  for (const actuelle of lignes) {
+    const liste: PartieMj[] = lignes.map((p, rang) => ({
+      id: p.id,
+      nom: p.nom,
+      principale: rang === 0,
+      actuelle: p.id === actuelle.id,
+      lien: lienInvitation(p.jetonMj),
+      joueurs: p.joueurs,
+    }));
+    io.to(salleMj(actuelle.id)).emit("parties", liste);
+  }
 }
 
 /** Vrai si au moins un onglet de ce participant est connecté. */
@@ -196,6 +219,7 @@ io.on("connection", (socket) => {
   if (participant.role === "mj") {
     socket.join(salleMj(partieId));
     socket.emit("invitations", invitationsPourMj(partieId));
+    diffuserParties();
   } else {
     socket.join(salleJoueurs(partieId));
     // Un joueur vient d'arriver : le MJ voit qu'il est « déjà venu ».
@@ -218,6 +242,65 @@ io.on("connection", (socket) => {
     if (typeof reponse === "function") reponse(new Date().toISOString());
   });
 
+  // --- Parties (étape 9) : le MJ crée, renomme et supprime les parties du serveur.
+
+  /** Nom de partie saisi : nettoyé, non vide, pas trop long, pas déjà pris. Renvoie le nom ou l'erreur. */
+  function lireNomPartie(brut: unknown, saufId: number | null): { nom: string } | { erreur: string } {
+    const nom = nettoyerNom(brut);
+    if (nom === null || nom === "") return { erreur: "Donne un nom à la partie." };
+    if (nom.length > PARTIE_NOM_MAX) return { erreur: `Nom trop long (${PARTIE_NOM_MAX} caractères au plus).` };
+    if (nomPartieDejaPris(nom, saufId)) return { erreur: `Une partie s'appelle déjà « ${nom} ».` };
+    return { nom };
+  }
+
+  socket.on(
+    "mj:creerPartie",
+    reserveMj(socket, (demande: { nom: string }) => {
+      const lu = lireNomPartie(demande?.nom, null);
+      if ("erreur" in lu) return { ok: false, erreur: lu.erreur };
+      const cree = creerPartie(lu.nom);
+      console.log(`Nouvelle partie : ${cree.nom}`);
+      diffuserParties();
+      return { ok: true, id: String(cree.id) };
+    }),
+  );
+
+  socket.on(
+    "mj:renommerPartie",
+    reserveMj(socket, (demande: { id: number; nom: string }) => {
+      const id = Number(demande?.id);
+      const lu = lireNomPartie(demande?.nom, id);
+      if ("erreur" in lu) return { ok: false, erreur: lu.erreur };
+      if (!Number.isInteger(id) || !renommerPartie(id, lu.nom)) return { ok: false, erreur: "Cette partie n'existe plus." };
+      io.to(sallePartie(id)).emit("partie:nom", lu.nom);
+      diffuserParties();
+      return { ok: true };
+    }),
+  );
+
+  socket.on(
+    "mj:supprimerPartie",
+    reserveMj(socket, (demande: { id: number }) => {
+      const id = Number(demande?.id);
+      if (id === partieId) {
+        return { ok: false, erreur: "Tu ne peux pas supprimer la partie ouverte : ouvre d'abord une autre partie." };
+      }
+      if (!Number.isInteger(id) || !listerParties().some((p) => p.id === id)) {
+        return { ok: false, erreur: "Cette partie n'existe plus." };
+      }
+      // Filet de sécurité : la partie reste dans les sauvegardes (« npm run restaurer »).
+      sauvegarder(base, "avant-suppression");
+      supprimerPartie(id);
+      console.log(`Partie supprimée (n° ${id})`);
+      // Ceux qui étaient dans cette partie (joueurs, autre onglet du MJ) en sont sortis.
+      io.to(sallePartie(id)).emit("exclu");
+      io.in(sallePartie(id)).disconnectSockets(true);
+      diffuserParties();
+      diffuserImages(io); // les scènes de cette partie n'utilisent plus d'images
+      return { ok: true };
+    }),
+  );
+
   socket.on(
     "mj:creerInvitation",
     reserveMj(socket, (demande: { etiquette: string }) => {
@@ -227,6 +310,7 @@ io.on("connection", (socket) => {
       }
       creerInvitation(partieId, brute === "" ? null : brute);
       diffuserInvitations(partieId);
+      diffuserParties(); // nombre de joueurs dans le menu des parties
       return { ok: true };
     }),
   );
@@ -257,6 +341,7 @@ io.on("connection", (socket) => {
       diffuserInvitations(partieId);
       diffuserPresents(partieId);
       io.to(sallePartie(partieId)).emit("fiche:supprimee", id);
+      diffuserParties();
       diffuserScenes(io, partieId);
       diffuserCombat(io, partieId);
       return { ok: true };

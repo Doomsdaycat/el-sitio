@@ -7,7 +7,7 @@ import type { Case } from "../../shared/carte.ts";
 import type { Combat } from "../../shared/combat.ts";
 import type { Fiche } from "../../shared/fiche.ts";
 import type { EntreeJournal } from "../../shared/jets.ts";
-import type { Invitation, Present } from "../../shared/messages.ts";
+import type { Invitation, PartieMj, Present } from "../../shared/messages.ts";
 import type { ImageBibliotheque, Scene } from "../../shared/scenes.ts";
 import { socket } from "./connexion.ts";
 
@@ -63,6 +63,8 @@ interface Etat {
   cibleOpposition: EntreeJournal | null;
   presents: Present[] | null;
   invitations: Invitation[] | null;
+  /** Toutes les parties du serveur (MJ seulement). */
+  parties: PartieMj[] | null;
   /** Du plus ancien au plus récent. */
   journal: EntreeJournal[] | null;
 }
@@ -82,6 +84,7 @@ let etat: Etat = {
   cibleOpposition: null,
   presents: null,
   invitations: null,
+  parties: null,
   journal: null,
 };
 const abonnes = new Set<() => void>();
@@ -95,6 +98,7 @@ const TAILLE_MAX_JOURNAL = 200;
 
 socket.on("presents", (presents) => modifier({ presents }));
 socket.on("invitations", (invitations) => modifier({ invitations }));
+socket.on("parties", (parties) => modifier({ parties }));
 socket.on("journal", (journal) => modifier({ journal }));
 socket.on("fiches", (fiches) => modifier({ fiches }));
 socket.on("scene", (scene) => modifier({ scene }));

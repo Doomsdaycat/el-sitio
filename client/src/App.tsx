@@ -8,6 +8,7 @@ import { Export } from "./Export.tsx";
 import { Installation } from "./Import.tsx";
 import { Invitations } from "./Invitations.tsx";
 import { Journal } from "./Journal.tsx";
+import { ChoixPartie, Parties } from "./Parties.tsx";
 import { PanneauJet } from "./PanneauJet.tsx";
 import { Presents } from "./Presents.tsx";
 
@@ -61,14 +62,17 @@ export function App() {
     socket.on("connect", surConnexion);
     socket.on("disconnect", surDeconnexion);
     socket.on("connect_error", surErreur);
+    const surNomPartie = (nom: string) => setIdentite((avant) => avant && { ...avant, partie: { nom } });
     socket.on("bienvenue", setIdentite);
     socket.on("exclu", surExclu);
+    socket.on("partie:nom", surNomPartie);
     return () => {
       socket.off("connect", surConnexion);
       socket.off("disconnect", surDeconnexion);
       socket.off("connect_error", surErreur);
       socket.off("bienvenue", setIdentite);
       socket.off("exclu", surExclu);
+      socket.off("partie:nom", surNomPartie);
     };
   }, []);
 
@@ -106,7 +110,9 @@ export function App() {
         <>
           <section className="identite">
             <p>
-              Partie : <strong>{identite.partie.nom}</strong> ·{" "}
+              Partie :{" "}
+              {identite.moi.role === "mj" ? <ChoixPartie nom={identite.partie.nom} /> : <strong>{identite.partie.nom}</strong>}{" "}
+              ·{" "}
               {identite.moi.role === "mj" ? (
                 <>
                   tu es connecté en tant que <strong>{ROLES.mj}</strong>.
@@ -140,6 +146,7 @@ export function App() {
 
           {identite.moi.role === "mj" && (
             <div className="zone-mj">
+              <Parties />
               <Invitations />
               <Export />
             </div>

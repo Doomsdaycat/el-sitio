@@ -4,12 +4,13 @@
 
 import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { io as connecter, type Socket } from "socket.io-client";
+import type { PartieMj } from "../shared/messages.ts";
 
 const dossier = mkdtempSync(join(tmpdir(), "brumeland-parties-"));
 process.env.BRUMELAND_BASE = join(dossier, "brumeland.db");
@@ -149,6 +150,68 @@ describe("plusieurs parties sur un même serveur", () => {
     const reponse = await demander<{ ok: boolean; erreur?: string }>(mj2.socket, "mj:supprimerImage", { id: images[0].id });
     assert.equal(reponse.ok, false);
     assert.match(reponse.erreur ?? "", /Taverne/);
+  });
+
+  it("le menu des parties : la principale en tête, chacun voit laquelle est ouverte", async () => {
+    const mj2 = await ouvrir(jetons.mj2);
+    const parties = mj2.recu.findLast((r) => r.evenement === "parties")!.donnees as PartieMj[];
+    assert.deepEqual(
+      parties.map((p) => [p.nom, p.principale, p.actuelle]),
+      [
+        ["Brumeland", true, false],
+        ["Partie de test", false, true],
+      ],
+    );
+    assert.match(parties[0].lien, new RegExp(`/jeu/${jetons.mj1}$`));
+    const j1 = await ouvrir(jetons.joueur1);
+    assert.ok(!j1.recu.some((r) => r.evenement === "parties"), "un joueur reçoit la liste des parties");
+  });
+
+  it("un joueur ne peut ni créer ni supprimer de partie", async () => {
+    const j1 = await ouvrir(jetons.joueur1);
+    const creation = await demander<{ ok: boolean }>(j1.socket, "mj:creerPartie", { nom: "Pirate" });
+    assert.equal(creation.ok, false);
+    const suppression = await demander<{ ok: boolean }>(j1.socket, "mj:supprimerPartie", { id: 2 });
+    assert.equal(suppression.ok, false);
+  });
+
+  it("créer, renommer, supprimer une partie", async () => {
+    const mj1 = await ouvrir(jetons.mj1);
+    assert.equal((await demander<{ ok: boolean }>(mj1.socket, "mj:creerPartie", { nom: "  " })).ok, false);
+    const doublon = await demander<{ ok: boolean; erreur?: string }>(mj1.socket, "mj:creerPartie", { nom: "brumeland" });
+    assert.equal(doublon.ok, false);
+    const creation = await demander<{ ok: boolean; id?: string }>(mj1.socket, "mj:creerPartie", { nom: "Essai" });
+    assert.equal(creation.ok, true);
+    const parties = mj1.recu.findLast((r) => r.evenement === "parties")!.donnees as PartieMj[];
+    const essai = parties.find((p) => p.nom === "Essai")!;
+    assert.equal(String(essai.id), creation.id);
+
+    // On entre dans la nouvelle partie par son lien MJ : elle est vide.
+    const jetonEssai = new URL(essai.lien).pathname.split("/").at(-1)!;
+    const mjEssai = await ouvrir(jetonEssai);
+    assert.equal((mjEssai.recu.find((r) => r.evenement === "scenes")!.donnees as unknown[]).length, 0);
+    assert.equal((mjEssai.recu.find((r) => r.evenement === "invitations")!.donnees as unknown[]).length, 0);
+
+    // Renommer : ceux qui sont dans la partie voient le nouveau nom.
+    const renommage = await demander<{ ok: boolean }>(mj1.socket, "mj:renommerPartie", { id: essai.id, nom: "Essai 2" });
+    assert.equal(renommage.ok, true);
+    await attendre(200);
+    assert.ok(mjEssai.recu.some((r) => r.evenement === "partie:nom" && r.donnees === "Essai 2"));
+    assert.ok(!mj1.recu.some((r) => r.evenement === "partie:nom"));
+
+    // On ne supprime pas la partie qu'on a ouverte.
+    const refus = await demander<{ ok: boolean }>(mjEssai.socket, "mj:supprimerPartie", { id: essai.id });
+    assert.equal(refus.ok, false);
+
+    // Suppression depuis une autre partie : sauvegarde d'abord, ceux qui y étaient en sortent.
+    const suppression = await demander<{ ok: boolean }>(mj1.socket, "mj:supprimerPartie", { id: essai.id });
+    assert.equal(suppression.ok, true);
+    await attendre(200);
+    assert.ok(mjEssai.recu.some((r) => r.evenement === "exclu"));
+    assert.ok(readdirSync(join(dossier, "sauvegardes")).some((f) => f.endsWith("_avant-suppression.db")));
+    const apres = mj1.recu.findLast((r) => r.evenement === "parties")!.donnees as PartieMj[];
+    assert.ok(!apres.some((p) => p.id === essai.id));
+    await assert.rejects(ouvrir(jetonEssai), /lien-inconnu/);
   });
 
   it("le MJ d'une partie ne voit pas les scènes de l'autre", async () => {

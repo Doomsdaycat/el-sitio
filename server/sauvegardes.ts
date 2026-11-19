@@ -24,6 +24,7 @@ export interface Sauvegarde {
 const MOTIFS: Record<string, string> = {
   "avant-restauration": "avant restauration",
   "avant-mise-a-jour": "avant mise à jour de l'outil",
+  "avant-suppression": "avant suppression d'une partie",
 };
 
 const deux = (n: number) => String(n).padStart(2, "0");

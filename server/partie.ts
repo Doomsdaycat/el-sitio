@@ -32,17 +32,57 @@ export function partiePrincipale(): Partie {
   const existante = base.prepare("SELECT id, nom FROM partie ORDER BY id LIMIT 1").get() as
     | Partie
     | undefined;
-  if (existante) return existante;
+  return existante ?? creerPartie("Brumeland");
+}
 
+// ---------------------------------------------------------------------------
+// Plusieurs parties (étape 9)
+
+/** Nouvelle partie, avec son MJ (et donc son lien MJ). */
+export function creerPartie(nom: string): Partie {
   const cree = base
     .prepare("INSERT INTO partie (nom, cree_le) VALUES (?, ?) RETURNING id, nom")
-    .get("Brumeland", maintenant()) as unknown as Partie;
+    .get(nom, maintenant()) as unknown as Partie;
   base
     .prepare(
       "INSERT INTO participant (partie_id, role, jeton, nom, cree_le) VALUES (?, 'mj', ?, ?, ?)",
     )
     .run(cree.id, nouveauJeton(), "Meneur de jeu", maintenant());
   return cree;
+}
+
+export interface LignePartie {
+  id: number;
+  nom: string;
+  jetonMj: string;
+  joueurs: number;
+}
+
+/** Toutes les parties, la principale (la plus ancienne) en tête. */
+export function listerParties(): LignePartie[] {
+  return base
+    .prepare(
+      `SELECT partie.id, partie.nom,
+         (SELECT jeton FROM participant WHERE partie_id = partie.id AND role = 'mj' ORDER BY id LIMIT 1) AS jetonMj,
+         (SELECT count(*) FROM participant WHERE partie_id = partie.id AND role = 'joueur') AS joueurs
+       FROM partie ORDER BY partie.id`,
+    )
+    .all() as unknown as LignePartie[];
+}
+
+/** Vrai si une autre partie porte déjà ce nom (sans tenir compte des majuscules). */
+export function nomPartieDejaPris(nom: string, saufId: number | null): boolean {
+  const cle = (texte: string) => texte.toLocaleLowerCase("fr");
+  return listerParties().some((p) => p.id !== saufId && cle(p.nom) === cle(nom));
+}
+
+export function renommerPartie(id: number, nom: string): boolean {
+  return base.prepare("UPDATE partie SET nom = ? WHERE id = ?").run(nom, id).changes > 0;
+}
+
+/** Supprime une partie et tout ce qu'elle contient (invitations, fiches, journal, scènes, pions). */
+export function supprimerPartie(id: number): boolean {
+  return base.prepare("DELETE FROM partie WHERE id = ?").run(id).changes > 0;
 }
 
 const COLONNES = "id, partie_id AS partieId, role, jeton, nom, etiquette";

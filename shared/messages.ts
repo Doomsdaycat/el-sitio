@@ -28,6 +28,23 @@ export interface Invitation {
   dejaVenu: boolean;
 }
 
+/** Une partie du serveur, telle que le MJ la voit dans son menu des parties. Réservé au MJ. */
+export interface PartieMj {
+  id: number;
+  nom: string;
+  /** La plus ancienne : toujours en tête de liste. */
+  principale: boolean;
+  /** Celle que ce navigateur a ouverte. */
+  actuelle: boolean;
+  /** Lien MJ de cette partie. */
+  lien: string;
+  /** Nombre d'invitations de joueurs. */
+  joueurs: number;
+}
+
+/** Longueur maximale du nom d'une partie. */
+export const PARTIE_NOM_MAX = 40;
+
 /** Une personne de la partie, telle que tout le monde la voit (liste des présents). */
 export interface Present {
   id: number;
@@ -89,11 +106,20 @@ export interface MessagesServeur {
   combat: (combat: Combat | null) => void;
   /** Le lien de ce navigateur vient d'être supprimé par le MJ. */
   exclu: () => void;
+  /** Toutes les parties du serveur (MJ seulement), la principale en tête. */
+  parties: (liste: PartieMj[]) => void;
+  /** La partie vient d'être renommée par le MJ. */
+  "partie:nom": (nom: string) => void;
 }
 
 /** Messages envoyés par l'interface vers le serveur. */
 export interface MessagesClient {
   ping: (reponse: (heureServeur: string) => void) => void;
+  /** Nouvelle partie : la réponse donne son numéro (id), son lien est dans la liste des parties. */
+  "mj:creerPartie": (demande: { nom: string }, reponse: (r: Reponse) => void) => void;
+  "mj:renommerPartie": (demande: { id: number; nom: string }, reponse: (r: Reponse) => void) => void;
+  /** Supprime une autre partie que celle qu'on a ouverte (jamais la dernière). */
+  "mj:supprimerPartie": (demande: { id: number }, reponse: (r: Reponse) => void) => void;
   "mj:creerInvitation": (demande: { etiquette: string }, reponse: (r: Reponse) => void) => void;
   "mj:supprimerInvitation": (demande: { id: number }, reponse: (r: Reponse) => void) => void;
   /** Nouvel ordre des invitations : tous les identifiants de joueurs, du haut vers le bas. */
