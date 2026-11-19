@@ -33,6 +33,7 @@ import { casesDuRectangle, cleCase, CASES_PAR_ENVOI_MAX, type Brouillard } from 
 import { urlImage, type Scene } from "../../shared/scenes.ts";
 import { socket } from "./connexion.ts";
 import { ajouterPointeur, useEtat } from "./etat.ts";
+import { BlocReglages, PanneauReglages } from "./ReglagesScene.tsx";
 import { nomPersonnage } from "./noms.ts";
 
 type Outil = "deplacer" | "regle" | "pointeur" | "brouillard";
@@ -575,6 +576,7 @@ export function Carte(props: {
   const presents = useEtat("presents");
   const reglesDistantes = useEtat("reglesDistantes");
   const pointeurs = useEtat("pointeurs");
+  const reglagesOuverts = useEtat("reglagesOuverts");
   const revelations = useEtat("revelations");
   const annulables = useEtat("annulables");
 
@@ -770,7 +772,7 @@ export function Carte(props: {
   }
 
   return (
-    <div className="carte-combat">
+    <div className={estMj && reglagesOuverts ? "carte-combat avec-reglages" : "carte-combat"}>
       <figure className={pleinEcran ? "carte-cadre plein" : "carte-cadre"} ref={cadre}>
         <div className="barres-scene">
           {/* Ligne 1 : la scène (nom, la montrer ou non) et le plein écran. */}
@@ -1013,8 +1015,7 @@ export function Carte(props: {
           )}
         </div>
       </figure>
-      {erreur && <p className="erreur">{erreur}</p>}
-      {estMj && (
+      {estMj && reglagesOuverts && (
         <ReglagesMj
           scene={scene}
           centreVue={centreVue}
@@ -1024,6 +1025,7 @@ export function Carte(props: {
           choisirOutilBrouillard={() => setOutil("brouillard")}
         />
       )}
+      {erreur && <p className="erreur">{erreur}</p>}
     </div>
   );
 }
@@ -1100,10 +1102,8 @@ function ReglagesMj(props: {
     socket.emit("mj:modifierPion", { id, ...changement }, repondre);
 
   return (
-    <section className="reglages-carte">
-      <h3>Préparer la scène (toi seul vois ces réglages)</h3>
-      <div className="bloc-reglages premier">
-        <h4>Brouillard de guerre</h4>
+    <PanneauReglages scene={scene}>
+      <BlocReglages titre="☁️ Brouillard de guerre" ouvert={scene.brouillard.actif}>
         <label className="case">
           <input
             type="checkbox"
@@ -1145,11 +1145,10 @@ function ReglagesMj(props: {
             </div>
           </>
         )}
-      </div>
+      </BlocReglages>
       {(
         <>
-          <div className="bloc-reglages">
-            <h4>Grille (1 case = 2 m)</h4>
+          <BlocReglages titre="Grille (1 case = 2 m)">
             <p className="discret petit">
               Ajuste la taille, puis le décalage, jusqu'à ce que la grille tombe sur celle dessinée sur
               l'image. La grille est liée à l'image « {scene.image.nom} » : elle vaut pour toutes les
@@ -1164,10 +1163,9 @@ function ReglagesMj(props: {
                 <span>Afficher la grille</span>
               </label>
             </div>
-          </div>
+          </BlocReglages>
 
-          <div className="bloc-reglages">
-            <h4>Pions de PNJ et de monstres</h4>
+          <BlocReglages titre="Pions de PNJ et de monstres">
             <form
               className="ajout-pion"
               onSubmit={(e) => {
@@ -1231,11 +1229,10 @@ function ReglagesMj(props: {
                 ))}
               </ul>
             )}
-          </div>
+          </BlocReglages>
 
           {pj.length > 0 && (
-            <div className="bloc-reglages">
-              <h4>Personnages joueurs</h4>
+            <BlocReglages titre="Personnages joueurs">
               <ul className="liste-pions-mj">
                 {pj.map((p) => (
                   <li key={p.id}>
@@ -1254,11 +1251,11 @@ function ReglagesMj(props: {
                   </li>
                 ))}
               </ul>
-            </div>
+            </BlocReglages>
           )}
         </>
       )}
       {erreur && <p className="erreur">{erreur}</p>}
-    </section>
+    </PanneauReglages>
   );
 }

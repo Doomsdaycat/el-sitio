@@ -17,8 +17,9 @@ import {
 } from "../../shared/scenes.ts";
 import { Carte } from "./Carte.tsx";
 import { MenuScenes } from "./MenuScenes.tsx";
+import { BlocReglages, BoutonReglages, PanneauReglages } from "./ReglagesScene.tsx";
 import { jeton, socket } from "./connexion.ts";
-import { preparerScene, proposerScene, useEtat } from "./etat.ts";
+import { ouvrirReglages, preparerScene, proposerScene, useEtat } from "./etat.ts";
 
 function mega(octets: number): string {
   return `${(octets / 1024 / 1024).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} Mo`;
@@ -444,17 +445,15 @@ function Affichage(props: {
   );
 }
 
-/** MJ : préparer une illustration (brouillard de guerre au pinceau). */
+/** MJ : réglages d'une illustration (brouillard de guerre au pinceau), dans le panneau Réglages. */
 function PreparerIllustration(props: { scene: SceneDonnees }) {
   const { scene } = props;
   const [erreur, setErreur] = useState<string | null>(null);
   const [confirmer, setConfirmer] = useState(false);
   const repondre = (r: Reponse) => setErreur(r.ok ? null : r.erreur);
   return (
-    <section className="reglages-carte">
-      <h3>Préparer la scène (toi seul vois ces réglages)</h3>
-      <div className="bloc-reglages premier">
-        <h4>Brouillard de guerre</h4>
+    <PanneauReglages scene={scene}>
+      <BlocReglages titre="☁️ Brouillard de guerre" ouvert={scene.brouillard.actif}>
         <label className="case">
           <input
             type="checkbox"
@@ -496,9 +495,9 @@ function PreparerIllustration(props: { scene: SceneDonnees }) {
             </div>
           </>
         )}
-      </div>
+      </BlocReglages>
       {erreur && <p className="erreur">{erreur}</p>}
-    </section>
+    </PanneauReglages>
   );
 }
 
@@ -947,8 +946,11 @@ function MesScenes() {
             }
             setErreur(null);
             setNom("");
-            // On ouvre la nouvelle scène pour la préparer.
-            if (r.id) preparerScene(r.id);
+            // On ouvre la nouvelle scène pour la préparer, avec ses réglages.
+            if (r.id) {
+              preparerScene(r.id);
+              ouvrirReglages(true);
+            }
           });
         }}
       >
@@ -994,6 +996,7 @@ export function Scene({ estMj, moiId }: { estMj: boolean; moiId: number }) {
   const active = useEtat("scene");
   const scenes = useEtat("scenes");
   const prepareeId = useEtat("scenePreparee");
+  const reglagesOuverts = useEtat("reglagesOuverts");
 
   // Le MJ peut ouvrir une autre scène pour la préparer ; les joueurs voient la scène montrée.
   const preparee =
@@ -1017,16 +1020,20 @@ export function Scene({ estMj, moiId }: { estMj: boolean; moiId: number }) {
       <button type="button" className="lien" onClick={() => preparerScene(null)}>
         {active ? "Revenir à la scène montrée" : "Fermer"}
       </button>
+      <BoutonReglages />
     </>
   ) : (
     active && (
-      <button
-        type="button"
-        className="secondaire"
-        onClick={() => socket.emit("mj:montrerScene", { id: null }, () => undefined)}
-      >
-        Ne plus montrer la scène
-      </button>
+      <>
+        <button
+          type="button"
+          className="secondaire"
+          onClick={() => socket.emit("mj:montrerScene", { id: null }, () => undefined)}
+        >
+          Ne plus montrer la scène
+        </button>
+        <BoutonReglages />
+      </>
     )
   );
 
@@ -1044,7 +1051,7 @@ export function Scene({ estMj, moiId }: { estMj: boolean; moiId: number }) {
       ) : affichee.type === "immersive" ? (
         <Carte key={affichee.id} scene={affichee} moiId={moiId} estMj={estMj} bandeau={bandeau} entete={entete} />
       ) : (
-        <>
+        <div className={reglagesOuverts ? "scene-et-reglages avec-reglages" : "scene-et-reglages"}>
           <Affichage
             id={affichee.image.id}
             titre={affichee.nom}
@@ -1054,8 +1061,8 @@ export function Scene({ estMj, moiId }: { estMj: boolean; moiId: number }) {
             sceneId={affichee.id}
             estMj={estMj}
           />
-          {estMj && <PreparerIllustration scene={affichee} />}
-        </>
+          {estMj && reglagesOuverts && <PreparerIllustration scene={affichee} />}
+        </div>
       )}
       {estMj && <MesScenes />}
     </div>

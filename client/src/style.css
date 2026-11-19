@@ -2643,3 +2643,107 @@ button.choix-scene.actuelle {
 .barre-scene-seule {
   margin-bottom: 0.5rem;
 }
+
+/* --- S2 : panneau « Réglages de la scène », à droite de la scène (il la rétrécit) --- */
+
+.carte-combat.avec-reglages,
+.scene-et-reglages.avec-reglages {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 21rem;
+  gap: 0.6rem;
+}
+
+.carte-combat.avec-reglages > .erreur {
+  grid-column: 1 / -1;
+}
+
+/* Le panneau prend la hauteur de la scène (sans l'agrandir) et défile à l'intérieur. */
+.panneau-reglages {
+  contain: size;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.6rem 0.75rem;
+  background: var(--fond);
+  border: 1px solid var(--bordure);
+  border-radius: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bordure) transparent;
+}
+
+.panneau-reglages::-webkit-scrollbar {
+  width: 8px;
+}
+
+.panneau-reglages::-webkit-scrollbar-thumb {
+  background: var(--bordure);
+  border-radius: 4px;
+}
+
+.panneau-reglages-entete {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.panneau-reglages-entete h3 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.05rem;
+}
+
+.fermer-reglages {
+  margin-left: auto;
+  padding: 0.2rem 0.55rem;
+}
+
+.panneau-reglages > .discret {
+  margin: 0.2rem 0 0.5rem;
+}
+
+.bloc-panneau {
+  border-top: 1px solid var(--bordure);
+  padding: 0.4rem 0;
+}
+
+.bloc-panneau > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.2rem 0;
+  list-style-position: inside;
+}
+
+.bloc-panneau > summary::marker {
+  color: var(--accent);
+}
+
+.bloc-panneau-contenu {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.35rem 0 0.2rem;
+}
+
+.champ-panneau {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.champ-panneau > span {
+  font-size: 0.8rem;
+  color: var(--discret);
+}
+
+.supprimer-scene {
+  justify-self: start;
+  margin-top: 0.25rem;
+}
+
+/* Dans le panneau étroit, les réglages et formulaires passent les uns sous les autres. */
+.panneau-reglages .ligne-reglages,
+.panneau-reglages .ajout-pion {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.panneau-reglages .liste-pions-mj li {
+  flex-wrap: wrap;
+}
