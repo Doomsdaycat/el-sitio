@@ -298,23 +298,29 @@ function Ordre(props: { combat: DonneesCombat; moiId: number; estMj: boolean; em
             {ouverte && (
               <div className="ligne-ordre-detail">
                 {f && reglerFiche && (
-                  <ReglagePs
-                    actuels={f.psActuels}
-                    max={psMax(f)}
-                    libelle=" PS"
-                    changer={(n) => emettre("fiche:modifier", { joueurId: f.joueurId, modification: { champ: "ps", valeur: n } })}
-                  />
+                  <>
+                    <span className="detail-libelle">Santé</span>
+                    <ReglagePs
+                      actuels={f.psActuels}
+                      max={psMax(f)}
+                      libelle=" PS"
+                      changer={(n) => emettre("fiche:modifier", { joueurId: f.joueurId, modification: { champ: "ps", valeur: n } })}
+                    />
+                  </>
                 )}
                 {estMj && x.ps && (
-                  <ReglagePs
-                    actuels={x.ps.actuels}
-                    max={x.ps.max}
-                    libelle=" PS"
-                    changer={(n) => emettre("mj:combat:modifier", { id: x.id, ps: { ...x.ps!, actuels: n } })}
-                  />
+                  <>
+                    <span className="detail-libelle">Santé</span>
+                    <ReglagePs
+                      actuels={x.ps.actuels}
+                      max={x.ps.max}
+                      libelle=" PS"
+                      changer={(n) => emettre("mj:combat:modifier", { id: x.id, ps: { ...x.ps!, actuels: n } })}
+                    />
+                  </>
                 )}
                 {estMj && x.type === "pj" && (
-                  <LigneMjJoueur combat={combat} combattant={x} deplacementFiche={f ? deplacement(f) : null} emettre={emettre} />
+                  <DetailJoueurMj combat={combat} combattant={x} deplacementFiche={f ? deplacement(f) : null} emettre={emettre} />
                 )}
               </div>
             )}
@@ -325,8 +331,8 @@ function Ordre(props: { combat: DonneesCombat; moiId: number; estMj: boolean; em
   );
 }
 
-/** MJ, sur la ligne d'un personnage joueur : déplacement restant et réaction (souvent hors de son tour). */
-function LigneMjJoueur(props: {
+/** MJ, dans le détail d'un personnage joueur : déplacement restant et réaction (souvent hors de son tour). */
+function DetailJoueurMj(props: {
   combat: DonneesCombat;
   combattant: Combattant;
   deplacementFiche: number | null;
@@ -338,23 +344,34 @@ function LigneMjJoueur(props: {
   const total = deplacementDuRound(m, deplacementFiche);
   const peutReagir = cartesDe(combat, combattant.id).some((x) => !x.jouee);
   return (
-    <span className="ligne-mj-joueur">
-      {reste !== null && total !== null && (
-        <span className="discret petit" title="Déplacement restant ce round">
-          {reste}/{total} m{m?.course ? " (course)" : ""}
-        </span>
-      )}
+    <>
+      <span className="detail-libelle">Déplacement</span>
+      <span>
+        {reste !== null && total !== null ? (
+          <>
+            reste <strong>{reste} m</strong> sur {total} m{m?.course ? " (course)" : ""}
+            {m?.reaction && <span className="discret"> · réaction faite</span>}
+          </>
+        ) : (
+          <span className="discret">famille à choisir sur sa fiche</span>
+        )}
+      </span>
       {peutReagir && (
-        <button
-          type="button"
-          className="secondaire"
-          title="Réaction (parer, esquiver) : sa carte est retournée et il ne se déplace plus ce round"
-          onClick={() => emettre("combat:reaction", { combattantId: combattant.id })}
-        >
-          Réaction
-        </button>
+        <>
+          <span className="detail-libelle">Action</span>
+          <span>
+            <button
+              type="button"
+              className="secondaire"
+              title="Réaction (parer, esquiver) : sa carte est retournée et il ne se déplace plus ce round"
+              onClick={() => emettre("combat:reaction", { combattantId: combattant.id })}
+            >
+              Réaction
+            </button>
+          </span>
+        </>
       )}
-    </span>
+    </>
   );
 }
 
