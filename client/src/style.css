@@ -259,7 +259,7 @@ button.lien {
 .table-de-jeu {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 28rem;
-  gap: 0.4rem;
+  gap: 1rem;
   height: calc(100dvh - 1.5rem);
 }
 
@@ -1209,29 +1209,7 @@ textarea {
   font-size: 0.85rem;
 }
 
-/* Rappel « Ctrl + molette pour zoomer », en haut de l'image (centré en largeur), une seconde. */
-.astuce-zoom {
-  position: absolute;
-  top: 0.75rem;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 0.6rem 1rem;
-  border-radius: 8px;
-  color: rgba(255, 255, 255, 0.9);
-  background: rgba(0, 0, 0, 0.45);
-  font-size: 1rem;
-  /* Ombre légère : le texte reste lisible même sur une image claire. */
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-  pointer-events: none;
-}
 
-.astuce-zoom kbd {
-  font: inherit;
-  font-weight: 700;
-  padding: 0.05rem 0.4rem;
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  border-radius: 4px;
-}
 
 /* --- Étape 5 : carte de combat --- */
 
@@ -2054,13 +2032,12 @@ button.nom-depliable {
 }
 
 /* Section « navigation » (zoom, ajuster, plein écran), à droite de la ligne des outils. */
-/* Navigation (zoom, Ajuster, plein écran) : toujours sur sa propre ligne, sous les outils, à droite. */
+/* Navigation (zoom, Ajuster, plein écran) : sur la ligne des outils, toujours ancrée à droite. */
 .navigation {
-  display: flex;
-  flex-basis: 100%;
-  justify-content: flex-end;
+  display: inline-flex;
   align-items: center;
   gap: 0.3rem;
+  margin-left: auto;
 }
 
 .navigation button {
@@ -2974,4 +2951,30 @@ button.titre-bloc {
   .scene-affichage .scene-zone {
     height: 70vh;
   }
+}
+
+/* Barre du haut et « Pas de combat » : même hauteur, alignées en haut des deux colonnes. */
+.colonne-gauche > .barre-haut,
+.colonne-droite > .combat.combat-vide {
+  box-sizing: border-box;
+  height: 2.9rem;
+  min-height: 2.9rem;
+  flex: 0 0 auto;
+}
+
+.colonne-gauche > .barre-haut {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.colonne-droite > .combat.combat-vide {
+  display: flex;
+  align-items: center;
+  padding-top: 0;
+  padding-bottom: 0;
+  overflow: visible;
+}
+
+.combat-vide .combat-vide-ligne {
+  flex: 1;
 }

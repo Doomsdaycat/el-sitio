@@ -170,34 +170,19 @@ function Affichage(props: {
     return () => obs.disconnect();
   }, []);
 
-  // Molette : en plein écran, elle zoome ; en affichage normal, il faut Ctrl + molette,
-  // pour que la molette seule continue de faire défiler la page (comme les cartes des sites web).
-  // Écouteur manuel pour pouvoir bloquer le défilement quand on zoome.
-  const [astuce, setAstuce] = useState(false);
-  const minuterieAstuce = useRef<number | undefined>(undefined);
+  // Molette : elle zoome vers la souris (la page ne défile plus, inutile d'appuyer sur Ctrl).
+  // Écouteur manuel pour pouvoir bloquer le défilement par défaut du navigateur.
   useEffect(() => {
     const el = zone.current;
     if (!el) return;
     const surMolette = (e: WheelEvent) => {
-      const enPleinEcran = document.fullscreenElement === cadre.current;
-      if (!enPleinEcran && !e.ctrlKey) {
-        // La page défile normalement ; on rappelle juste comment zoomer.
-        setAstuce(true);
-        window.clearTimeout(minuterieAstuce.current);
-        minuterieAstuce.current = window.setTimeout(() => setAstuce(false), 1200);
-        return;
-      }
       e.preventDefault();
-      setAstuce(false);
       const r = el.getBoundingClientRect();
       const facteur = Math.exp(-e.deltaY * 0.0015);
       setVue((v) => zoomerVers(v, v.zoom * facteur, e.clientX - r.left, e.clientY - r.top, r.width, r.height));
     };
     el.addEventListener("wheel", surMolette, { passive: false });
-    return () => {
-      el.removeEventListener("wheel", surMolette);
-      window.clearTimeout(minuterieAstuce.current);
-    };
+    return () => el.removeEventListener("wheel", surMolette);
   }, []);
 
   /** Zoom par les boutons : vers le centre du cadre. */
@@ -302,11 +287,7 @@ function Affichage(props: {
             </button>
             <span
               className="zoom-valeur"
-              title={
-                pleinEcran
-                  ? "Molette : zoomer · glisser : se déplacer · double-clic : zoomer ici"
-                  : "Ctrl + molette : zoomer · glisser : se déplacer · double-clic : zoomer ici"
-              }
+              title="Molette : zoomer · glisser : se déplacer · double-clic : zoomer ici"
             >
               {Math.round(vue.zoom * 100)} %
             </span>
@@ -433,11 +414,6 @@ function Affichage(props: {
               height: rayonPinceau * ajuste * vue.zoom * 2,
             }}
           />
-        )}
-        {astuce && (
-          <div className="astuce-zoom" aria-hidden="true">
-            <kbd>Ctrl</kbd> + molette pour zoomer
-          </div>
         )}
       </div>
       {erreur && <p className="erreur">{erreur}</p>}

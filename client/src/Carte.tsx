@@ -598,7 +598,6 @@ export function Carte(props: {
   }, [outil, estMj, scene.brouillard.actif]);
   const [erreur, setErreur] = useState<string | null>(null);
   const [pleinEcran, setPleinEcran] = useState(false);
-  const [astuce, setAstuce] = useState(false);
   const survolCarte = useRef(false);
 
   /** Annule mon dernier déplacement de pion (le serveur sait lequel). */
@@ -619,7 +618,6 @@ export function Carte(props: {
     window.addEventListener("keydown", surTouche);
     return () => window.removeEventListener("keydown", surTouche);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const minuterieAstuce = useRef<number | undefined>(undefined);
   const dernierEnvoiRegle = useRef(0);
 
   // Échelle « carte entière » : l'image tient dans le cadre.
@@ -651,27 +649,17 @@ export function Carte(props: {
     });
   }
 
-  // Molette : comme pour les scènes, Ctrl + molette en affichage normal, molette seule en plein écran.
+  // Molette : elle zoome vers la souris (la page ne défile plus, inutile d'appuyer sur Ctrl).
   useEffect(() => {
     const el = zone;
     if (!el) return;
     const surMolette = (e: WheelEvent) => {
-      if (document.fullscreenElement !== cadre.current && !e.ctrlKey) {
-        setAstuce(true);
-        window.clearTimeout(minuterieAstuce.current);
-        minuterieAstuce.current = window.setTimeout(() => setAstuce(false), 1200);
-        return;
-      }
       e.preventDefault();
-      setAstuce(false);
       const r = el.getBoundingClientRect();
       zoomerVers(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top);
     };
     el.addEventListener("wheel", surMolette, { passive: false });
-    return () => {
-      el.removeEventListener("wheel", surMolette);
-      window.clearTimeout(minuterieAstuce.current);
-    };
+    return () => el.removeEventListener("wheel", surMolette);
   }, [ajuste, zone]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Position de la souris en pixels de l'image. */
@@ -1008,11 +996,6 @@ export function Carte(props: {
             </Stage>
           )}
           {!image && <p className="chargement-scene discret">Chargement de la carte…</p>}
-          {astuce && (
-            <div className="astuce-zoom" aria-hidden="true">
-              <kbd>Ctrl</kbd> + molette pour zoomer
-            </div>
-          )}
         </div>
       </figure>
       {estMj && reglagesOuverts && (
