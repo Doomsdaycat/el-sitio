@@ -1,20 +1,33 @@
 // MJ : panneau « Réglages de la scène », à droite de la scène (il la rétrécit, sans la recouvrir).
 // Il réunit tout ce qui règle une scène : nom, type, image et suppression (bloc « Scène »), puis
-// les blocs propres au type de scène (brouillard, grille, pions…), chacun repliable.
+// les blocs propres au type de scène (brouillard, grille, pions…). Un seul bloc ouvert à la fois.
 
-import { useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Reponse } from "../../shared/messages.ts";
 import { SCENE_NOM_MAX, TYPES_SCENE, type Scene, type TypeScene } from "../../shared/scenes.ts";
 import { socket } from "./connexion.ts";
 import { ouvrirReglages, useEtat } from "./etat.ts";
 
-/** Un bloc repliable du panneau. */
-export function BlocReglages({ titre, children, ouvert = true }: { titre: string; children: ReactNode; ouvert?: boolean }) {
+/** Bloc ouvert du panneau (un seul à la fois, pour ne pas s'y perdre). */
+const BlocOuvert = createContext<{ ouvert: string | null; basculer: (titre: string) => void }>({
+  ouvert: null,
+  basculer: () => undefined,
+});
+
+/** Un bloc du panneau : l'ouvrir referme les autres. */
+export function BlocReglages({ titre, children }: { titre: string; children: ReactNode }) {
+  const { ouvert, basculer } = useContext(BlocOuvert);
+  const estOuvert = ouvert === titre;
   return (
-    <details className="bloc-panneau" open={ouvert}>
-      <summary>{titre}</summary>
-      <div className="bloc-panneau-contenu">{children}</div>
-    </details>
+    <section className={estOuvert ? "bloc-panneau ouvert" : "bloc-panneau"}>
+      <button type="button" className="titre-bloc" aria-expanded={estOuvert} onClick={() => basculer(titre)}>
+        <span className="fleche-bloc" aria-hidden="true">
+          {estOuvert ? "▾" : "▸"}
+        </span>
+        {titre}
+      </button>
+      {estOuvert && <div className="bloc-panneau-contenu">{children}</div>}
+    </section>
   );
 }
 
@@ -88,18 +101,23 @@ function BlocScene({ scene }: { scene: Scene }) {
 }
 
 export function PanneauReglages({ scene, children }: { scene: Scene; children?: ReactNode }) {
+  const [ouvert, setOuvert] = useState<string | null>("Scène");
+  // Autre scène : on repart du bloc « Scène ».
+  useEffect(() => setOuvert("Scène"), [scene.id]);
   return (
-    <aside className="panneau-reglages" aria-label="Réglages de la scène">
-      <div className="panneau-reglages-entete">
-        <h3>Réglages de la scène</h3>
-        <button type="button" className="secondaire fermer-reglages" aria-label="Fermer les réglages" onClick={() => ouvrirReglages(false)}>
-          ✕
-        </button>
-      </div>
-      <p className="discret petit">Toi seul vois ces réglages.</p>
-      <BlocScene scene={scene} />
-      {children}
-    </aside>
+    <BlocOuvert.Provider value={{ ouvert, basculer: (titre) => setOuvert((o) => (o === titre ? null : titre)) }}>
+      <aside className="panneau-reglages" aria-label="Réglages de la scène">
+        <div className="panneau-reglages-entete">
+          <h3>Réglages de la scène</h3>
+          <button type="button" className="secondaire fermer-reglages" aria-label="Fermer les réglages" onClick={() => ouvrirReglages(false)}>
+            ✕
+          </button>
+        </div>
+        <p className="discret petit">Toi seul vois ces réglages.</p>
+        <BlocScene scene={scene} />
+        {children}
+      </aside>
+    </BlocOuvert.Provider>
   );
 }
 
@@ -111,10 +129,11 @@ export function BoutonReglages() {
       type="button"
       className={ouverts ? "secondaire actif" : "secondaire"}
       aria-expanded={ouverts}
+      aria-label="Réglages de la scène"
       title="Réglages de la scène : nom, type, image, brouillard, grille, pions"
       onClick={() => ouvrirReglages(!ouverts)}
     >
-      🛠 Réglages
+      ⚙️
     </button>
   );
 }

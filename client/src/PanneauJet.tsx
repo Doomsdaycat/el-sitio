@@ -18,6 +18,9 @@ import { apresJet, changerReglages, choisirCibleOpposition, useEtat } from "./et
 
 type Mode = "competence" | "libre";
 
+/** Valeur proposée au départ : une compétence moyenne. */
+const VALEUR_DEFAUT = 10;
+
 const RACCOURCIS = ["1D4", "1D6", "1D8", "1D10", "1D12", "1D20", "2D6", "1D3"];
 
 function Compteur(props: {
@@ -62,7 +65,8 @@ export function PanneauJet({ estMj }: { estMj: boolean }) {
   // Une opposition se fait toujours avec un jet de compétence ou de caractéristique.
   const mode: Mode = cible ? "competence" : modeChoisi;
   const [libelle, setLibelle] = useState("");
-  const [valeur, setValeur] = useState("");
+  // Valeur moyenne par défaut, ajustable avec − / + ou en tapant le chiffre.
+  const [valeur, setValeur] = useState(String(VALEUR_DEFAUT));
   // Faveurs, fléaux et « secret » sont partagés avec les jets en un clic depuis la fiche.
   const { faveurs, fleaux, secret, ouverte } = useEtat("reglages");
   const setOuverte = (o: boolean) => changerReglages({ ouverte: o });
@@ -135,12 +139,12 @@ export function PanneauJet({ estMj }: { estMj: boolean }) {
       <div className="panneau-jet-entete">
         <h2>Lancer les dés</h2>
         {cible === null && (
-          <span className="groupe-outils mode-jet" role="tablist">
+          <span className="mode-jet" role="tablist">
             <button
               type="button"
               role="tab"
               aria-selected={mode === "competence"}
-              className={mode === "competence" ? "outil actif" : "outil secondaire"}
+              className={mode === "competence" ? "mode actif" : "mode"}
               onClick={() => setMode("competence")}
             >
               Compétence
@@ -149,7 +153,7 @@ export function PanneauJet({ estMj }: { estMj: boolean }) {
               type="button"
               role="tab"
               aria-selected={mode === "libre"}
-              className={mode === "libre" ? "outil actif" : "outil secondaire"}
+              className={mode === "libre" ? "mode actif" : "mode"}
               onClick={() => setMode("libre")}
             >
               Jet libre
@@ -195,19 +199,38 @@ export function PanneauJet({ estMj }: { estMj: boolean }) {
             value={libelle}
             onChange={(e) => setLibelle(e.target.value)}
             maxLength={LIBELLE_MAX}
-            aria-label={mode === "competence" ? "Compétence ou caractéristique (facultatif)" : "Pour quoi ? (facultatif)"}
-            placeholder={mode === "competence" ? "Compétence (facultatif)" : "Pour quoi ? (facultatif)"}
+            aria-label="Action (facultatif)"
+            placeholder="Action (facultatif)"
           />
           {mode === "competence" ? (
-            <input
-              value={valeur}
-              onChange={(e) => setValeur(e.target.value.replace(/\D/g, "").slice(0, 2))}
-              inputMode="numeric"
-              aria-label={`Valeur (de ${VALEUR_MIN} à ${VALEUR_MAX})`}
-              title={`Valeur de la compétence ou de la caractéristique (de ${VALEUR_MIN} à ${VALEUR_MAX})`}
-              placeholder="Valeur"
-              className="champ-valeur"
-            />
+            <span className="valeur-jet" title={`Valeur de la compétence ou de la caractéristique (de ${VALEUR_MIN} à ${VALEUR_MAX})`}>
+              <button
+                type="button"
+                className="secondaire"
+                aria-label="Valeur moins 1"
+                disabled={Number(valeur || VALEUR_DEFAUT) <= VALEUR_MIN}
+                onClick={() => setValeur(String(Math.max(VALEUR_MIN, Number(valeur || VALEUR_DEFAUT) - 1)))}
+              >
+                −
+              </button>
+              <input
+                value={valeur}
+                onChange={(e) => setValeur(e.target.value.replace(/\D/g, "").slice(0, 2))}
+                onFocus={(e) => e.currentTarget.select()}
+                inputMode="numeric"
+                aria-label={`Valeur (de ${VALEUR_MIN} à ${VALEUR_MAX})`}
+                className="champ-valeur"
+              />
+              <button
+                type="button"
+                className="secondaire"
+                aria-label="Valeur plus 1"
+                disabled={Number(valeur || VALEUR_DEFAUT) >= VALEUR_MAX}
+                onClick={() => setValeur(String(Math.min(VALEUR_MAX, Number(valeur || VALEUR_DEFAUT) + 1)))}
+              >
+                +
+              </button>
+            </span>
           ) : (
             <input
               value={formule}

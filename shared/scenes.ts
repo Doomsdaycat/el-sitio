@@ -44,6 +44,8 @@ export interface Scene {
   pions: Pion[];
   /** Brouillard de guerre (scène immersive). */
   brouillard: Brouillard;
+  /** Joueurs retirés de cette scène par le MJ (leur pion n'y est pas). */
+  pjAbsents: number[];
 }
 
 /**

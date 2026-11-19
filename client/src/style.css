@@ -2371,9 +2371,24 @@ button.bouton-gestion.actif {
   margin: 0;
 }
 
-.mode-jet button {
-  padding: 0.2rem 0.55rem;
+/* Compétence / Jet libre : discret, pour que le bouton Lancer reste le plus visible. */
+.mode-jet {
+  display: inline-flex;
+  gap: 0.15rem;
+}
+
+button.mode {
+  padding: 0.15rem 0.5rem;
   font-size: 0.85rem;
+  color: var(--discret);
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+button.mode.actif {
+  color: var(--texte);
+  border-color: var(--bordure);
+  background: var(--fond);
 }
 
 .panneau-jet .formulaire-jet {
@@ -2396,9 +2411,32 @@ button.bouton-gestion.actif {
   box-sizing: border-box;
 }
 
-.ligne-jet .champ-valeur {
-  width: 4.5rem;
+/* Valeur : − [10] + */
+.valeur-jet {
+  display: inline-flex;
+  align-items: stretch;
   flex: 0 0 auto;
+}
+
+.valeur-jet button {
+  padding: 0 0.5rem;
+}
+
+.valeur-jet button:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.valeur-jet button:last-child {
+  border-radius: 0 6px 6px 0;
+}
+
+.ligne-jet .champ-valeur {
+  width: 2.6rem;
+  text-align: center;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  font-variant-numeric: tabular-nums;
 }
 
 .ligne-jet .champ-formule {
@@ -2700,22 +2738,6 @@ button.choix-scene.actuelle {
   margin: 0.2rem 0 0.5rem;
 }
 
-.bloc-panneau {
-  border-top: 1px solid var(--bordure);
-  padding: 0.4rem 0;
-}
-
-.bloc-panneau > summary {
-  cursor: pointer;
-  font-weight: 600;
-  padding: 0.2rem 0;
-  list-style-position: inside;
-}
-
-.bloc-panneau > summary::marker {
-  color: var(--accent);
-}
-
 .bloc-panneau-contenu {
   display: grid;
   gap: 0.5rem;
@@ -2746,4 +2768,120 @@ button.choix-scene.actuelle {
 
 .panneau-reglages .liste-pions-mj li {
   flex-wrap: wrap;
+}
+
+/* Panneau Réglages : un bloc à la fois, titre cliquable. */
+.bloc-panneau {
+  border-top: 1px solid var(--bordure);
+  padding: 0.3rem 0;
+}
+
+button.titre-bloc {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.3rem 0;
+  font-weight: 600;
+  text-align: left;
+  color: var(--texte);
+  background: none;
+  border: none;
+  border-radius: 0;
+}
+
+.fleche-bloc {
+  width: 1rem;
+  color: var(--accent);
+  font-size: 1rem;
+}
+
+.bloc-panneau.ouvert > .titre-bloc {
+  color: var(--accent);
+}
+
+/* Listes de pions dans le panneau : nom à gauche, petits boutons à droite, sans chevauchement. */
+.liste-pions-panneau {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.liste-pions-panneau li {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.2rem 0;
+}
+
+.liste-pions-panneau .pastille-couleur {
+  flex-shrink: 0;
+}
+
+.pastille-couleur.vide {
+  background: transparent;
+  border-style: dashed;
+}
+
+.liste-pions-panneau .nom-pion {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.35rem;
+  overflow-wrap: anywhere;
+}
+
+.liste-pions-panneau .mention-pion {
+  margin-left: 0;
+}
+
+.liste-pions-panneau li.cache .nom-pion,
+.liste-pions-panneau li.absent .nom-pion {
+  color: var(--discret);
+}
+
+.actions-pion {
+  display: inline-flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.actions-pion button {
+  padding: 0.15rem 0.45rem;
+  font-size: 0.85rem;
+  line-height: 1.2;
+}
+
+/* Ajouter un PNJ : nom sur toute la largeur, puis couleur et taille, puis caché et Ajouter. */
+.ajout-pion-panneau {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--bordure);
+}
+
+.titre-sous-bloc {
+  font-size: 0.85rem;
+  color: var(--discret);
+}
+
+.ligne-ajout-pion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.ligne-ajout-pion select {
+  flex: 1;
+  min-width: 0;
+}
+
+.ajout-pion-panneau p {
+  margin: 0;
 }

@@ -201,6 +201,8 @@ export interface MessagesClient {
     reponse: (r: Reponse) => void,
   ) => void;
   "mj:retirerPion": (demande: { id: string }, reponse: (r: Reponse) => void) => void;
+  /** Retirer un joueur d'une scène immersive (present: false), ou l'y remettre. */
+  "mj:presenceJoueur": (demande: { sceneId: string; joueurId: number; present: boolean }, reponse: (r: Reponse) => void) => void;
   "carte:deplacerPion": (demande: { id: string; col: number; lig: number }, reponse: (r: Reponse) => void) => void;
   // --- Brouillard de guerre (MJ)
   "mj:brouillard:activer": (d: { sceneId: string; actif: boolean }, reponse: (r: Reponse) => void) => void;

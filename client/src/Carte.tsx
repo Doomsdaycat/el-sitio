@@ -1020,6 +1020,7 @@ export function Carte(props: {
           scene={scene}
           centreVue={centreVue}
           nomDuPion={nomDuPion}
+          nomDuJoueur={(joueurId) => nomPersonnage(fiches, joueurId, presents?.find((x) => x.id === joueurId)?.nom ?? "?")}
           toutesLesCases={() => (image ? casesDeLImage(image.width, image.height, grille) : [])}
           envoyerBrouillard={envoyerBrouillard}
           choisirOutilBrouillard={() => setOutil("brouillard")}
@@ -1081,11 +1082,12 @@ function ReglagesMj(props: {
   scene: Scene;
   centreVue: () => Case;
   nomDuPion: (p: Pion) => string;
+  nomDuJoueur: (joueurId: number) => string;
   toutesLesCases: () => Case[];
   envoyerBrouillard: (cases: Case[], reveler: boolean) => void;
   choisirOutilBrouillard: () => void;
 }) {
-  const { scene, centreVue, nomDuPion, toutesLesCases, envoyerBrouillard, choisirOutilBrouillard } = props;
+  const { scene, centreVue, nomDuPion, nomDuJoueur, toutesLesCases, envoyerBrouillard, choisirOutilBrouillard } = props;
   const [confirmerToutCacher, setConfirmerToutCacher] = useState(false);
   const [ajouterCache, setAjouterCache] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -1103,7 +1105,7 @@ function ReglagesMj(props: {
 
   return (
     <PanneauReglages scene={scene}>
-      <BlocReglages titre="☁️ Brouillard de guerre" ouvert={scene.brouillard.actif}>
+      <BlocReglages titre="☁️ Brouillard de guerre">
         <label className="case">
           <input
             type="checkbox"
@@ -1166,8 +1168,54 @@ function ReglagesMj(props: {
           </BlocReglages>
 
           <BlocReglages titre="Pions de PNJ et de monstres">
+            {pnj.length > 0 ? (
+              <ul className="liste-pions-panneau">
+                {pnj.map((p) => (
+                  <li key={p.id} className={p.cache ? "cache" : undefined}>
+                    <span className="pastille-couleur" style={{ background: p.couleur }} />
+                    <span className="nom-pion">
+                      {p.nom}
+                      {p.taille > 1 && <span className="discret petit"> {p.taille}×{p.taille}</span>}
+                      {p.etat === "mort" && <span className="mention-pion">mort</span>}
+                      {p.cache && <span className="mention-pion discrete">caché</span>}
+                    </span>
+                    <span className="actions-pion">
+                      <button
+                        type="button"
+                        className={p.cache ? "secondaire actif" : "secondaire"}
+                        title={p.cache ? "Révéler aux joueurs" : "Cacher aux joueurs"}
+                        aria-label={p.cache ? `Révéler ${p.nom}` : `Cacher ${p.nom}`}
+                        onClick={() => modifierPion(p.id, { cache: !p.cache })}
+                      >
+                        {p.cache ? "🙈" : "👁"}
+                      </button>
+                      <button
+                        type="button"
+                        className={p.etat === "mort" ? "secondaire actif" : "secondaire"}
+                        title={p.etat === "mort" ? "Pas mort" : "Mort"}
+                        aria-label={p.etat === "mort" ? `${p.nom} : pas mort` : `${p.nom} : mort`}
+                        onClick={() => modifierPion(p.id, { etat: p.etat === "mort" ? "normal" : "mort" })}
+                      >
+                        💀
+                      </button>
+                      <button
+                        type="button"
+                        className="secondaire"
+                        title="Retirer le pion de la scène"
+                        aria-label={`Retirer ${p.nom}`}
+                        onClick={() => socket.emit("mj:retirerPion", { id: p.id }, repondre)}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="discret petit">Aucun PNJ dans cette scène.</p>
+            )}
             <form
-              className="ajout-pion"
+              className="ajout-pion-panneau"
               onSubmit={(e) => {
                 e.preventDefault();
                 socket.emit("mj:ajouterPion", { sceneId: scene.id, nom, couleur, taille, cache: ajouterCache, ...centreVue() }, (r: Reponse) => {
@@ -1176,64 +1224,43 @@ function ReglagesMj(props: {
                 });
               }}
             >
+              <span className="titre-sous-bloc">Ajouter un PNJ</span>
               <input value={nom} onChange={(e) => setNom(e.target.value)} maxLength={NOM_PION_MAX} placeholder="ex. : Gobelin 1" aria-label="Nom du pion" />
-              <select value={couleur} onChange={(e) => setCouleur(e.target.value)} aria-label="Couleur">
-                {COULEURS_PIONS.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nom}
-                  </option>
-                ))}
-              </select>
-              <select value={taille} onChange={(e) => setTaille(Number(e.target.value) as 1 | 2 | 3)} aria-label="Taille">
-                <option value={1}>1 case</option>
-                <option value={2}>2 × 2 cases</option>
-                <option value={3}>3 × 3 cases</option>
-              </select>
-              <label className="case">
-                <input type="checkbox" checked={ajouterCache} onChange={(e) => setAjouterCache(e.target.checked)} />
-                <span>caché aux joueurs</span>
-              </label>
-              <button type="submit" className="secondaire" disabled={nom.trim() === ""}>
-                Ajouter
-              </button>
+              <div className="ligne-ajout-pion">
+                <select value={couleur} onChange={(e) => setCouleur(e.target.value)} aria-label="Couleur">
+                  {COULEURS_PIONS.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nom}
+                    </option>
+                  ))}
+                </select>
+                <select value={taille} onChange={(e) => setTaille(Number(e.target.value) as 1 | 2 | 3)} aria-label="Taille">
+                  <option value={1}>1 case</option>
+                  <option value={2}>2 × 2 cases</option>
+                  <option value={3}>3 × 3 cases</option>
+                </select>
+              </div>
+              <div className="ligne-ajout-pion">
+                <label className="case">
+                  <input type="checkbox" checked={ajouterCache} onChange={(e) => setAjouterCache(e.target.checked)} />
+                  <span>caché aux joueurs</span>
+                </label>
+                <button type="submit" className="secondaire" disabled={nom.trim() === ""}>
+                  Ajouter
+                </button>
+              </div>
+              <p className="discret petit">
+                Le pion apparaît au centre de ta vue ; fais-le glisser où tu veux. Caché, tu le vois en
+                transparence et tu le révèles au bon moment.
+              </p>
             </form>
-            <p className="discret petit">
-              Le pion apparaît au centre de ta vue ; fais-le glisser où tu veux. Un pion caché n'est pas
-              envoyé aux joueurs : tu le vois en transparence, et tu le révèles au bon moment.
-            </p>
-            {pnj.length > 0 && (
-              <ul className="liste-pions-mj">
-                {pnj.map((p) => (
-                  <li key={p.id} className={p.cache ? "cache" : undefined}>
-                    <span className="pastille-couleur" style={{ background: p.couleur }} />
-                    <span className="nom-pion">
-                      {p.nom}
-                      {p.taille > 1 && <span className="discret petit"> ({p.taille}×{p.taille})</span>}
-                      {p.etat === "mort" && <span className="mention-pion">mort</span>}
-                      {p.cache && <span className="mention-pion discrete">caché</span>}
-                    </span>
-                    <button type="button" className="secondaire" onClick={() => modifierPion(p.id, { cache: !p.cache })}>
-                      {p.cache ? "Révéler" : "Cacher"}
-                    </button>
-                    <button
-                      type="button"
-                      className="secondaire"
-                      onClick={() => modifierPion(p.id, { etat: p.etat === "mort" ? "normal" : "mort" })}
-                    >
-                      {p.etat === "mort" ? "Pas mort" : "Mort"}
-                    </button>
-                    <button type="button" className="lien" onClick={() => socket.emit("mj:retirerPion", { id: p.id }, repondre)}>
-                      Retirer
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
           </BlocReglages>
 
-          {pj.length > 0 && (
-            <BlocReglages titre="Personnages joueurs">
-              <ul className="liste-pions-mj">
+          <BlocReglages titre="Personnages joueurs">
+            {pj.length === 0 && scene.pjAbsents.length === 0 ? (
+              <p className="discret petit">Les personnages apparaissent ici quand les joueurs ont choisi leur nom.</p>
+            ) : (
+              <ul className="liste-pions-panneau">
                 {pj.map((p) => (
                   <li key={p.id}>
                     <span className="pastille-couleur" style={{ background: p.couleur }} />
@@ -1241,18 +1268,49 @@ function ReglagesMj(props: {
                       {nomDuPion(p)}
                       {p.etat === "a-terre" && <span className="mention-pion">à terre</span>}
                     </span>
-                    <button
-                      type="button"
-                      className="secondaire"
-                      onClick={() => modifierPion(p.id, { etat: p.etat === "a-terre" ? "normal" : "a-terre" })}
-                    >
-                      {p.etat === "a-terre" ? "Relever" : "À terre"}
-                    </button>
+                    <span className="actions-pion">
+                      <button
+                        type="button"
+                        className={p.etat === "a-terre" ? "secondaire actif" : "secondaire"}
+                        title={p.etat === "a-terre" ? "Relever" : "À terre"}
+                        onClick={() => modifierPion(p.id, { etat: p.etat === "a-terre" ? "normal" : "a-terre" })}
+                      >
+                        {p.etat === "a-terre" ? "Relever" : "À terre"}
+                      </button>
+                      <button
+                        type="button"
+                        className="secondaire"
+                        title="Retirer ce personnage de la scène (il n'est pas dans ce lieu)"
+                        aria-label={`Retirer ${nomDuPion(p)} de la scène`}
+                        onClick={() => socket.emit("mj:presenceJoueur", { sceneId: scene.id, joueurId: p.joueurId!, present: false }, repondre)}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  </li>
+                ))}
+                {scene.pjAbsents.map((joueurId) => (
+                  <li key={`absent-${joueurId}`} className="absent">
+                    <span className="pastille-couleur vide" />
+                    <span className="nom-pion">
+                      {nomDuJoueur(joueurId)}
+                      <span className="mention-pion discrete">pas dans la scène</span>
+                    </span>
+                    <span className="actions-pion">
+                      <button
+                        type="button"
+                        className="secondaire"
+                        title="Remettre ce personnage dans la scène, là où il était"
+                        onClick={() => socket.emit("mj:presenceJoueur", { sceneId: scene.id, joueurId, present: true }, repondre)}
+                      >
+                        Remettre
+                      </button>
+                    </span>
                   </li>
                 ))}
               </ul>
-            </BlocReglages>
-          )}
+            )}
+          </BlocReglages>
         </>
       )}
       {erreur && <p className="erreur">{erreur}</p>}

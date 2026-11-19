@@ -453,7 +453,7 @@ function PreparerIllustration(props: { scene: SceneDonnees }) {
   const repondre = (r: Reponse) => setErreur(r.ok ? null : r.erreur);
   return (
     <PanneauReglages scene={scene}>
-      <BlocReglages titre="☁️ Brouillard de guerre" ouvert={scene.brouillard.actif}>
+      <BlocReglages titre="☁️ Brouillard de guerre">
         <label className="case">
           <input
             type="checkbox"

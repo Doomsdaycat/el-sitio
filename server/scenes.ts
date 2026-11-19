@@ -103,7 +103,7 @@ function pionsDe(sceneId: string): Pion[] {
   const lignes = base
     .prepare(
       `SELECT id, type, joueur_id AS joueurId, nom, couleur, taille, col, lig, etat, cache FROM pion
-       WHERE scene_id = ? ORDER BY type, rowid`,
+       WHERE scene_id = ? AND absent = 0 ORDER BY type, rowid`,
     )
     .all(sceneId) as unknown as (Omit<Pion, "taille" | "cache"> & { taille: number; cache: number })[];
   return lignes.map((l) => ({ ...l, taille: l.taille as 1 | 2 | 3, cache: l.cache === 1 }));
@@ -118,6 +118,14 @@ function versScene(l: LigneScene): Scene {
     grille: lireGrille(l.grille),
     pions: l.type === "immersive" ? pionsDe(l.id) : [],
     brouillard: lireBrouillard(l.brouillard),
+    pjAbsents:
+      l.type === "immersive"
+        ? (
+            base.prepare("SELECT joueur_id AS id FROM pion WHERE scene_id = ? AND absent = 1 AND joueur_id IS NOT NULL").all(l.id) as {
+              id: number;
+            }[]
+          ).map((x) => x.id)
+        : [],
   };
 }
 
@@ -188,8 +196,14 @@ export function assurerPionsPj(partieId: number): void {
   for (const scene of scenes) {
     const pions = pionsDe(scene.id);
     const occupees = new Set(pions.map((p) => `${p.col},${p.lig}`));
+    // Un joueur retiré de la scène par le MJ (pion absent) n'y est pas remis.
+    const dejaLa = new Set(
+      (base.prepare("SELECT joueur_id AS id FROM pion WHERE scene_id = ? AND joueur_id IS NOT NULL").all(scene.id) as { id: number }[]).map(
+        (x) => x.id,
+      ),
+    );
     joueurs.forEach((j, rang) => {
-      if (pions.some((p) => p.joueurId === j.id)) return;
+      if (dejaLa.has(j.id)) return;
       let col = 0;
       while (occupees.has(`${col},0`)) col++;
       occupees.add(`${col},0`);
@@ -495,6 +509,19 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
     }, true),
   );
 
+  // Retirer un joueur d'une scène, ou l'y remettre (son pion revient où il était).
+  socket.on(
+    "mj:presenceJoueur",
+    proteger((d: { sceneId: string; joueurId: number; present: boolean }) => {
+      const r = base
+        .prepare("UPDATE pion SET absent = ? WHERE partie_id = ? AND scene_id = ? AND joueur_id = ? AND type = 'pj'")
+        .run(d?.present === true ? 0 : 1, partieId, String(d?.sceneId), Number(d?.joueurId));
+      if (r.changes === 0) return { ok: false, erreur: "Ce joueur n'a pas de pion dans cette scène." };
+      diffuserScenes(io, partieId);
+      return { ok: true };
+    }, true),
+  );
+
   socket.on(
     "mj:retirerPion",
     proteger((d: { id: string }) => {
@@ -513,7 +540,7 @@ export function brancherScenes(io: Io, socket: SocketBrumeland, partieId: number
     "carte:deplacerPion",
     proteger((d: { id: string; col: number; lig: number }) => {
       const pion = base
-        .prepare("SELECT scene_id AS sceneId, joueur_id AS joueurId, col, lig FROM pion WHERE partie_id = ? AND id = ?")
+        .prepare("SELECT scene_id AS sceneId, joueur_id AS joueurId, col, lig FROM pion WHERE partie_id = ? AND id = ? AND absent = 0")
         .get(partieId, String(d?.id)) as { sceneId: string; joueurId: number | null; col: number; lig: number } | undefined;
       if (!pion) return { ok: false, erreur: "Ce pion n'existe plus." };
       if (!estMj()) {

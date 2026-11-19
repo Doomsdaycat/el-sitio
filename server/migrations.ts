@@ -211,6 +211,11 @@ const MIGRATIONS: (string | ((db: DatabaseSync) => void))[] = [
   DROP TABLE image;
   ALTER TABLE image_commune RENAME TO image;
   `,
+  // Un joueur peut être retiré d'une scène par le MJ : son pion reste, marqué absent (pour que
+  // l'outil ne le remette pas tout seul), et le MJ peut l'y remettre.
+  `
+  ALTER TABLE pion ADD COLUMN absent INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 /** Nombre de migrations : la version du schéma d'une base à jour. */
