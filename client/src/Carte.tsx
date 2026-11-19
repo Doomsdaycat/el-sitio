@@ -3,7 +3,7 @@
 // que lorsque le serveur a accepté et renvoyé la nouvelle position.
 
 import Konva from "konva";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Circle, Group, Image as ImageKonva, Layer, Line, Rect, Shape, Stage, Text } from "react-konva";
 import {
   caseSous,
@@ -776,7 +776,7 @@ export function Carte(props: {
             <span className="scene-titre">{scene.nom}</span>
             <span className="actions-scene">{props.bandeau}</span>
           </div>
-          {/* Ligne 2 : les outils et l'annulation à gauche ; la navigation (zoom, plein écran) à droite. */}
+          {/* Ligne 2 : les outils (et l'annulation, après Déplacer) à gauche ; la navigation (zoom, plein écran) à droite. */}
           <div className="barre barre-outils">
             <span className="groupe-outils" role="group" aria-label="Outil">
               {(
@@ -789,30 +789,34 @@ export function Carte(props: {
                     : []),
                 ] as const
               ).map(([id, nom, aide]) => (
-                <button
-                  key={id}
-                  type="button"
-                  title={aide}
-                  className={outil === id ? "outil actif" : "outil secondaire"}
-                  onClick={() => setOutil(id)}
-                >
-                  {nom}
-                </button>
+                <Fragment key={id}>
+                  <button
+                    type="button"
+                    title={aide}
+                    className={outil === id ? "outil actif" : "outil secondaire"}
+                    onClick={() => setOutil(id)}
+                  >
+                    {nom}
+                  </button>
+                  {/* Annuler un déplacement : juste après l'outil Déplacer. Icône compacte, place toujours
+                      réservée (invisible s'il n'y a rien à annuler) : les autres boutons ne bougent pas. */}
+                  {id === "deplacer" && (
+                    <button
+                      type="button"
+                      className="secondaire bouton-annuler"
+                      title="Annuler mon dernier déplacement (Ctrl + Z, souris sur la carte)"
+                      aria-label="Annuler mon dernier déplacement"
+                      aria-hidden={annulables === 0}
+                      tabIndex={annulables === 0 ? -1 : 0}
+                      style={{ visibility: annulables > 0 ? "visible" : "hidden" }}
+                      onClick={annulerDeplacement}
+                    >
+                      <span className="botte-barree">🥾</span>
+                    </button>
+                  )}
+                </Fragment>
               ))}
             </span>
-            {/* Icône compacte, place toujours réservée (invisible s'il n'y a rien à annuler) : la carte ne bouge pas. */}
-            <button
-              type="button"
-              className="secondaire bouton-annuler"
-              title="Annuler mon dernier déplacement (Ctrl + Z, souris sur la carte)"
-              aria-label="Annuler mon dernier déplacement"
-              aria-hidden={annulables === 0}
-              tabIndex={annulables === 0 ? -1 : 0}
-              style={{ visibility: annulables > 0 ? "visible" : "hidden" }}
-              onClick={annulerDeplacement}
-            >
-              <span className="botte-barree">🥾</span>
-            </button>
             <span className="navigation" role="group" aria-label="Navigation">
               <button type="button" className="secondaire" aria-label="Dézoomer" onClick={() => zoomerVers(1 / 1.5, l / 2, h / 2)}>
                 −
