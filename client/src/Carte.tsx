@@ -347,6 +347,9 @@ function ApercuBrouillard(props: { cases: Case[]; grille: Grille; reveler: boole
   );
 }
 
+/** Couleur du signal « Pointer du doigt » : le vert mousse de l'interface, plus clair et plus vif pour se voir sur la carte. */
+const COULEUR_SIGNAL = "#cdee55";
+
 /** Signal animé qui s'agrandit et s'efface. */
 function Signal(props: { x: number; y: number; auteur: string; echelle: number }) {
   const cercle = useRef<Konva.Circle>(null);
@@ -355,13 +358,13 @@ function Signal(props: { x: number; y: number; auteur: string; echelle: number }
   }, [props.echelle]);
   return (
     <Group listening={false}>
-      <Circle x={props.x} y={props.y} radius={8 / props.echelle} fill="#c9a25b" />
+      <Circle x={props.x} y={props.y} radius={8 / props.echelle} fill={COULEUR_SIGNAL} stroke="#191e1b" strokeWidth={1.5 / props.echelle} />
       <Circle
         ref={cercle}
         x={props.x}
         y={props.y}
         radius={10 / props.echelle}
-        stroke="#c9a25b"
+        stroke={COULEUR_SIGNAL}
         strokeWidth={4 / props.echelle}
         opacity={1}
       />

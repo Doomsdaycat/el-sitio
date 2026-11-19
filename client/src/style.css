@@ -1,11 +1,12 @@
 :root {
-  --fond: #1d1b22;
-  --fond-carte: #27242e;
-  --bordure: #3a3644;
+  --fond: #191e1b;
+  --fond-carte: #222924;
+  --bordure: #354039;
   --texte: #ece6d8;
-  --discret: #9c94a8;
-  --accent: #c9a25b;
-  --accent-texte: #1d1b22;
+  --discret: #97a399;
+  /* Vert mousse, dans l'esprit des couvertures de Dragonbane (ancien accent : or #c9a25b). */
+  --accent: #a4b866;
+  --accent-texte: #191e1b;
   --ok: #6fbf73;
   --attente: #e0b04f;
   --erreur: #d9645a;
@@ -1591,7 +1592,7 @@ button.secondaire.actif {
 }
 
 .ligne-ordre.courante {
-  background: rgba(201, 162, 91, 0.18);
+  background: rgba(164, 184, 102, 0.18);
   outline: 1px solid var(--accent);
 }
 
@@ -1817,7 +1818,7 @@ button.secondaire.actif {
   padding: 0.35rem 0.6rem;
   border: 1px dashed var(--accent);
   border-radius: 6px;
-  background: rgba(201, 162, 91, 0.06);
+  background: rgba(164, 184, 102, 0.06);
 }
 
 .nom-options {
@@ -1880,7 +1881,7 @@ button.secondaire.actif {
 }
 
 .curseur-pinceau.recouvrir {
-  border-color: #9c94a8;
+  border-color: var(--discret);
   border-style: dashed;
 }
 
