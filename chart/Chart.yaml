@@ -7,4 +7,4 @@ type: application
 version: 1.0.0
 # Version de l'image à déployer (ghcr.io/doomsdaycat/el-sitio:<appVersion>).
 # Mise à jour par « npm run mettre-en-ligne », une fois l'image fabriquée.
-appVersion: "0.4.0"
+appVersion: "0.5.0"
